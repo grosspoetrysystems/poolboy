@@ -1,0 +1,22 @@
+pre-commit:
+  parallel: false
+  commands:
+    go-format:
+      glob: "*.go"
+      run: golangci-lint fmt {staged_files}
+      stage_fixed: true
+    go-lint:
+      glob: "*.go"
+      run: golangci-lint run ./...
+    typescript:
+      root: companion/
+      glob: "*.{ts,js,mjs,json,jsonc}"
+      run: pnpm exec ultracite fix {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    conventional-go:
+      run: ./scripts/commit-msg.sh {1}
+    conventional-typescript:
+      run: pnpm --dir companion commitlint --edit "$(realpath {1})"
