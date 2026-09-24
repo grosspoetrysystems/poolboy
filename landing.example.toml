@@ -23,7 +23,7 @@
 # site_dir = "site"
 
 # Intro and call-to-action lines. Explicit empty strings are preserved.
-# description = "Documentation built for agents."
+# description = "Agentic docs, skimmed by Poolboy."
 # secondary_description = "Copy the prompt into your agent and ask your question."
 
 # Copyable agent prompt. {{title}} is replaced at build time with the title
@@ -38,6 +38,10 @@
 # Canonical publication root. Left unset, the page derives its base from the
 # browser URL, including any deployment subpath.
 # base_url = "https://docs.example.com/poolboy"
+#
+# Open Graph / Twitter share-card tags (og:title, og:description, og:url) are
+# derived from title, description and base_url above — there is no separate
+# option. og:url is emitted only when base_url is set.
 
 # Browser download name for corpus.zip. Defaults to a slug of the project name
 # followed by -docs.zip. Must be a single .zip filename, not a path.

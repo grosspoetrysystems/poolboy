@@ -89,7 +89,7 @@ func resolveLanding(b *bundle.Bundle, r roots) (landingConfig, error) {
 	c := b.Landing
 	out := landingConfig{
 		title:                landingRequired(c.Title, name),
-		description:          landingDefault(c.Description, "Documentation built for agents."),
+		description:          landingDefault(c.Description, "Agentic docs, skimmed by Poolboy."),
 		secondaryDescription: landingDefault(c.SecondaryDescription, "Copy the prompt into your agent and ask your question."),
 		prompt:               landingRequired(c.Prompt, defaultLandingPrompt),
 		mark:                 landingDefault(c.Mark, "🩳"),
@@ -471,6 +471,11 @@ func renderLanding(c landingConfig) ([]byte, error) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="poolboy-base-url" content="{{.BaseURL}}">
 <title>{{.Title}} — documentation</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{.Title}} — documentation">
+{{if .Description}}<meta property="og:description" content="{{.Description}}">{{end}}
+{{if .BaseURL}}<meta property="og:url" content="{{.BaseURL}}">{{end}}
+<meta name="twitter:card" content="summary">
 {{if .Favicon}}<link rel="icon" href="{{.Favicon}}">{{end}}
 <style>
 :root{color-scheme:dark;--bg:{{.Style.Background}};--text:{{.Style.Text}};--accent:{{.Style.ButtonText}};--button:{{.Style.Button}};--border:color-mix(in srgb,var(--text) 22%,var(--bg));--muted:color-mix(in srgb,var(--text) 68%,var(--bg))}

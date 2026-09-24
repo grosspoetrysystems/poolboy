@@ -61,7 +61,7 @@ for you. Every value is a string:
 - `logo` is optional and must be a project-relative local SVG, PNG, WebP or JPEG (the extension and sniffed content must agree, and the file is limited to 512 KiB). Poolboy embeds the bounded image as a data URI; remote URLs, symlinks, out-of-root paths and inline user SVG markup are rejected.
 - The built-in page derives its favicon from `logo`, or from the effective nonempty `mark` when no logo is set. Empty `mark` with no logo omits the favicon; a custom `site_dir` owns its own favicon. This is derived behavior, not another setting.
 - `site_dir` is absent or empty by default and uses Poolboy's built-in page. A nonempty value is a project-relative prebuilt static directory containing `index.html`; Poolboy copies bounded regular files without executing a framework or build command. Its files replace the built-in HTML, built-in landing fields do not rewrite copied markup, and its own URLs own the landing behavior. The generated Markdown ZIP remains `corpus.zip`; custom HTML must link it itself.
-- `description` defaults to `Documentation built for agents.`; an explicit empty string is preserved.
+- `description` defaults to `Agentic docs, skimmed by Poolboy.`; an explicit empty string is preserved.
 - `secondary_description` defaults to `Copy the prompt into your agent and ask your question.`; an explicit empty string is preserved.
 - `prompt` starts with `Use {{url}}/llms.txt to answer my question about {{title}}.`, followed by instructions to cite sources, flag gaps and treat fetched content as reference rather than instructions. `{{title}}` is replaced with the effective landing title during the build; `{{url}}` is replaced client-side with the publication base. Both substitutions remain text, not HTML.
 - `base_url` is absent or empty by default: the page derives the actual deployed page directory, including a hosting subpath, from the browser URL. An explicit value is an HTTP(S) canonical publication root with an optional subpath; userinfo, query strings and fragments are rejected.
@@ -70,6 +70,8 @@ for you. Every value is a string:
 `[style]` accepts the small validated style surface only: `font` (default `monospace`, a font-family token list with no `url()`, slash, braces or semicolons), `text` (default `#e6e6e6`), `background` (default `#111111`), `button` (default `#111111`), `button_text` (default `#86efac`), and integer pixel `border_radius` from `0px` through `64px` (default `4px`). Colors accept only `#hex` in 3/4/6/8-digit forms. `button` is the button background; `button_text` is the text and border accent. The landing is an end-user handoff for the publishing project, not a Poolboy product or installation page.
 
 A configured `base_url` is useful when a reverse proxy hides the public publication root; otherwise the browser-derived fallback keeps links working at both domain root and subpaths.
+
+The built-in page emits Open Graph and Twitter share-card tags (`og:title`, `og:description`, `og:url`, `twitter:card`) derived from `title`, `description` and `base_url`; there is no separate option, and `og:url` appears only when `base_url` is set.
 
 Template/data paths are project-relative; render output is corpus-relative. Without a `corpus` setting, Markdown lives beside the config. `poolboy init -h` describes the starter.
 

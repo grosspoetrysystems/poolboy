@@ -28,7 +28,7 @@ output = "reference/example.md"
 # title = "My Docs"        # heading and browser title; defaults to the project name
 # mark = "🩳"               # text or emoji beside the title; empty hides it
 # logo = "assets/logo.svg" # project-relative image; overrides the mark and favicon
-# description = "Documentation built for agents."
+# description = "Agentic docs, skimmed by Poolboy."
 # secondary_description = "Copy the prompt into your agent and ask your question."
 # base_url = "https://docs.example.com"  # canonical root; derived from the browser when unset
 

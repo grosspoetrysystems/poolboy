@@ -1,5 +1,9 @@
 .PHONY: build check fmt hooks site
 
+# SITE_URL absolutizes the product page's share-card and canonical URLs
+# (e.g. https://poolboy.example). Empty keeps them root-relative to the host.
+SITE_URL ?=
+
 build:
 	pnpm --dir companion build
 	mkdir -p bin
@@ -26,6 +30,7 @@ site: build
 	./bin/poolboy build
 	rm -rf .site
 	mkdir -p .site/docs
-	cp site/index.html site/obsidian.svg .site/
+	cp site/obsidian.svg assets/poolboy-og.jpg .site/
+	sed "s|{{site}}|$(SITE_URL)|g" site/index.html > .site/index.html
 	cp README.md .site/install.md
 	cp -R dist/. .site/docs/

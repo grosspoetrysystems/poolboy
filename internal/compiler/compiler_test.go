@@ -347,8 +347,49 @@ func TestBuildLandingAppliesConfiguredText(t *testing.T) {
 			t.Fatalf("landing page missing %q: %s", want, page)
 		}
 	}
-	if strings.Contains(page, "Documentation built for agents.") {
+	if strings.Contains(page, "Agentic docs, skimmed by Poolboy.") {
 		t.Fatalf("configured description did not replace the default: %s", page)
+	}
+}
+
+func TestBuildLandingEmitsShareCardTags(t *testing.T) {
+	value := func(s string) *string { return &s }
+
+	// og:title and og:description derive from title/description; og:url appears
+	// only when base_url is configured.
+	root, b := landingProject(t)
+	b.Landing = bundle.Landing{Title: value("Acme"), Description: value("Ask an agent."), BaseURL: value("https://docs.example.com/guide")}
+	if err := Build(context.Background(), b, ""); err != nil {
+		t.Fatal(err)
+	}
+	page, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`<meta property="og:type" content="website">`,
+		`<meta property="og:title" content="Acme — documentation">`,
+		`<meta property="og:description" content="Ask an agent.">`,
+		`<meta property="og:url" content="https://docs.example.com/guide">`,
+		`<meta name="twitter:card" content="summary">`,
+	} {
+		if !strings.Contains(string(page), want) {
+			t.Fatalf("landing page missing %q:\n%s", want, page)
+		}
+	}
+
+	// Without base_url, og:url is omitted rather than emitted empty or relative.
+	root, b = landingProject(t)
+	b.Landing = bundle.Landing{Title: value("Acme")}
+	if err := Build(context.Background(), b, ""); err != nil {
+		t.Fatal(err)
+	}
+	page, err = os.ReadFile(filepath.Join(root, "dist", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(page), "og:url") {
+		t.Fatalf("og:url should be absent without base_url:\n%s", page)
 	}
 }
 
