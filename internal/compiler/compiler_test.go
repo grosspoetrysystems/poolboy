@@ -285,12 +285,10 @@ func snapshot(t *testing.T, root string) map[string][]byte {
 	return got
 }
 
-func TestBuildLandingSubstitutesPromptURL(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n# Direct\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	b := &bundle.Bundle{Root: root, Dir: root, Name: "Direct", Output: "dist", Spec: "0.2"}
+func TestBuildLandingInterpolatesTitleSafely(t *testing.T) {
+	root, b := landingProject(t)
+	title := `Acme <b data-note="quoted">Docs</b>`
+	b.Landing.Title = &title
 	if err := Build(context.Background(), b, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -299,8 +297,19 @@ func TestBuildLandingSubstitutesPromptURL(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(data)
-	if !strings.Contains(page, `replaceAll("{{url}}",base)`) {
-		t.Fatalf("landing page cannot substitute the prompt URL: %s", page)
+	for _, want := range []string{
+		`Use {{url}}/llms.txt to answer my question about Acme &lt;b data-note=&#34;quoted&#34;&gt;Docs&lt;/b&gt;. Cite sources; flag gaps.`,
+		`Acme &lt;b data-note=&#34;quoted&#34;&gt;Docs&lt;/b&gt;`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("landing page missing safely escaped prompt text %q: %s", want, page)
+		}
+	}
+	if strings.Contains(page, `about {{title}}`) {
+		t.Fatalf("landing prompt retained title token: %s", page)
+	}
+	if strings.Contains(page, `<b data-note="quoted">Docs</b>`) {
+		t.Fatalf("landing title markup was not escaped: %s", page)
 	}
 }
 
