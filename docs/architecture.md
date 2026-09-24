@@ -36,7 +36,9 @@ Go/TypeScript components a maintainer actually edits or reasons about.
 
 - **`bundle`** — discovers `poolboy.toml`, resolves the corpus directory
   (`corpus`), the publication directory (`output`), and the ordered `[[render]]`
-  mappings, and exposes them as a `Bundle` the other packages consume.
+  mappings, reads the optional sibling `landing.toml` for the landing page
+  configuration (built-in defaults when absent), and exposes them as a `Bundle`
+  the other packages consume.
 - **`parse`** — parses OKF YAML frontmatter and Markdown structure (links,
   headings, checkboxes, tables), and validates OKF 0.2 conformance
   (`ValidateOKF`). YAML decoding is bounded (see
