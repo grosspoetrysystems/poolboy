@@ -143,6 +143,36 @@ GET /architecture/overview.md
 
 No Poolboy server, SDK, MCP, database or inference service is required. Private deployments use the host's existing authentication/network controls. Build does not publish automatically. Resource hashes provide a comparison target; an unauthenticated manifest does not itself establish publisher authenticity.
 
+### Deploy Poolboy's product site on Cloudflare
+
+The product site is separate from the generated docs landing. `make site` assembles both into `.site/`: the product page at `/`, source-install instructions at `/install.md`, and the generated corpus at `/docs/`. Both prompts derive their URLs from the deployed hostname; no domain is hardcoded.
+
+After installing the build prerequisites above:
+
+```sh
+make site
+npx --yes wrangler@4.138.0 dev --local
+```
+
+The checked-in `wrangler.jsonc` uses [Cloudflare Workers Static Assets](https://developers.cloudflare.com/workers/static-assets/) without Worker application code, bindings or a backend. Missing files return 404 rather than the landing HTML; `/docs` redirects to `/docs/`.
+
+Check the deployment without publishing:
+
+```sh
+npx --yes wrangler@4.138.0 deploy --dry-run
+```
+
+When ready to publish to your Cloudflare account:
+
+```sh
+npx --yes wrangler@4.138.0 login
+npx --yes wrangler@4.138.0 deploy
+```
+
+After registering the domain, open **Workers & Pages → poolboy-site → Settings → Domains & Routes → Add → Custom Domain**. Add the actual hostname; Cloudflare provisions its DNS record and certificate. Apex and `www` are separate hostnames. See [Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+
+The install prompt guides a source checkout from [GitHub](https://github.com/grosspoetrysystems/poolboy), not a released binary installer. Building, previewing and dry-running do not publish; deployment and domain setup are explicit steps.
+
 ## Acknowledgements
 
 Thanks also to the people behind [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format), [Knap](https://github.com/obsidianmd/knap), and [llms.txt](https://llmstxt.org/).

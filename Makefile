@@ -1,4 +1,4 @@
-.PHONY: build check fmt hooks
+.PHONY: build check fmt hooks site
 
 build:
 	pnpm --dir companion build
@@ -21,3 +21,11 @@ fmt:
 
 hooks:
 	lefthook install
+
+site: build
+	./bin/poolboy build
+	rm -rf .site
+	mkdir -p .site/docs
+	cp site/index.html site/obsidian.svg .site/
+	cp README.md .site/install.md
+	cp -R dist/. .site/docs/
