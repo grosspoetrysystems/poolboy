@@ -1,0 +1,955 @@
+package main
+
+import (
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/grosspoetrysystems/poolboy/index"
+)
+
+// writeBundle creates a minimal bundle in a temp dir and returns its path.
+func writeBundle(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		p := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec=\"0.1\"\ntypes=[\"note\"]\n")
+	write("index.md", "---\nokf_version: \"0.1\"\n---\n# Home\n[g](/guide.md)\n")
+	write("guide.md", "---\ntype: note\ntitle: Guide\n---\n# Guide\nintro text\n## Setup\nstep one\n### Detail\nfine print\n## Usage\nrun it\n- [ ] try the CLI\n")
+	write("flat.md", "---\ntype: note\n---\nno headings here\n")
+	return dir
+}
+
+// capture runs f with os.Stdout redirected and returns its stdout and exit code.
+func capture(t *testing.T, f func() int) (string, int) {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	code := f()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = old
+	out, _ := io.ReadAll(r)
+	return string(out), code
+}
+
+func TestCmdRead(t *testing.T) {
+	t.Chdir(writeBundle(t))
+
+	out, code := capture(t, func() int { return cmdRead([]string{"guide.md"}) })
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if !strings.Contains(out, "intro text") || !strings.Contains(out, "## Setup") {
+		t.Errorf("body missing content: %q", out)
+	}
+	if strings.Contains(out, "title: Guide") || strings.Contains(out, "type: note") {
+		t.Errorf("frontmatter leaked into read: %q", out)
+	}
+
+	if _, code := capture(t, func() int { return cmdRead([]string{"/guide.md"}) }); code != 0 {
+		t.Errorf("read by absolute path exit=%d", code)
+	}
+	if _, code := capture(t, func() int { return cmdRead([]string{"nope.md"}) }); code != 2 {
+		t.Errorf("read missing exit=%d want 2", code)
+	}
+	if _, code := capture(t, func() int { return cmdRead(nil) }); code != 2 {
+		t.Errorf("read no-arg exit=%d want 2", code)
+	}
+
+	out, code = capture(t, func() int { return cmdRead([]string{"--format", "json", "guide.md"}) })
+	if code != 0 || !strings.Contains(out, `"body"`) || !strings.Contains(out, `"_path": "/guide.md"`) {
+		t.Errorf("json read: %q (code %d)", out, code)
+	}
+
+	// flag AFTER the positional must still take effect (parseWithArg)
+	out, code = capture(t, func() int { return cmdRead([]string{"guide.md", "--format", "json"}) })
+	if code != 0 || !strings.Contains(out, `"body"`) {
+		t.Errorf("flag-after-file read: %q (code %d)", out, code)
+	}
+}
+
+func TestCmdOutline(t *testing.T) {
+	t.Chdir(writeBundle(t))
+
+	out, code := capture(t, func() int { return cmdOutline([]string{"guide.md"}) })
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if want := "Guide\n  Setup\n    Detail\n  Usage\n"; out != want {
+		t.Errorf("outline=\n%q\nwant\n%q", out, want)
+	}
+
+	out, code = capture(t, func() int { return cmdOutline([]string{"--format", "json", "guide.md"}) })
+	if code != 0 || !strings.Contains(out, `"level": 2`) || !strings.Contains(out, `"text": "Setup"`) {
+		t.Errorf("json outline: %q", out)
+	}
+
+	// no headings: empty text, exit 0, and json shows [] (not null)
+	if out, code := capture(t, func() int { return cmdOutline([]string{"flat.md"}) }); out != "" || code != 0 {
+		t.Errorf("flat outline=%q code=%d, want empty/0", out, code)
+	}
+	if out, _ := capture(t, func() int { return cmdOutline([]string{"--format", "json", "flat.md"}) }); !strings.Contains(out, `"headings": []`) {
+		t.Errorf("flat json should carry an empty headings array: %q", out)
+	}
+
+	if _, code := capture(t, func() int { return cmdOutline([]string{"nope.md"}) }); code != 2 {
+		t.Errorf("outline missing exit=%d want 2", code)
+	}
+}
+
+func TestCmdSearch(t *testing.T) {
+	t.Chdir(writeBundle(t))
+
+	// default: lists matching entries
+	out, code := capture(t, func() int { return cmdSearch([]string{"setup"}) })
+	if code != 0 || !strings.Contains(out, "/guide.md") {
+		t.Errorf("search setup: %q (code %d)", out, code)
+	}
+
+	// --lines: grep-style line with a file-relative line number
+	out, code = capture(t, func() int { return cmdSearch([]string{"--lines", "step"}) })
+	if code != 0 || !strings.Contains(out, "/guide.md:8: step one") {
+		t.Errorf("search --lines: %q", out)
+	}
+
+	// flag AFTER the query must still take effect (parseWithArg)
+	out, code = capture(t, func() int { return cmdSearch([]string{"step", "--lines"}) })
+	if code != 0 || !strings.Contains(out, "step one") {
+		t.Errorf("flag-after-query search: %q", out)
+	}
+
+	// --where filter
+	if out, _ := capture(t, func() int { return cmdSearch([]string{"--where", "type=note", "Setup"}) }); !strings.Contains(out, "/guide.md") {
+		t.Errorf("type-filter search: %q", out)
+	}
+
+	// default (AND, every word): both words on one line matches ("step one")
+	out, code = capture(t, func() int { return cmdSearch([]string{"--lines", "step one"}) })
+	if code != 0 || !strings.Contains(out, "step one") {
+		t.Errorf("default all-words: %q (code %d)", out, code)
+	}
+	// default (AND): words on different lines -> no single line holds both -> no match
+	if _, code := capture(t, func() int { return cmdSearch([]string{"step run"}) }); code != 1 {
+		t.Errorf("default all-words disjoint exit=%d want 1", code)
+	}
+	// --any (OR): words on different lines both match ("step one", "run it")
+	out, code = capture(t, func() int { return cmdSearch([]string{"--lines", "--any", "step run"}) })
+	if code != 0 || !strings.Contains(out, "step one") || !strings.Contains(out, "run it") {
+		t.Errorf("--any OR search: %q (code %d)", out, code)
+	}
+	// --exact: the phrase "step one" is contiguous -> match; "step run" is not
+	if _, code := capture(t, func() int { return cmdSearch([]string{"--exact", "step one"}) }); code != 0 {
+		t.Errorf("--exact phrase exit=%d want 0", code)
+	}
+	if _, code := capture(t, func() int { return cmdSearch([]string{"--exact", "step run"}) }); code != 1 {
+		t.Errorf("--exact non-contiguous exit=%d want 1", code)
+	}
+	// --any and --exact are mutually exclusive -> usage error (exit 2)
+	if _, code := capture(t, func() int { return cmdSearch([]string{"--any", "--exact", "step"}) }); code != 2 {
+		t.Errorf("--any --exact exit=%d want 2", code)
+	}
+
+	// no match -> exit 1; no query -> exit 2
+	if _, code := capture(t, func() int { return cmdSearch([]string{"zzzznope"}) }); code != 1 {
+		t.Errorf("no-match exit=%d want 1", code)
+	}
+	if _, code := capture(t, func() int { return cmdSearch(nil) }); code != 2 {
+		t.Errorf("no-query exit=%d want 2", code)
+	}
+
+	// json carries the match count
+	out, _ = capture(t, func() int { return cmdSearch([]string{"--format", "json", "setup"}) })
+	if !strings.Contains(out, `"matches"`) {
+		t.Errorf("json search: %q", out)
+	}
+}
+
+func TestCmdCheckboxesFile(t *testing.T) {
+	t.Chdir(writeBundle(t))
+	// whole base: guide.md's checkbox shows
+	if out, code := capture(t, func() int { return cmdCheckboxes(nil) }); code != 0 || !strings.Contains(out, "try the CLI") {
+		t.Errorf("tasks: %q (%d)", out, code)
+	}
+	// scoped to one file: that entry's own checklist
+	if out, code := capture(t, func() int { return cmdCheckboxes([]string{"guide.md"}) }); code != 0 || !strings.Contains(out, "try the CLI") {
+		t.Errorf("tasks guide.md: %q (%d)", out, code)
+	}
+	// a file with no checklist items -> empty, exit 0
+	if out, code := capture(t, func() int { return cmdCheckboxes([]string{"flat.md"}) }); code != 0 || strings.TrimSpace(out) != "" {
+		t.Errorf("tasks flat.md: %q (%d), want empty/0", out, code)
+	}
+	// flag after the file positional still applies
+	if out, code := capture(t, func() int { return cmdCheckboxes([]string{"guide.md", "--format", "json"}) }); code != 0 || !strings.Contains(out, `"text"`) {
+		t.Errorf("tasks guide.md --format json: %q (%d)", out, code)
+	}
+	// missing file -> exit 2
+	if _, code := capture(t, func() int { return cmdCheckboxes([]string{"nope.md"}) }); code != 2 {
+		t.Errorf("tasks nope.md exit=%d want 2", code)
+	}
+}
+
+func TestCmdLinkGraph(t *testing.T) {
+	t.Chdir(writeBundle(t))
+
+	// links: index.md -> /guide.md
+	if out, code := capture(t, func() int { return cmdLinks([]string{"/index.md"}) }); code != 0 || !strings.Contains(out, "/guide.md") {
+		t.Errorf("links: %q (%d)", out, code)
+	}
+	// guide.md has no outgoing links: an empty listing, exit 0 (like ls)
+	if _, code := capture(t, func() int { return cmdLinks([]string{"guide.md"}) }); code != 0 {
+		t.Errorf("links none exit=%d want 0", code)
+	}
+	// backlinks: guide.md <- index.md
+	if out, code := capture(t, func() int { return cmdBacklinks([]string{"guide.md"}) }); code != 0 || !strings.Contains(out, "/index.md") {
+		t.Errorf("backlinks: %q (%d)", out, code)
+	}
+	// flat.md has no backlinks: an empty listing, exit 0 (like ls)
+	if _, code := capture(t, func() int { return cmdBacklinks([]string{"flat.md"}) }); code != 0 {
+		t.Errorf("backlinks none exit=%d want 0", code)
+	}
+	// missing target -> exit 2
+	if _, code := capture(t, func() int { return cmdLinks([]string{"nope.md"}) }); code != 2 {
+		t.Errorf("links missing exit=%d want 2", code)
+	}
+}
+
+func TestCmdMove(t *testing.T) {
+	t.Chdir(writeBundle(t))
+
+	// dry-run previews and writes nothing
+	if out, code := capture(t, func() int { return cmdMove([]string{"--dry-run", "/guide.md", "/docs/guide.md"}) }); code != 0 || !strings.Contains(out, "would move") {
+		t.Errorf("dry-run move: %q (%d)", out, code)
+	}
+	if _, err := os.Stat("docs/guide.md"); !os.IsNotExist(err) {
+		t.Errorf("dry-run wrote the file")
+	}
+
+	// real move relocates the file and rewrites the incoming link
+	if _, code := capture(t, func() int { return cmdMove([]string{"/guide.md", "/docs/guide.md"}) }); code != 0 {
+		t.Fatalf("move exit %d", code)
+	}
+	if _, err := os.Stat("docs/guide.md"); err != nil {
+		t.Errorf("file not moved: %v", err)
+	}
+	if out, _ := capture(t, func() int { return cmdRead([]string{"/index.md"}) }); !strings.Contains(out, "/docs/guide.md") {
+		t.Errorf("incoming link not rewritten: %q", out)
+	}
+
+	// move also renames (same dir, new basename) — no separate command needed
+	if _, code := capture(t, func() int { return cmdMove([]string{"/docs/guide.md", "/docs/manual.md"}) }); code != 0 {
+		t.Errorf("rename-via-move exit %d", code)
+	}
+	if _, err := os.Stat("docs/manual.md"); err != nil {
+		t.Errorf("rename-via-move failed: %v", err)
+	}
+
+	// errors: missing src, one arg
+	if _, code := capture(t, func() int { return cmdMove([]string{"/nope.md", "/x.md"}) }); code != 2 {
+		t.Errorf("move missing src exit=%d want 2", code)
+	}
+	if _, code := capture(t, func() int { return cmdMove([]string{"/index.md"}) }); code != 2 {
+		t.Errorf("move one-arg exit=%d want 2", code)
+	}
+	// refuse overwriting an existing destination
+	if _, code := capture(t, func() int { return cmdMove([]string{"/index.md", "/flat.md"}) }); code != 2 {
+		t.Errorf("move onto existing dest exit=%d want 2", code)
+	}
+}
+
+func TestCmdMoveIncludeFrontmatter(t *testing.T) {
+	mk := func() string {
+		dir := t.TempDir()
+		w := func(rel, c string) {
+			p := filepath.Join(dir, filepath.FromSlash(rel))
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(p, []byte(c), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		w("poolboy.toml", "spec=\"0.1\"\ntypes=[\"note\"]\n")
+		w("item.md", "---\ntype: note\n---\nx\n")
+		w("ref.md", "---\ntype: note\nparent: /item.md\n---\nx\n") // bare frontmatter ref, no body link
+		return dir
+	}
+
+	// default: the frontmatter field is left untouched (frontmatter is opaque)
+	t.Run("default-off", func(t *testing.T) {
+		dir := mk()
+		t.Chdir(dir)
+		if _, code := capture(t, func() int { return cmdMove([]string{"/item.md", "/moved.md"}) }); code != 0 {
+			t.Fatalf("move exit %d", code)
+		}
+		if b, _ := os.ReadFile(filepath.Join(dir, "ref.md")); !strings.Contains(string(b), "parent: /item.md") {
+			t.Errorf("default move must not touch the frontmatter field: %s", b)
+		}
+	})
+
+	// --include-frontmatter: the bare field is rewritten, and reported
+	t.Run("flag-on", func(t *testing.T) {
+		dir := mk()
+		t.Chdir(dir)
+		out, code := capture(t, func() int { return cmdMove([]string{"/item.md", "/moved.md", "--include-frontmatter"}) })
+		if code != 0 {
+			t.Fatalf("move --include-frontmatter exit %d", code)
+		}
+		// Frontmatter refs stay root-absolute (the stable-key form), unlike body links.
+		if b, _ := os.ReadFile(filepath.Join(dir, "ref.md")); !strings.Contains(string(b), "parent: /moved.md") {
+			t.Errorf("--include-frontmatter should rewrite the field: %s", b)
+		}
+		if !strings.Contains(out, "frontmatter ref") {
+			t.Errorf("output should report frontmatter refs: %q", out)
+		}
+	})
+}
+
+func TestCmdInit(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	if _, code := capture(t, func() int { return cmdInit(nil) }); code != 0 {
+		t.Fatalf("init exit %d", code)
+	}
+	for _, f := range []string{"poolboy.toml", ".gitignore", "docs/index.md", "docs/getting-started.md", "templates/example.md.knap", "data/example.json"} {
+		if _, err := os.Stat(f); err != nil {
+			t.Errorf("missing %s: %v", f, err)
+		}
+	}
+	if _, err := os.Stat("gitignore"); !os.IsNotExist(err) {
+		t.Errorf("scaffold leaked a bare 'gitignore'")
+	}
+	// a freshly-init'd bundle must pass check
+	if _, code := capture(t, func() int { return cmdCheck(nil) }); code != 0 {
+		t.Errorf("fresh bundle should pass check, exit=%d", code)
+	}
+	// re-init into the now-non-empty dir is refused without --force
+	if _, code := capture(t, func() int { return cmdInit(nil) }); code != 2 {
+		t.Errorf("re-init without --force exit=%d want 2", code)
+	}
+	if _, code := capture(t, func() int { return cmdInit([]string{"--force"}) }); code != 0 {
+		t.Errorf("init --force exit=%d want 0", code)
+	}
+}
+
+func TestCmdStatus(t *testing.T) {
+	t.Chdir(writeBundle(t)) // guide.md has one `- [ ]`; 3 entries (index, guide, flat)
+	out, code := capture(t, func() int { return cmdStatus(nil) })
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	// The count is checkboxes (the `- [ ]` construct), not type:task entries,
+	// and it is labelled Checkboxes, not the old (misleading) "Tasks".
+	if !strings.Contains(out, "Checkboxes: 1") {
+		t.Errorf("status should show Checkboxes: 1 (guide.md has one), got:\n%s", out)
+	}
+	if strings.Contains(out, "Tasks:") {
+		t.Errorf("status must not use the old 'Tasks:' label:\n%s", out)
+	}
+	// json carries the renamed key
+	out, _ = capture(t, func() int { return cmdStatus([]string{"--format", "json"}) })
+	if !strings.Contains(out, `"checkboxes": 1`) || strings.Contains(out, `"tasks"`) {
+		t.Errorf("status json should carry \"checkboxes\", not \"tasks\": %q", out)
+	}
+}
+
+func TestQueryCommands(t *testing.T) {
+	// Enumeration and diagnostic commands return 0 even on an empty result, like
+	// ls/find; only search (grep) and check (lint) use exit 1. See TestCmdSearch.
+	t.Chdir(writeBundle(t))
+	cases := []struct {
+		name string
+		run  func() int
+		want int
+	}{
+		{"status", func() int { return cmdStatus(nil) }, 0},
+		{"list all", func() int { return cmdList(nil) }, 0},
+		{"list empty filter", func() int { return cmdList([]string{"--where", "type=nope"}) }, 0}, // empty listing is still exit 0
+		{"checkboxes", func() int { return cmdCheckboxes(nil) }, 0},                               // guide.md has an open checkbox
+		{"unresolved (clean)", func() int { return cmdUnresolved(nil) }, 0},                       // no broken links: a clean diagnostic, exit 0
+		{"orphans", func() int { return cmdOrphans(nil) }, 0},                                     // flat.md is an orphan
+		{"check (clean)", func() int { return cmdCheck(nil) }, 0},
+	}
+	for _, tc := range cases {
+		if _, code := capture(t, tc.run); code != tc.want {
+			t.Errorf("%s: exit=%d want %d", tc.name, code, tc.want)
+		}
+	}
+}
+
+func TestRun(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		want int
+	}{
+		{"no args", nil, 2},
+		{"unknown command", []string{"frobnicate"}, 2},
+		{"help", []string{"help"}, 0},
+		{"version", []string{"version"}, 0},
+	} {
+		if _, code := capture(t, func() int { return run(tc.args) }); code != tc.want {
+			t.Errorf("run(%v) = %d, want %d", tc.args, code, tc.want)
+		}
+	}
+}
+
+func TestCmdCheckFix(t *testing.T) {
+	dir := writeBundle(t)
+	// Introduce okf_version drift on the bundle-root index.md.
+	if err := os.WriteFile(filepath.Join(dir, "index.md"),
+		[]byte("---\nokf_version: \"0.2\"\n---\n# Home\n[g](/guide.md)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	// Plain check flags the drift (a warning, so exit 0).
+	if out, _ := capture(t, func() int { return cmdCheck(nil) }); !strings.Contains(out, "okf_version") {
+		t.Fatalf("check should flag drift: %q", out)
+	}
+
+	// check --fix repairs it and reports what changed.
+	out, code := capture(t, func() int { return cmdCheck([]string{"--fix"}) })
+	if code != 0 {
+		t.Errorf("check --fix exit=%d want 0", code)
+	}
+	if !strings.Contains(out, "fixed") || !strings.Contains(out, "okf_version") {
+		t.Errorf("check --fix should report the fix: %q", out)
+	}
+
+	// The bundle is now clean.
+	if out, _ := capture(t, func() int { return cmdCheck(nil) }); !strings.Contains(out, "ok: no issues found") {
+		t.Errorf("post-fix check not clean: %q", out)
+	}
+
+	// JSON --fix surfaces a fixed[] key even when there is nothing left to fix.
+	if out, _ := capture(t, func() int { return cmdCheck([]string{"--fix", "--format", "json"}) }); !strings.Contains(out, `"fixed"`) {
+		t.Errorf("json --fix missing fixed key: %q", out)
+	}
+}
+
+func TestCmdTidy(t *testing.T) {
+	dir := writeBundle(t)
+	// a root-absolute link in index.md (tidy normalizes it to relative), and a
+	// spaced filename to slug
+	if err := os.WriteFile(filepath.Join(dir, "index.md"),
+		[]byte("---\nokf_version: \"0.1\"\n---\n# Home\n[g](/guide.md)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a note.md"), []byte("---\ntype: note\n---\nx\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	// bare = preview both categories, write nothing
+	out, code := capture(t, func() int { return cmdTidy(nil) })
+	if code != 0 || !strings.Contains(out, "would") || !strings.Contains(out, "/guide.md") || !strings.Contains(out, "a-note.md") {
+		t.Errorf("bare tidy preview: %q (code %d)", out, code)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "index.md")); strings.Contains(string(b), "(./guide.md)") {
+		t.Errorf("bare tidy must not write")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "a note.md")); err != nil {
+		t.Errorf("bare tidy must not rename")
+	}
+
+	// --slug applies the rename
+	if _, code := capture(t, func() int { return cmdTidy([]string{"--slug"}) }); code != 0 {
+		t.Errorf("tidy --slug exit=%d", code)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "a-note.md")); err != nil {
+		t.Errorf("--slug should rename a note.md -> a-note.md")
+	}
+
+	// --links applies link normalization
+	if _, code := capture(t, func() int { return cmdTidy([]string{"--links"}) }); code != 0 {
+		t.Errorf("tidy --links exit=%d", code)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "index.md")); !strings.Contains(string(b), "[g](./guide.md)") {
+		t.Errorf("--links should normalize to relative: %s", b)
+	}
+
+	// nothing left -> ok message; json is an array
+	if out, _ := capture(t, func() int { return cmdTidy(nil) }); !strings.Contains(out, "nothing to tidy") {
+		t.Errorf("no-op tidy: %q", out)
+	}
+	if out, _ := capture(t, func() int { return cmdTidy([]string{"--format", "json"}) }); !strings.Contains(out, "[") {
+		t.Errorf("json tidy missing array: %q", out)
+	}
+}
+
+func TestCmdTagsProperties(t *testing.T) {
+	dir := writeBundle(t)
+	// give the entries tags/status so there is something to introspect
+	if err := os.WriteFile(filepath.Join(dir, "guide.md"),
+		[]byte("---\ntype: note\ntitle: Guide\nstatus: open\ntags: [docs, x]\n---\nbody\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "flat.md"),
+		[]byte("---\ntype: note\nstatus: done\ntags: [x]\n---\nbody\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	// tags --counts --sort=count: x (2) sorts before docs (1)
+	out, code := capture(t, func() int { return cmdTags([]string{"--counts", "--sort=count"}) })
+	if code != 0 {
+		t.Fatalf("tags exit=%d", code)
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) != 2 || !strings.HasPrefix(lines[0], "x") {
+		t.Errorf("tags --sort=count: x (count 2) should be first, got %q", out)
+	}
+
+	// tags bare: just names, no counts
+	out, _ = capture(t, func() int { return cmdTags(nil) })
+	if !strings.Contains(out, "docs") || strings.ContainsAny(out, "0123456789") {
+		t.Errorf("bare tags should be names only: %q", out)
+	}
+
+	// properties --counts includes the reserved-root okf_version and the shared keys
+	out, _ = capture(t, func() int { return cmdProperties([]string{"--counts"}) })
+	for _, k := range []string{"okf_version", "status", "type", "tags"} {
+		if !strings.Contains(out, k) {
+			t.Errorf("properties missing %q: %q", k, out)
+		}
+	}
+
+	// property status: open and done, one each
+	out, _ = capture(t, func() int { return cmdProperty([]string{"status", "--counts"}) })
+	if !strings.Contains(out, "open") || !strings.Contains(out, "done") {
+		t.Errorf("property status: %q", out)
+	}
+
+	// property type as json: note appears twice
+	out, _ = capture(t, func() int { return cmdProperty([]string{"type", "--format", "json"}) })
+	if !strings.Contains(out, `"name": "note"`) || !strings.Contains(out, `"count": 2`) {
+		t.Errorf("property type json: %q", out)
+	}
+
+	// unknown key -> no values -> exit 0 (an empty listing, like ls)
+	if _, code := capture(t, func() int { return cmdProperty([]string{"zzz"}) }); code != 0 {
+		t.Errorf("property zzz exit=%d, want 0", code)
+	}
+	// missing name -> usage, exit 2
+	if _, code := capture(t, func() int { return cmdProperty(nil) }); code != 2 {
+		t.Errorf("property (no name) exit=%d, want 2", code)
+	}
+	// prefix with no entries -> exit 0 (an empty listing, like ls)
+	if _, code := capture(t, func() int { return cmdTags([]string{"--prefix", "sub/"}) }); code != 0 {
+		t.Errorf("tags --prefix sub/ exit=%d, want 0", code)
+	}
+}
+
+func TestCmdListWhere(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec=\"0.1\"\ntypes=[\"task\"]\n")
+	write("a.md", "---\ntype: task\nstatus: done\nassignee: ana\ntags: [feature]\n---\nx\n")
+	write("b.md", "---\ntype: task\nstatus: done\nassignee: bob\ntags: [bug]\n---\nx\n")
+	write("c.md", "---\ntype: task\nstatus: todo\nassignee: ana\n---\nx\n")
+	write("d.md", "---\ntype: task\nassignee: \"Mary Jane\"\n---\nx\n")
+	t.Chdir(dir)
+
+	// single --where: entries whose frontmatter key holds the value
+	out, code := capture(t, func() int { return cmdList([]string{"--where", "status=done"}) })
+	if code != 0 || !strings.Contains(out, "/a.md") || !strings.Contains(out, "/b.md") || strings.Contains(out, "/c.md") {
+		t.Errorf("--where status=done: %q (code %d)", out, code)
+	}
+
+	// a composite (spaced) value: matched exactly, split only on the first '='
+	out, _ = capture(t, func() int { return cmdList([]string{"--where", "assignee=Mary Jane"}) })
+	if !strings.Contains(out, "/d.md") {
+		t.Errorf("--where with a spaced value: %q", out)
+	}
+	// exact match only: a prefix of the value must not match
+	if out, _ := capture(t, func() int { return cmdList([]string{"--where", "assignee=Mary"}) }); strings.Contains(out, "/d.md") {
+		t.Errorf("--where should match the whole value, not a prefix: %q", out)
+	}
+
+	// quotes that survive the shell are unquoted like frontmatter, so
+	// --where 'assignee="Mary Jane"' still matches assignee: "Mary Jane"
+	if out, _ := capture(t, func() int { return cmdList([]string{"--where", `assignee="Mary Jane"`}) }); !strings.Contains(out, "/d.md") {
+		t.Errorf("--where with surviving quotes should match: %q", out)
+	}
+
+	// repeated --where is AND across keys
+	out, _ = capture(t, func() int { return cmdList([]string{"--where", "status=done", "--where", "assignee=ana"}) })
+	if !strings.Contains(out, "/a.md") || strings.Contains(out, "/b.md") || strings.Contains(out, "/c.md") {
+		t.Errorf("--where AND: %q", out)
+	}
+
+	// a list-valued key (tags) matches any element
+	out, _ = capture(t, func() int { return cmdList([]string{"--where", "tags=bug"}) })
+	if !strings.Contains(out, "/b.md") || strings.Contains(out, "/a.md") {
+		t.Errorf("--where tags=bug: %q", out)
+	}
+
+	// no match is an empty listing, exit 0 (like ls)
+	if out, code := capture(t, func() int { return cmdList([]string{"--where", "assignee=nobody"}) }); code != 0 || strings.TrimSpace(out) != "" {
+		t.Errorf("--where no-match: %q (code %d), want empty/0", out, code)
+	}
+
+	// key!=value: everything whose key is not the value, including entries
+	// missing the key (d.md has no status), which are "not done" too
+	out, _ = capture(t, func() int { return cmdList([]string{"--where", "status!=done"}) })
+	if strings.Contains(out, "/a.md") || strings.Contains(out, "/b.md") ||
+		!strings.Contains(out, "/c.md") || !strings.Contains(out, "/d.md") {
+		t.Errorf("--where status!=done: %q, want c.md and d.md only", out)
+	}
+
+	// != combines with = under AND
+	out, _ = capture(t, func() int { return cmdList([]string{"--where", "assignee=ana", "--where", "status!=done"}) })
+	if !strings.Contains(out, "/c.md") || strings.Contains(out, "/a.md") || strings.Contains(out, "/d.md") {
+		t.Errorf("--where assignee=ana AND status!=done: %q, want c.md only", out)
+	}
+
+	// comparing against the empty string tests emptiness: status= is the entries
+	// with no status (only d.md), status!= is those that have one (a/b/c)
+	out, _ = capture(t, func() int { return cmdList([]string{"--where", "status="}) })
+	if !strings.Contains(out, "/d.md") || strings.Contains(out, "/a.md") || strings.Contains(out, "/c.md") {
+		t.Errorf("--where status= (unset): %q, want d.md only", out)
+	}
+	out, _ = capture(t, func() int { return cmdList([]string{"--where", "status!="}) })
+	if strings.Contains(out, "/d.md") || !strings.Contains(out, "/a.md") || !strings.Contains(out, "/c.md") {
+		t.Errorf("--where status!= (present): %q, want a/b/c, not d.md", out)
+	}
+}
+
+func TestWhereFiltersSet(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    index.PropFilter
+		wantErr bool
+	}{
+		{in: "type=note", want: index.PropFilter{Key: "type", Value: "note"}},
+		{in: "status!=done", want: index.PropFilter{Key: "status", Value: "done", Negate: true}},
+		// only the first `=` splits, so a value may itself contain `=`
+		{in: "url=/a.md?x=1", want: index.PropFilter{Key: "url", Value: "/a.md?x=1"}},
+		// `!=` wins over `=` even when a bare `=` appears earlier is impossible
+		// (key can't hold `=`), but a value after `!=` may contain `=`
+		{in: "ref!=/a.md?x=1", want: index.PropFilter{Key: "ref", Value: "/a.md?x=1", Negate: true}},
+		// surviving shell quotes are unquoted like frontmatter
+		{in: `k="v"`, want: index.PropFilter{Key: "k", Value: "v"}},
+		// an empty value is valid (it tests emptiness); only a missing operator
+		// or an empty key is an error
+		{in: "name!=", want: index.PropFilter{Key: "name", Value: "", Negate: true}},
+		{in: `name!=""`, want: index.PropFilter{Key: "name", Value: "", Negate: true}},
+		{in: "name=", want: index.PropFilter{Key: "name", Value: ""}},
+		{in: "novalue", wantErr: true},
+		{in: "=novalue", wantErr: true},
+	}
+	for _, c := range cases {
+		var w whereFilters
+		err := w.Set(c.in)
+		if c.wantErr {
+			if err == nil {
+				t.Errorf("Set(%q) = nil error, want error", c.in)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Set(%q) errored: %v", c.in, err)
+			continue
+		}
+		if len(w) != 1 || w[0] != c.want {
+			t.Errorf("Set(%q) = %+v, want %+v", c.in, w, c.want)
+		}
+	}
+}
+
+func TestCmdListJSONFrontmatter(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec=\"0.1\"\ntypes=[\"person\"]\n")
+	// this entry deliberately carries a frontmatter `name:` (a person's name) and
+	// `path:`, which must NOT be clobbered by the entry's structural identity; and
+	// a scalar `tags:` to prove frontmatter is emitted verbatim, not coerced
+	write("dana.md", "---\ntype: person\ntitle: A\nname: Dana Smith\npath: /custom\nstatus: active\ntags: staff\n---\nx\n")
+	t.Chdir(dir)
+
+	// json carries the full frontmatter (arbitrary keys), not just the canonical set
+	out, code := capture(t, func() int { return cmdList([]string{"--format", "json"}) })
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	for _, want := range []string{`"status": "active"`, `"type": "person"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("json list missing %s: %q", want, out)
+		}
+	}
+	// structural identity lives under the reserved _path key; the basename is
+	// derivable from it, so it is not emitted separately (no _name)
+	if !strings.Contains(out, `"_path": "/dana.md"`) || strings.Contains(out, `"_name"`) {
+		t.Errorf("want _path and no _name: %q", out)
+	}
+	// the frontmatter name:/path: round-trip untouched (not shadowed by structure)
+	if !strings.Contains(out, `"name": "Dana Smith"`) || !strings.Contains(out, `"path": "/custom"`) {
+		t.Errorf("frontmatter name/path clobbered by structural identity: %q", out)
+	}
+	// frontmatter is verbatim: a scalar tags stays a scalar, not force-listed
+	if !strings.Contains(out, `"tags": "staff"`) {
+		t.Errorf("tags should be emitted verbatim (scalar), got: %q", out)
+	}
+
+	// csv keeps the fixed canonical columns: just _path,type (title/tags and any
+	// other frontmatter are json-only)
+	out, _ = capture(t, func() int { return cmdList([]string{"--format", "csv"}) })
+	if !strings.Contains(out, "_path,type") || strings.Contains(out, "title") || strings.Contains(out, "status") {
+		t.Errorf("csv should keep canonical columns only: %q", out)
+	}
+}
+
+func TestGlobalRoot(t *testing.T) {
+	t.Cleanup(func() { rootDir = "" }) // global flag state; keep other tests independent
+	t.Chdir(t.TempDir())               // cwd has no bundle
+	cwd, _ := os.Getwd()
+	b := writeBundle(t)
+
+	// --root operates on <dir> even though cwd has no bundle...
+	if _, code := capture(t, func() int { return run([]string{"--root", b, "status"}) }); code != 0 {
+		t.Errorf("--root status exit=%d want 0", code)
+	}
+	// ...and unlike git -C it does not change the working directory.
+	if now, _ := os.Getwd(); now != cwd {
+		t.Errorf("--root changed cwd to %q, want %q (no chdir)", now, cwd)
+	}
+	if _, code := capture(t, func() int { return run([]string{"--root=" + b, "check"}) }); code != 0 {
+		t.Errorf("--root= check exit=%d want 0", code)
+	}
+	// a dir with no bundle above it, and a missing arg, both error
+	if _, code := capture(t, func() int { return run([]string{"--root", t.TempDir(), "status"}) }); code != 2 {
+		t.Errorf("--root no-bundle exit=%d want 2", code)
+	}
+	if _, code := capture(t, func() int { return run([]string{"--root"}) }); code != 2 {
+		t.Errorf("--root no-arg exit=%d want 2", code)
+	}
+}
+
+// inOrder reports whether subs each appear in out, in the given order.
+func inOrder(out string, subs ...string) bool {
+	last := -1
+	for _, s := range subs {
+		i := strings.Index(out, s)
+		if i <= last {
+			return false
+		}
+		last = i
+	}
+	return true
+}
+
+func TestCmdListSort(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec=\"0.1\"\ntypes=[\"note\"]\n")
+	write("old.md", "---\ntype: note\ntimestamp: 2024-01-01\n---\nx\n")
+	write("new.md", "---\ntype: note\ntimestamp: 2026-06-01\n---\nx\n")
+	write("mid.md", "---\ntype: note\ntimestamp: 2025-03-15\n---\nx\n")
+	t.Chdir(dir)
+
+	// --sort=timestamp orders newest-first
+	out, code := capture(t, func() int { return cmdList([]string{"--sort=timestamp"}) })
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if !inOrder(out, "/new.md", "/mid.md", "/old.md") {
+		t.Errorf("timestamp sort should be newest-first, got:\n%s", out)
+	}
+
+	// --reverse flips it to oldest-first (the grooming pass)
+	if out, _ := capture(t, func() int { return cmdList([]string{"--sort=timestamp", "--reverse"}) }); !inOrder(out, "/old.md", "/mid.md", "/new.md") {
+		t.Errorf("reversed timestamp sort should be oldest-first, got:\n%s", out)
+	}
+
+	// default sort is by path (alphabetical)
+	if out, _ := capture(t, func() int { return cmdList(nil) }); !inOrder(out, "/mid.md", "/new.md", "/old.md") {
+		t.Errorf("default sort should be by path, got:\n%s", out)
+	}
+
+	// an unknown --sort value is a usage error
+	if _, code := capture(t, func() int { return cmdList([]string{"--sort=bogus"}) }); code != 2 {
+		t.Errorf("unknown --sort exit=%d want 2", code)
+	}
+}
+
+func TestCmdListSortMtimeFallback(t *testing.T) {
+	dir := t.TempDir()
+	writeAt := func(rel, content string, mod time.Time) {
+		p := filepath.Join(dir, rel)
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if !mod.IsZero() {
+			if err := os.Chtimes(p, mod, mod); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	writeAt("poolboy.toml", "spec=\"0.1\"\ntypes=[\"note\"]\n", time.Time{})
+	// neither carries a frontmatter timestamp, so ordering falls back to mtime
+	writeAt("older.md", "---\ntype: note\n---\nx\n", time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC))
+	writeAt("newer.md", "---\ntype: note\n---\nx\n", time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC))
+	t.Chdir(dir)
+
+	out, code := capture(t, func() int { return cmdList([]string{"--sort=timestamp"}) })
+	if code != 0 {
+		t.Fatalf("exit=%d", code)
+	}
+	if !inOrder(out, "/newer.md", "/older.md") {
+		t.Errorf("mtime fallback should put the newer mtime first, got:\n%s", out)
+	}
+}
+
+func TestCmdTable(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec=\"0.1\"\ntypes=[\"note\",\"dataset\"]\n")
+	write("one.md", "---\ntype: dataset\n---\n| date | amt |\n|---|---|\n| 2026-01 | 100 |\n")
+	write("multi.md", "---\ntype: note\n---\n| a | b |\n|---|---|\n| 1 | 2 |\n\ntext\n\n| c | d |\n|---|---|\n| 3 | 4 |\n")
+	write("none.md", "---\ntype: note\n---\njust prose\n")
+	t.Chdir(dir)
+
+	// a lone table needs no flag: csv
+	out, code := capture(t, func() int { return cmdTable([]string{"--format", "csv", "one.md"}) })
+	if code != 0 || !strings.Contains(out, "date,amt") || !strings.Contains(out, "2026-01,100") {
+		t.Errorf("csv table: %q (code %d)", out, code)
+	}
+
+	// json carries the rows
+	if out, _ := capture(t, func() int { return cmdTable([]string{"--format", "json", "one.md"}) }); !strings.Contains(out, `"date"`) || !strings.Contains(out, "2026-01") {
+		t.Errorf("json table: %q", out)
+	}
+
+	// several tables without --n: refuse rather than guess (exit 2)
+	if _, code := capture(t, func() int { return cmdTable([]string{"multi.md"}) }); code != 2 {
+		t.Errorf("multi-table without --n should exit 2, got %d", code)
+	}
+
+	// --n selects (opt-in)
+	out, code = capture(t, func() int { return cmdTable([]string{"--n", "2", "--format", "csv", "multi.md"}) })
+	if code != 0 || !strings.Contains(out, "c,d") || !strings.Contains(out, "3,4") {
+		t.Errorf("--n 2: %q (code %d)", out, code)
+	}
+
+	// no such table is a no-match negative (exit 1): none at all, or --n past the end
+	if _, code := capture(t, func() int { return cmdTable([]string{"none.md"}) }); code != 1 {
+		t.Errorf("no table should exit 1, got %d", code)
+	}
+	if _, code := capture(t, func() int { return cmdTable([]string{"--n", "9", "multi.md"}) }); code != 1 {
+		t.Errorf("--n past the end should exit 1, got %d", code)
+	}
+
+	// a malformed --n (negative) and a missing file are usage/operational errors (exit 2)
+	if _, code := capture(t, func() int { return cmdTable([]string{"--n", "-1", "multi.md"}) }); code != 2 {
+		t.Errorf("negative --n should exit 2, got %d", code)
+	}
+	if _, code := capture(t, func() int { return cmdTable([]string{"nope.md"}) }); code != 2 {
+		t.Errorf("missing file should exit 2, got %d", code)
+	}
+}
+
+// The message a bad --where produces is part of the CLI's surface, and it names
+// the flag the user typed. Extracting the parser into index.ParseFilter silently
+// changed it once; this pins it so that cannot recur.
+func TestWhereFlagErrorMessage(t *testing.T) {
+	var w whereFilters
+	err := w.Set("garbage")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if want := `--where must be key=value or key!=value, got "garbage"`; err.Error() != want {
+		t.Errorf("got %q, want %q", err.Error(), want)
+	}
+}
+
+// The vocabulary commands report what a set of entries uses, so they must narrow
+// that set the same two ways list does. Before this they took --prefix only, and
+// a folder mixing kinds reported every kind's vocabulary.
+func TestVocabularyCommandsAcceptWhere(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		p := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec = \"0.1\"\n")
+	write("index.md", "---\nokf_version: \"0.1\"\n---\n")
+	write("b/task.md", "---\ntype: task\nstatus: todo\ntags: [ui]\n---\n- [ ] a task subtask\n")
+	write("b/note.md", "---\ntype: note\nstatus: published\ntags: [prose]\n---\n- [ ] a note subtask\n")
+	t.Chdir(dir)
+
+	onlyTasks := []string{"--where", "type=task"}
+	cases := []struct {
+		name       string
+		run        func() int
+		want, leak string
+	}{
+		{"property", func() int { return cmdProperty(append([]string{"status"}, onlyTasks...)) }, "todo", "published"},
+		{"tags", func() int { return cmdTags(onlyTasks) }, "ui", "prose"},
+		{"properties", func() int { return cmdProperties(onlyTasks) }, "status", ""},
+		{"checkboxes", func() int { return cmdCheckboxes(onlyTasks) }, "a task subtask", "a note subtask"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, code := capture(t, tc.run)
+			if code != 0 {
+				t.Fatalf("exit=%d", code)
+			}
+			if !strings.Contains(out, tc.want) {
+				t.Errorf("output %q missing %q", out, tc.want)
+			}
+			if tc.leak != "" && strings.Contains(out, tc.leak) {
+				t.Errorf("output %q leaked %q from an entry the filter excludes", out, tc.leak)
+			}
+		})
+	}
+
+	// --where composes with --prefix rather than replacing it.
+	out, _ := capture(t, func() int { return cmdTags([]string{"--prefix", "/b", "--where", "type=note"}) })
+	if !strings.Contains(out, "prose") || strings.Contains(out, "ui") {
+		t.Errorf("--prefix and --where should AND, got %q", out)
+	}
+
+	// A named [file] is explicit, so the filters must not also apply to it.
+	out, _ = capture(t, func() int { return cmdCheckboxes([]string{"/b/note.md", "--where", "type=task"}) })
+	if !strings.Contains(out, "a note subtask") {
+		t.Errorf("a named file should ignore --where, got %q", out)
+	}
+}
