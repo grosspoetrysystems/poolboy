@@ -51,7 +51,7 @@ The compiler keeps validation and staging ahead of the live publication:
 7. Construct the candidate corpus, validate every candidate, and stage it in a
    temporary sibling directory. The live corpus is unchanged at this point.
 8. Build and validate the staged index, derive the graph from the candidate
-   Markdown bytes, and prepare the landing assets. With no `landing.site_dir`,
+   Markdown bytes, and prepare the landing assets. With no `site_dir`,
    render the built-in page; with one, validate and copy its safe static files
    without executing a framework or build command.
 9. Stage the complete publication: candidate Markdown, `graph.json`, `llms.txt`,
@@ -85,14 +85,14 @@ file except `graph.json` and `llms.txt`. Its keys are clean,
 publication-relative paths without a leading slash, such as `index.html`,
 `assets/app.js`, and `corpus.zip`; each value contains only its exact byte
 `bytes` and lowercase SHA-256 `sha256`. The map includes safe files copied
-from `landing.site_dir` and the generated ZIP. It does not hash `graph.json`
+from a custom `site_dir` and the generated ZIP. It does not hash `graph.json`
 itself. The configurable `download_filename` is only the built-in page's
 browser suggestion for `corpus.zip`, and is not an artifact key; custom
 `site_dir` HTML is copied verbatim and owns its own links.
 
-The built-in `index.html` derives its favicon from `landing.logo`, or from the
-effective nonempty `landing.mark` when no logo is set. Empty mark plus no logo
-omits the favicon; a custom `landing.site_dir` owns its own favicon. This is
+The built-in `index.html` derives its favicon from `logo`, or from the
+effective nonempty `mark` when no logo is set. Empty mark plus no logo
+omits the favicon; a custom `site_dir` owns its own favicon. This is
 derived from existing settings and adds no artifact key or configuration field.
 
 `llms.txt` is a small deterministic entry point. After the configured corpus

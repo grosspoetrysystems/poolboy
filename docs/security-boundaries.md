@@ -36,7 +36,7 @@ means secrets are impossible or that a renderer is a kernel sandbox.
 The source inventory walks from a validated, absolute, non-symlink project
 root. It refuses out-of-root configuration paths and does not follow symlinks
 or read non-regular files. It excludes version-control and private state,
-configured corpus/output/render/landing.site_dir paths, dependency/build/cache
+configured corpus/output/render and custom landing `site_dir` paths, dependency/build/cache
 directories, and ignore-file matches. Files over 5 MiB are omitted; binary probing
 checks the first 8 KiB for NUL bytes. Likely-secret names, path components, and bounded
 content are filtered by helper heuristics.
@@ -60,13 +60,13 @@ case/Unicode path aliases. Private state paths are reserved; both
 `.poolboy/generated.json` and `.poolboy/sources.lock.json` are retained by the
 root/scaffold ignore policies so ownership and drift survive a checkout.
 
-`landing.logo` is an optional project-relative local image, limited to 512 KiB
+The landing `logo` is an optional project-relative local image, limited to 512 KiB
 and to extension/content pairs for SVG, PNG, WebP, or JPEG. It is embedded as
 a data URI, never interpreted as inline user markup.
 The built-in favicon reuses the validated local logo or an escaped effective
 mark, never a remote asset; empty mark plus no logo omits it. Custom
-`landing.site_dir` controls its own favicon.
-`landing.site_dir`, when set, is a project-relative non-symlink directory with a
+`site_dir` controls its own favicon.
+The landing `site_dir`, when set, is a project-relative non-symlink directory with a
 bounded regular `index.html`; its safe regular files are copied without executing
 code or build commands. It cannot overlap the corpus/output or private state,
 and copied paths cannot collide with Markdown, `graph.json`, `llms.txt`, or

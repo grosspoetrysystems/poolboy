@@ -71,7 +71,7 @@ Go/TypeScript components a maintainer actually edits or reasons about.
    query directly, without publishing.
 4. `build` validates the combined corpus, renders configured templates, derives
    `graph.json` and `llms.txt`, generates the built-in landing or copies the
-   validated `landing.site_dir`, creates the deterministic Markdown `corpus.zip`,
+   validated custom `site_dir`, creates the deterministic Markdown `corpus.zip`,
    and stages then replaces the result in `output` (`dist/`), with rollback
    attempts for later I/O failures. See [Build and render](build-and-render.md).
 
