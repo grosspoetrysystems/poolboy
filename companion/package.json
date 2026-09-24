@@ -1,0 +1,42 @@
+{
+  "name": "@poolboy/knap-companion",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Poolboy Knap renderer companion: one-shot stdin/stdout JSON render seam.",
+  "type": "module",
+  "bin": {
+    "poolboy-knap": "dist/cli.mjs"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "commitlint": "commitlint",
+    "coverage": "vitest run --coverage",
+    "dev": "tsx src/bin/cli.ts",
+    "format": "ultracite fix",
+    "knip": "knip",
+    "lint": "ultracite check",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "knap": "0.6.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@commitlint/cli": "21.2.2",
+    "@commitlint/config-conventional": "21.2.2",
+    "@types/node": "26.6.1",
+    "@vitest/coverage-v8": "5.0.1",
+    "knip": "6.36.0",
+    "lefthook": "2.1.14",
+    "tsdown": "0.23.0",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "ultracite": "7.12.0",
+    "vitest": "5.0.1"
+  },
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22"
+  }
+}
