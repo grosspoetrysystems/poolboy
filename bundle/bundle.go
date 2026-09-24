@@ -140,7 +140,27 @@ type config struct {
 	Ignore        []string                  `toml:"ignore"`
 	IgnoreOrphans []string                  `toml:"ignore_orphans"`
 	Tool          map[string]toml.Primitive `toml:"tool"`
-	Landing       Landing                   `toml:"landing"`
+}
+
+// loadLanding reads the optional landing.toml sitting beside poolboy.toml. A
+// missing file is not an error: the compiler applies built-in defaults. Its
+// keys are the [landing] fields hoisted to the top level, with [style] for the
+// former [landing.style]. Unrecognized keys are returned for the same
+// typo-surfacing path as poolboy.toml.
+func loadLanding(dir string) (Landing, []string, error) {
+	var l Landing
+	md, err := toml.DecodeFile(filepath.Join(dir, "landing.toml"), &l)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return Landing{}, nil, nil
+		}
+		return Landing{}, nil, fmt.Errorf("landing.toml: %w", err)
+	}
+	var unknown []string
+	for _, k := range md.Undecoded() {
+		unknown = append(unknown, "landing.toml:"+k.String())
+	}
+	return l, unknown, nil
 }
 
 func load(projectRoot, cfgPath string) (*Bundle, error) {
@@ -235,7 +255,11 @@ func load(projectRoot, cfgPath string) (*Bundle, error) {
 		}
 	}
 
-	landing := c.Landing
+	landing, landingUnknown, err := loadLanding(filepath.Dir(cfgPath))
+	if err != nil {
+		return nil, err
+	}
+	unknown = append(unknown, landingUnknown...)
 	if landing.Logo != nil && strings.TrimSpace(*landing.Logo) != "" {
 		p, err := projectPath("landing.logo", *landing.Logo)
 		if err != nil {

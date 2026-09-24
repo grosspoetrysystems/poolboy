@@ -21,7 +21,7 @@ func TestWrite(t *testing.T) {
 	if slices.Contains(written, "gitignore") || !slices.Contains(written, ".gitignore") {
 		t.Errorf("written = %v (want .gitignore, not gitignore)", written)
 	}
-	for _, f := range []string{"poolboy.toml", ".gitignore", "docs/index.md", "docs/getting-started.md", "templates/example.md.knap", "data/example.json"} {
+	for _, f := range []string{"poolboy.toml", "landing.example.toml", ".gitignore", "docs/index.md", "docs/getting-started.md", "templates/example.md.knap", "data/example.json"} {
 		if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(f))); err != nil {
 			t.Errorf("missing %s: %v", f, err)
 		}

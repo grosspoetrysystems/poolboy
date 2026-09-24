@@ -49,7 +49,7 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 	if len(b.Unknown) > 0 {
 		unknown := append([]string(nil), b.Unknown...)
 		sort.Strings(unknown)
-		return fmt.Errorf("unknown poolboy.toml setting: %s", strings.Join(unknown, ", "))
+		return fmt.Errorf("unknown configuration setting: %s", strings.Join(unknown, ", "))
 	}
 	if err := validateMappings(b, r); err != nil {
 		return err

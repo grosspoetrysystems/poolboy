@@ -271,7 +271,7 @@ func Scan(b *bundle.Bundle, accept bool) (*Inventory, error) {
 	if b != nil && len(b.Unknown) > 0 {
 		unknown := append([]string(nil), b.Unknown...)
 		sort.Strings(unknown)
-		return nil, fmt.Errorf("unknown poolboy.toml setting: %s", strings.Join(unknown, ", "))
+		return nil, fmt.Errorf("unknown configuration setting: %s", strings.Join(unknown, ", "))
 	}
 	_, lock, err := statePaths(b, false)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {

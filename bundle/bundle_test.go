@@ -60,6 +60,63 @@ ignore_orphans = ["backlog/**"]
 	}
 }
 
+func TestLandingConfigFromSiblingFile(t *testing.T) {
+	// Absent landing.toml leaves every field unset so the compiler applies its
+	// own defaults; it is not an error and adds no unknown keys.
+	b := mustLoad(t, `spec = "0.2"`)
+	if b.Landing.Title != nil || b.Landing.Mark != nil || b.Landing.Style.ButtonText != nil {
+		t.Errorf("absent landing.toml should leave fields nil, got %#v", b.Landing)
+	}
+	if b.Unknown != nil {
+		t.Errorf("absent landing.toml should not warn, got %#v", b.Unknown)
+	}
+
+	// A sibling landing.toml populates Landing, hoisting [landing] fields to the
+	// top level and [landing.style] to [style].
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "poolboy.toml"), []byte(`spec = "0.2"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "landing.toml"), []byte("title = \"Acme Docs\"\nmark = \"\"\n[style]\nbutton_text = \"#ff0000\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Discover(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Landing.Title == nil || *b.Landing.Title != "Acme Docs" {
+		t.Errorf("title=%v, want Acme Docs", b.Landing.Title)
+	}
+	// An explicit empty string is preserved (distinct from absent), so the
+	// compiler can hide the mark rather than fall back to its default.
+	if b.Landing.Mark == nil || *b.Landing.Mark != "" {
+		t.Errorf("mark=%v, want explicit empty", b.Landing.Mark)
+	}
+	if b.Landing.Style.ButtonText == nil || *b.Landing.Style.ButtonText != "#ff0000" {
+		t.Errorf("style.button_text=%v", b.Landing.Style.ButtonText)
+	}
+	if b.Unknown != nil {
+		t.Errorf("clean landing.toml should not warn, got %#v", b.Unknown)
+	}
+
+	// A typo in landing.toml is inert, so surface it under its file, prefixed to
+	// distinguish it from a poolboy.toml key.
+	dir = t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "poolboy.toml"), []byte(`spec = "0.2"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "landing.toml"), []byte("titel = \"x\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err = Discover(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(b.Unknown, "landing.toml:titel") {
+		t.Errorf("unknown=%#v, want landing.toml:titel", b.Unknown)
+	}
+}
+
 func TestOutputDefaultsOutsideCorpusScan(t *testing.T) {
 	b, err := loadConfig(t, `spec = "0.2"`)
 	if err != nil {

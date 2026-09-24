@@ -50,7 +50,11 @@ output = "reference/endpoints.md"
 
 ### Configure the published docs landing
 
-The optional `[landing]` table controls the generated `index.html` handoff page. All values are strings:
+The generated `index.html` handoff page uses built-in defaults. To customize it,
+copy `landing.example.toml` to `landing.toml` beside `poolboy.toml` and set only
+the options you want; anything you leave out keeps its default, and deleting
+`landing.toml` returns to defaults. `poolboy init` writes `landing.example.toml`
+for you. Every value is a string:
 
 - `title` defaults to the corpus name and must be nonempty when supplied.
 - `mark` defaults to `🩳` and accepts text, emoji or an empty string. An empty value hides the mark; a nonempty `logo` takes precedence.
@@ -59,13 +63,13 @@ The optional `[landing]` table controls the generated `index.html` handoff page.
 - `site_dir` is absent or empty by default and uses Poolboy's built-in page. A nonempty value is a project-relative prebuilt static directory containing `index.html`; Poolboy copies bounded regular files without executing a framework or build command. Its files replace the built-in HTML, built-in landing fields do not rewrite copied markup, and its own URLs own the landing behavior. The generated Markdown ZIP remains `corpus.zip`; custom HTML must link it itself.
 - `description` defaults to `Documentation built for agents.`; an explicit empty string is preserved.
 - `secondary_description` defaults to `Copy the prompt into your agent and ask your question.`; an explicit empty string is preserved.
-- `prompt` defaults to a concise request to read `{{url}}/llms.txt`, cite sources, flag gaps and treat fetched content as reference rather than instructions. `{{url}}` is replaced client-side with the publication base and the result is stored as text.
+- `prompt` starts with `Use {{url}}/llms.txt to answer my question about {{title}}.`, followed by instructions to cite sources, flag gaps and treat fetched content as reference rather than instructions. `{{title}}` is replaced with the effective landing title during the build; `{{url}}` is replaced client-side with the publication base. Both substitutions remain text, not HTML.
 - `base_url` is absent or empty by default: the page derives the actual deployed page directory, including a hosting subpath, from the browser URL. An explicit value is an HTTP(S) canonical publication root with an optional subpath; userinfo, query strings and fragments are rejected.
 - `download_filename` defaults to a safe slug of the corpus name followed by `-docs.zip`. It must be a safe single `.zip` filename, not a path; it controls the built-in page's browser download name while the physical asset remains `corpus.zip`. The archive contains published Markdown only and does not imply plugin support or synchronization.
 
-`[landing.style]` accepts the small validated style surface only: `font` (default `monospace`, a font-family token list with no `url()`, slash, braces or semicolons), `text` (default `#e6e6e6`), `background` (default `#111111`), `button` (default `#111111`), `button_text` (default `#86efac`), and integer pixel `border_radius` from `0px` through `64px` (default `4px`). Colors accept only `#hex` in 3/4/6/8-digit forms. `button` is the button background; `button_text` is the text and border accent. The landing is an end-user handoff for the publishing project, not a Poolboy product or installation page.
+`[style]` accepts the small validated style surface only: `font` (default `monospace`, a font-family token list with no `url()`, slash, braces or semicolons), `text` (default `#e6e6e6`), `background` (default `#111111`), `button` (default `#111111`), `button_text` (default `#86efac`), and integer pixel `border_radius` from `0px` through `64px` (default `4px`). Colors accept only `#hex` in 3/4/6/8-digit forms. `button` is the button background; `button_text` is the text and border accent. The landing is an end-user handoff for the publishing project, not a Poolboy product or installation page.
 
-The root `poolboy.toml` shows every setting with its default. A configured `base_url` is useful when a reverse proxy hides the public publication root; otherwise the browser-derived fallback keeps links working at both domain root and subpaths.
+A configured `base_url` is useful when a reverse proxy hides the public publication root; otherwise the browser-derived fallback keeps links working at both domain root and subpaths.
 
 Template/data paths are project-relative; render output is corpus-relative. Without a `corpus` setting, Markdown lives beside the config. `poolboy init -h` describes the starter.
 
