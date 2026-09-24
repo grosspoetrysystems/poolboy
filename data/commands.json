@@ -1,0 +1,290 @@
+{
+  "title": "Poolboy command reference",
+  "description": "Generated reference for Poolboy's CLI commands and flags.",
+  "intro": "Use a leading --root DIR or --root=DIR to select a project. Result commands accept --format text|json|csv|tsv; exit status is 0 for success, 1 for no match or check failures, and 2 for errors.",
+  "commands": [
+    {
+      "name": "init",
+      "summary": "Scaffold a documentation project in an optional directory.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "[dir]", "description": "Target directory; defaults to the current directory."},
+        {"name": "--force", "description": "Write into a non-empty directory."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "build",
+      "summary": "Render and publish the configured corpus.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/product.go",
+      "flags": [
+        {"name": "--renderer PATH", "description": "Use a trusted Knap companion path."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "scan",
+      "summary": "Record a bounded source inventory baseline.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/product.go",
+      "flags": [
+        {"name": "--accept", "description": "Replace an existing baseline after review."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "drift",
+      "summary": "Compare the source inventory with current files.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/product.go",
+      "flags": [
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "affected",
+      "summary": "Find documents citing a source resource directly.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/product.go",
+      "flags": [
+        {"name": "SOURCE", "description": "One project-relative source path."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "status",
+      "summary": "Report corpus counts for entries, links, tags, checkboxes, broken links, and orphans.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "list",
+      "summary": "List indexed entries.",
+      "mutates": false,
+      "aliases": "ls",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
+        {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter; filters are ANDed."},
+        {"name": "--sort path|timestamp", "description": "Sort by path or newest-first timestamp."},
+        {"name": "--reverse", "description": "Reverse the selected ordering."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "read",
+      "summary": "Print one entry body with frontmatter stripped.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "FILE", "description": "One corpus entry."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "outline",
+      "summary": "Print one entry's heading hierarchy.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "FILE", "description": "One corpus entry."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "table",
+      "summary": "Extract one Markdown table from an entry.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "FILE", "description": "One corpus entry."},
+        {"name": "--n N", "description": "Select a table by one-based index when there are several."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "search",
+      "summary": "Search entry text; every query word must match by default.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "QUERY", "description": "One non-empty query; quote multi-word phrases."},
+        {"name": "--any", "description": "Match any query word."},
+        {"name": "--exact", "description": "Match the verbatim phrase; mutually exclusive with --any."},
+        {"name": "--lines", "description": "Show matching lines instead of entries."},
+        {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
+        {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "checkboxes",
+      "summary": "List GFM checklist items; an optional file scopes the result.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "[FILE]", "description": "Optionally limit checklist results to one entry."},
+        {"name": "--all", "description": "Include completed tasks."},
+        {"name": "--done", "description": "Show only completed tasks."},
+        {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
+        {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "tags",
+      "summary": "List tags in use across selected entries.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--counts", "description": "Show entry counts per tag."},
+        {"name": "--sort name|count", "description": "Sort by tag name or count."},
+        {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
+        {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "properties",
+      "summary": "List frontmatter property keys in use.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--counts", "description": "Show entry counts per property."},
+        {"name": "--sort name|count", "description": "Sort by property name or count."},
+        {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
+        {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "property",
+      "summary": "List values for one frontmatter property.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "NAME", "description": "One frontmatter property name."},
+        {"name": "--counts", "description": "Show entry counts per value."},
+        {"name": "--sort name|count", "description": "Sort by value name or count."},
+        {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
+        {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "unresolved",
+      "summary": "List broken internal links.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "orphans",
+      "summary": "List entries with no incoming links.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "links",
+      "summary": "List unique outgoing link targets from one entry.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "FILE", "description": "One corpus entry."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "backlinks",
+      "summary": "List every incoming link reference to one entry.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "FILE", "description": "One corpus entry."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "move",
+      "summary": "Relocate an entry and rewrite Markdown links.",
+      "mutates": true,
+      "aliases": "mv",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "SRC DEST", "description": "Source and destination entry paths."},
+        {"name": "--dry-run", "description": "Preview the rewrite plan without writing."},
+        {"name": "--include-frontmatter", "description": "Also rewrite Markdown-valued frontmatter references."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "tidy",
+      "summary": "Preview or apply canonical link, filename, and wikilink cleanup.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--links", "description": "Normalize links to relative form."},
+        {"name": "--slug", "description": "Slugify spaced filenames and rewrite inbound links."},
+        {"name": "--wikilinks", "description": "Convert wikilinks to Markdown links."},
+        {"name": "--all", "description": "Apply every category; bare tidy is preview-only."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "check",
+      "summary": "Report conformance and corpus health issues.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/commands.go",
+      "flags": [
+        {"name": "--fix", "description": "Apply safe repairs, such as syncing okf_version."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "version",
+      "summary": "Print the Poolboy version as a bare string.",
+      "mutates": false,
+      "aliases": "--version, -v",
+      "source": "cmd/poolboy/main.go",
+      "flags": []
+    },
+    {
+      "name": "help",
+      "summary": "Print the top-level usage and command list.",
+      "mutates": false,
+      "aliases": "-h, --help",
+      "source": "cmd/poolboy/main.go",
+      "flags": []
+    }
+  ]
+}

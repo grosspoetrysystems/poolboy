@@ -1,0 +1,30 @@
+---
+type: Reference
+title: {{ title | yaml }}
+description: {{ description | yaml }}
+status: draft
+sources:
+  - resource: ../../cmd/poolboy/main.go
+  - resource: ../../cmd/poolboy/commands.go
+  - resource: ../../cmd/poolboy/helpers.go
+  - resource: ../../cmd/poolboy/product.go
+---
+# {{ title }}
+
+{{ intro }}
+
+{% for command in commands %}
+## `{{ command.name }}`
+
+{{ command.summary }}
+
+- Mutation: `{{ command.mutates }}`
+- Aliases: `{{ command.aliases }}`
+- Source: `{{ command.source }}`
+
+### Flags and arguments
+
+{% for flag in command.flags %}
+- `{{ flag.name }}` — {{ flag.description }}
+{% endfor %}
+{% endfor %}

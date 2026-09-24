@@ -1,0 +1,9 @@
+spec = "0.2"
+name = "Fixture service"
+corpus = "docs"
+output = "dist"
+
+[[render]]
+template = "templates/endpoints.md.knap"
+data = "data/endpoints.json"
+output = "reference/endpoints.md"

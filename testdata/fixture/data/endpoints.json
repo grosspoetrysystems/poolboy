@@ -1,0 +1,17 @@
+{
+  "title": "Endpoint reference",
+  "endpoints": [
+    {
+      "name": "Health",
+      "method": "GET",
+      "path": "/health",
+      "description": "Returns service health without exposing runtime secrets."
+    },
+    {
+      "name": "Current session",
+      "method": "GET",
+      "path": "/session",
+      "description": "Returns the authenticated session; invalid tokens receive 401."
+    }
+  ]
+}

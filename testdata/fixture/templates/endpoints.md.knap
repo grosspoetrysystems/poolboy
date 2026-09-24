@@ -1,0 +1,16 @@
+---
+type: Reference
+title: {{ title | yaml }}
+description: Deterministic endpoint reference from structured data.
+---
+# Endpoints
+
+See [request handling](../architecture.md).
+
+{% for endpoint in endpoints %}
+## {{ endpoint.name }}
+
+`{{ endpoint.method }}` `{{ endpoint.path }}`
+
+{{ endpoint.description }}
+{% endfor %}

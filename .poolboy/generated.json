@@ -1,0 +1,10 @@
+{
+  "version": "0",
+  "files": {
+    "reference/commands.md": {
+      "data": "data/commands.json",
+      "sha256": "5542de4c2286a302e244ab0d833cf97c0fa7b6ea7ba106c5c7a984b85804996d",
+      "template": "templates/commands.md.knap"
+    }
+  }
+}

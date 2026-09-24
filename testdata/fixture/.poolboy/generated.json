@@ -1,0 +1,10 @@
+{
+  "version": "0",
+  "files": {
+    "reference/endpoints.md": {
+      "data": "data/endpoints.json",
+      "sha256": "0d562bc45f73a8b5ab02b904365c4acf3b3c28a2080faceef2273ee954a8c00f",
+      "template": "templates/endpoints.md.knap"
+    }
+  }
+}
