@@ -49,6 +49,7 @@ output = "reference/example.md"
 !.poolboy/generated.json
 !.poolboy/sources.lock.json
 dist/
+poolboy.key
 `,
 	"docs/index.md": `---
 okf_version: "0.2"

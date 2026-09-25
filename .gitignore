@@ -17,4 +17,5 @@ coverage.out
 .env.*
 !.env.example
 .DS_Store
+poolboy.key
 .obsidian/

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/grosspoetrysystems/poolboy/bundle"
 	"github.com/grosspoetrysystems/poolboy/internal/sign"
@@ -25,6 +26,9 @@ func cmdKeygen(args []string) int {
 	if fs.NArg() != 0 {
 		return productError(errors.New("keygen accepts no positional arguments"))
 	}
+	if err := refuseKeyInPublication(*out); err != nil {
+		return productError(err)
+	}
 	seed, pub, err := sign.GenerateSeed()
 	if err != nil {
 		return productError(err)
@@ -35,7 +39,40 @@ func cmdKeygen(args []string) int {
 	if _, err := fmt.Fprintln(os.Stdout, pub); err != nil {
 		return productError(err)
 	}
+	fmt.Fprintf(os.Stderr, "poolboy: wrote the private signing key to %s — keep it out of version control (add it to .gitignore)\n", *out)
 	return 0
+}
+
+// refuseKeyInPublication rejects a private key path inside the corpus or the
+// publication output. A key committed beside the docs, or copied into dist/ by
+// a build, is a disclosed key.
+func refuseKeyInPublication(out string) error {
+	abs, err := filepath.Abs(out)
+	if err != nil {
+		return err
+	}
+	b, err := bundle.Discover(".")
+	if err != nil {
+		// Not inside a project: there is no corpus or output to protect.
+		return nil
+	}
+	for label, dir := range map[string]string{
+		"corpus":      b.Dir,
+		"publication": filepath.Join(b.Root, filepath.FromSlash(b.Output)),
+	} {
+		if pathWithin(abs, dir) {
+			return fmt.Errorf("refusing to write a private signing key inside the %s directory %s; write it outside the project with --out", label, dir)
+		}
+	}
+	return nil
+}
+
+func pathWithin(path, dir string) bool {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func cmdSign(args []string) int {
