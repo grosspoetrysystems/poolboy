@@ -1,22 +1,31 @@
 pre-commit:
-  parallel: false
+  parallel: true
   commands:
     go-format:
       glob: "*.go"
-      run: golangci-lint fmt {staged_files}
-      stage_fixed: true
+      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 fmt --diff {staged_files}
     go-lint:
       glob: "*.go"
-      run: golangci-lint run ./...
-    typescript:
+      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run ./...
+    typescript-lint:
       root: companion/
       glob: "*.{ts,js,mjs,json,jsonc}"
-      run: pnpm exec ultracite fix {staged_files}
-      stage_fixed: true
+      run: pnpm exec biome check --staged --files-ignore-unknown=true --no-errors-on-unmatched
+    typescript-typecheck:
+      root: companion/
+      glob: "*.{ts,js,mjs,json,jsonc}"
+      run: pnpm typecheck
+    typescript-knip:
+      root: companion/
+      glob: "*.{ts,js,mjs,json,jsonc}"
+      run: pnpm knip
 
 commit-msg:
   commands:
-    conventional-go:
-      run: ./scripts/commit-msg.sh {1}
-    conventional-typescript:
+    conventional-commit:
       run: pnpm --dir companion commitlint --edit "$(realpath {1})"
+
+pre-push:
+  jobs:
+    - name: verify
+      run: make verify

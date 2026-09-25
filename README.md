@@ -9,7 +9,7 @@ A big hat tip to [Agentic Wiki](https://github.com/agentic-wiki/wiki) and its au
 
 ## Build locally
 
-Prerequisites: Go 1.25+, Node 22+, and pnpm. Install the pnpm version declared in `companion/package.json`.
+Prerequisites: Go 1.25+, Node 22.12+, and pnpm. Install the pnpm version declared in `companion/package.json`.
 
 ```sh
 git clone https://github.com/grosspoetrysystems/poolboy.git
@@ -24,13 +24,15 @@ make build
 Development tooling follows [rack-mount-go](https://github.com/grosspoetrysystems/rack-mount-go) and [rack-mount-ts](https://github.com/grosspoetrysystems/rack-mount-ts): native Go, golangci-lint v2, pnpm, strict TypeScript, tsdown, Biome/Ultracite, Vitest/v8, Knip and Lefthook.
 
 ```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 make fmt
 make check
 make hooks
 ```
 
-Ensure `$(go env GOPATH)/bin` is on PATH. Hook installation is local; no command commits or publishes for you.
+Hook installation is local; no command commits or publishes for you.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the reproducible setup, local hooks,
+generated-file policy, and pull-request checks.
 
 ## Author and build
 

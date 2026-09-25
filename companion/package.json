@@ -12,9 +12,9 @@
     "commitlint": "commitlint",
     "coverage": "vitest run --coverage",
     "dev": "tsx src/bin/cli.ts",
-    "format": "ultracite fix",
-    "knip": "knip",
-    "lint": "ultracite check",
+    "format": "biome check --write .",
+    "knip": "knip --no-progress",
+    "lint": "biome ci .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -37,6 +37,6 @@
   },
   "packageManager": "pnpm@11.24.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }

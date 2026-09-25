@@ -1,4 +1,6 @@
-.PHONY: build check fmt hooks site
+.PHONY: build check fmt hooks site verify
+
+GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
 # SITE_URL absolutizes the product page's share-card and canonical URLs
 # (e.g. https://poolboy.example). Empty keeps them root-relative to the host.
@@ -13,18 +15,19 @@ build:
 
 check:
 	go test -race -cover ./...
-	golangci-lint run ./...
+	$(GOLANGCI_LINT) run ./...
+	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 	pnpm --dir companion typecheck
 	pnpm --dir companion lint
 	pnpm --dir companion coverage
 	pnpm --dir companion knip
 
 fmt:
-	golangci-lint fmt ./...
+	$(GOLANGCI_LINT) fmt ./...
 	pnpm --dir companion format
 
 hooks:
-	lefthook install
+	pnpm --dir companion exec lefthook install
 
 site: build
 	./bin/poolboy build
@@ -35,3 +38,9 @@ site: build
 	cp README.md .site/install.md
 	cp site/start.md site/try.md site/llms.txt .site/
 	cp -R dist/. .site/docs/
+
+verify:
+	$(MAKE) check
+	$(MAKE) site
+	git diff --exit-code -- .poolboy/generated.json docs/reference/commands.md
+	bash scripts/smoke.sh ./bin/poolboy
