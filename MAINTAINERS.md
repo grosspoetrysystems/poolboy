@@ -6,7 +6,9 @@ Poolboy's files express policy; GitHub settings enforce it. Keep the written pol
 
 `.github/CODEOWNERS` is the source of review ownership. It currently assigns the repository and `.github/` policy plane to `@thekidnamedkd`.
 
-Changes to governance files, workflows, dependency manifests, lockfiles, release logic, security-sensitive code, generated artifacts, and agent instructions should receive maintainer review before merge. A ready pull request must pass required CI on its latest commit and have all review conversations resolved; `@thekidnamedkd` must approve. Prefer CODEOWNER review for protected paths and require a human maintainer for final approval.
+Contributor changes to governance files, workflows, dependency manifests, lockfiles, release logic, security-sensitive code, generated artifacts, and agent instructions should receive maintainer review before merge. A ready contributor pull request must pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval.
+
+Repository administrators retain full branch-protection bypass. While Poolboy has one maintainer, `@thekidnamedkd` may merge their own pull requests without the impossible requirement of self-approval. Contributor protections remain in force, and this authority is not delegated to bots or agents.
 
 ## Review path
 
@@ -14,7 +16,7 @@ Changes to governance files, workflows, dependency manifests, lockfiles, release
 2. Let the PR Contract workflow check metadata from the protected base repository.
 3. Run builds and tests in the normal `pull_request` checks without repository secrets.
 4. Require maintainer review for CODEOWNERS-owned or security-sensitive paths.
-5. Merge through the protected branch path after required checks and conversations are resolved.
+5. Merge contributor changes through the protected branch path after required checks and conversations are resolved. Repository administrators may bypass these gates under their maintainer authority.
 
 Use one actionable response for policy failures: one reason, one policy link, and one repair path.
 
