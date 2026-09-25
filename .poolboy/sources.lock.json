@@ -57,6 +57,11 @@
       "bytes": 1867,
       "sha256": "fc91711726b3b80edd7a575c6cab22db25d3cc9284186bdcf96a7d25b9f876d9"
     },
+    "CODE_OF_CONDUCT.md": {
+      "type": "markdown",
+      "bytes": 1349,
+      "sha256": "a4a1ff79ef7a8eab0db7bff23afb8f897b5b391b4f812b4f0af2cddbc62d6e48"
+    },
     "CONTRIBUTING.md": {
       "type": "markdown",
       "bytes": 3857,
@@ -67,6 +72,11 @@
       "bytes": 35150,
       "sha256": "809d4308665433a79762c83c102fd1d706f1ea99d2982156935335acf365fa96"
     },
+    "MAINTAINERS.md": {
+      "type": "markdown",
+      "bytes": 2901,
+      "sha256": "1030c3ce2734c3599fc94d2f7192bc2db9bdbbca1304dea057f81d80adf995bd"
+    },
     "Makefile": {
       "type": "make",
       "bytes": 1378,
@@ -76,6 +86,11 @@
       "type": "markdown",
       "bytes": 16131,
       "sha256": "56a285fa364d04446e16579c4aa93e1fddbac25925f4746aa951d191f6e343ac"
+    },
+    "SECURITY.md": {
+      "type": "markdown",
+      "bytes": 1301,
+      "sha256": "8a727583e03e81f4551a68013f29b0339a9e7412b67cc212db7ec52feeec13d4"
     },
     "bundle/bundle.go": {
       "type": "go",
