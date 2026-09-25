@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "03487ab8ba201e66675022227f19b74b3e873ffb",
+  "revision": "a1e6e9f0211d3b82da3a74bb1fffe1ebb6497a82",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -19,8 +19,8 @@
     },
     ".github/scripts/check-pr-contract.mjs": {
       "type": "javascript",
-      "bytes": 7954,
-      "sha256": "2265efc1ddbff716949aa292983f4b9de9000e44e8eaa7b5aec87605e4838e47"
+      "bytes": 10265,
+      "sha256": "8adafa56f0fb0722239cb7fa242dbca90ea3086b6b71dff043e4f3e43b6ef1c1"
     },
     ".github/workflows/check.yml": {
       "type": "yaml",
@@ -59,8 +59,8 @@
     },
     "CONTRIBUTING.md": {
       "type": "markdown",
-      "bytes": 3665,
-      "sha256": "0a15f260c3488c5a80fbd1cc0b400e8287abf73adcf11249eaa16daaa02304dd"
+      "bytes": 3857,
+      "sha256": "5e6e23231450d2f86f7124418d6bfab84ab752585784e1807c16d731537f54e5"
     },
     "LICENSE": {
       "type": "other",
@@ -69,8 +69,8 @@
     },
     "Makefile": {
       "type": "make",
-      "bytes": 1322,
-      "sha256": "96f5857c903d59b560965b09cdf8a6e72bd82d3788660facf818513ca8096ab2"
+      "bytes": 1378,
+      "sha256": "f3a8c8ceae64b3f87cc85a2ad639c42ff87083459060ef0290b1f8aefe7d8d11"
     },
     "README.md": {
       "type": "markdown",
