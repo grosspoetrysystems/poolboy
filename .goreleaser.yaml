@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: poolboy
+
+before:
+  hooks:
+    # Build the Knap renderer companion; the CLI requires poolboy-knap.mjs at runtime.
+    - pnpm --dir companion install --frozen-lockfile
+    - pnpm --dir companion build
+    # Stage the built companion under the runtime name the binary expects (beside the binary).
+    - cp companion/dist/cli.mjs poolboy-knap.mjs
+
+builds:
+  - id: poolboy
+    binary: poolboy
+    main: ./cmd/poolboy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.Version={{ .Version }}
+
+archives:
+  - id: poolboy
+    ids:
+      - poolboy
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      # poolboy-knap.mjs and LICENSE already sit at the repo root -> land at archive root.
+      - src: poolboy-knap.mjs
+      - src: LICENSE
+      # Strip the companion/ prefix so THIRD_PARTY_NOTICES lands at the archive root.
+      - src: companion/THIRD_PARTY_NOTICES
+        strip_parent: true
+
+checksum:
+  name_template: checksums.txt
+
+signs:
+  # Keyless cosign signature over the checksums file (GitHub OIDC in CI).
+  - cmd: cosign
+    artifacts: checksum
+    certificate: "${artifact}.pem"
+    output: true
+    args:
+      - sign-blob
+      - "--output-signature=${signature}"
+      - "--output-certificate=${certificate}"
+      - "${artifact}"
+      - "--yes"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: grosspoetrysystems
+    name: poolboy
+  draft: false
+  prerelease: auto
