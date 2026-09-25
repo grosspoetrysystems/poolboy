@@ -21,6 +21,7 @@ check:
 	pnpm --dir companion lint
 	pnpm --dir companion coverage
 	pnpm --dir companion knip
+	pnpm --dir companion hooks:check
 
 fmt:
 	$(GOLANGCI_LINT) fmt ./...
