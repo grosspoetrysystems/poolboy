@@ -52,6 +52,8 @@ Disclose material AI use in the pull request template. Assisted work identifies 
 
 Only maintainer-authorized automation may submit without a human operating each run. An agent may not approve or merge its own work, bypass checks or reviews, weaken project policy to make its pull request pass, impersonate a human, or answer substantive review questions as though it represented the accountable human's judgment. Pull-request changes to this policy or its validator do not govern that same pull request; intake validation runs the version from the protected base branch.
 
+Dependabot is authorized repository automation. Its generated pull requests are exempt from the human-authored body template, but not from required CI or owner approval.
+
 ## Generated documentation
 
 Edit templates and metadata rather than generated output. Run `make site`, review changes to `.poolboy/generated.json` and generated documents, and include them in the same commit as their inputs. `make verify` fails when generated output is stale.
