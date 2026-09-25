@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "75b8fc145701df1b8b0cdc8720cfbbee7d039e32",
+  "revision": "0b08466ce96fb43c6328ed14aca894e93e489939",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -19,8 +19,8 @@
     },
     ".github/scripts/check-pr-contract.mjs": {
       "type": "javascript",
-      "bytes": 7681,
-      "sha256": "8b877d78080a7a173c21512e5f951511407cbd03947710c7401f57d52d5a0936"
+      "bytes": 7954,
+      "sha256": "2265efc1ddbff716949aa292983f4b9de9000e44e8eaa7b5aec87605e4838e47"
     },
     ".github/workflows/check.yml": {
       "type": "yaml",
@@ -59,8 +59,8 @@
     },
     "CONTRIBUTING.md": {
       "type": "markdown",
-      "bytes": 3494,
-      "sha256": "c0103c5a8a897f1e4d7164a6d0e77a07be541c6acc042c3790b9ebc48bc42851"
+      "bytes": 3665,
+      "sha256": "0a15f260c3488c5a80fbd1cc0b400e8287abf73adcf11249eaa16daaa02304dd"
     },
     "LICENSE": {
       "type": "other",
@@ -69,8 +69,8 @@
     },
     "Makefile": {
       "type": "make",
-      "bytes": 1288,
-      "sha256": "2d61a7bc1b3905f6f56d420df59db7f7c19a7a48ee8fbf1684f268a82d40094d"
+      "bytes": 1322,
+      "sha256": "96f5857c903d59b560965b09cdf8a6e72bd82d3788660facf818513ca8096ab2"
     },
     "README.md": {
       "type": "markdown",
@@ -154,8 +154,8 @@
     },
     "companion/package.json": {
       "type": "json",
-      "bytes": 1048,
-      "sha256": "569df95bf2f99c6adf8ed3c0d219b320a609d1e2f77b8defed820ce52a344a0c"
+      "bytes": 1088,
+      "sha256": "066f47e36e2ab74c9de51a7322a7ab2cc0b09b5b8acf24833615496b89077e28"
     },
     "companion/pnpm-lock.yaml": {
       "type": "yaml",

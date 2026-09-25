@@ -151,6 +151,11 @@ export function validate(body) {
   return errors;
 }
 
+export function validateEvent(event) {
+  if (event.pull_request?.user?.login === "dependabot[bot]") return [];
+  return validate(event.pull_request?.body);
+}
+
 const validFixture = `${marker}
 ## Outcome
 Users receive a deterministic result.
@@ -186,6 +191,10 @@ inline
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "--self-test") {
     assert.deepEqual(validate(validFixture), []);
+    assert.deepEqual(
+      validateEvent({ pull_request: { user: { login: "dependabot[bot]" }, body: "" } }),
+      [],
+    );
     const unchecked = validFixture.replace("- [x]", "- [ ]\n> - [x]");
     assert(
       validate(unchecked).some((error) => error.startsWith("Check the attestation:")),
@@ -198,7 +207,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log("PR contract self-test passed.");
   } else {
     const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
-    const errors = validate(event.pull_request?.body);
+    const errors = validateEvent(event);
     if (errors.length > 0) {
       console.error(errors.map((error) => `- ${error}`).join("\n"));
       process.exitCode = 1;
