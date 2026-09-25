@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "5a7810be44abe4bf6297541c8f85dc473160e132",
+  "revision": "f560116c7ab38e41fe65b18cbd1ff93a30da0ee1",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -64,8 +64,8 @@
     },
     "CONTRIBUTING.md": {
       "type": "markdown",
-      "bytes": 3857,
-      "sha256": "5e6e23231450d2f86f7124418d6bfab84ab752585784e1807c16d731537f54e5"
+      "bytes": 3961,
+      "sha256": "da15bee16a0d2a79ec490c62751a1607081b0ff80d3d168d077afd1737ef288d"
     },
     "LICENSE": {
       "type": "other",
@@ -74,8 +74,8 @@
     },
     "MAINTAINERS.md": {
       "type": "markdown",
-      "bytes": 3234,
-      "sha256": "e59267caf0221370155a261fb29d7a578b3794b5d83a9c0ece1da14907e52125"
+      "bytes": 3290,
+      "sha256": "37fc981e0d17e50f943b3e4149a59d2cbd05854b4f15a4fde39c0f7bc8a0f0d9"
     },
     "Makefile": {
       "type": "make",

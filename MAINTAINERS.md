@@ -22,7 +22,7 @@ Use one actionable response for policy failures: one reason, one policy link, an
 
 ## Automation boundaries
 
-Dependabot is authorized repository automation. Its `dependabot[bot]` pull requests may omit the human-authored body template, but still require all required CI checks and owner approval. Dependabot may open weekly dependency updates for GitHub Actions, Go modules, and the `companion` npm development tooling. Treat Dependabot pull requests like any other dependency change: review the diff, release notes, lockfiles, and CI before merging.
+Dependabot is authorized repository automation. Its `dependabot[bot]` pull requests may omit the human-authored body template, but still require all required CI checks and owner approval. Dependabot may open weekly dependency updates for GitHub Actions, Go modules, and all npm packages under `companion`; development dependencies are grouped as development tooling. Treat Dependabot pull requests like any other dependency change: review the diff, release notes, lockfiles, and CI before merging.
 
 GitHub Actions may validate pull requests, build, deploy, release, and attest artifacts only through the workflows in `.github/workflows/` and their declared permissions. The PR Contract workflow runs on `pull_request_target`; keep it limited to protected-base files and event metadata, with read-only contents permission and no checkout or execution of contributor code.
 
