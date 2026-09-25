@@ -2,11 +2,12 @@ name: Deploy
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -27,11 +28,17 @@ jobs:
         with:
           package_json_file: companion/package.json
       - run: pnpm --dir companion install --frozen-lockfile
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v2.6.0
       # SITE_URL (a repository variable) absolutizes share-card and canonical
       # URLs; leave it unset to keep them root-relative to the served host.
       - run: make site
         env:
           SITE_URL: ${{ vars.SITE_URL }}
+      - name: Sign corpus manifest
+        run: cosign sign-blob --bundle .site/docs/graph.json.sigstore.json --yes .site/docs/graph.json
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
