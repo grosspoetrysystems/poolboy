@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "9d5772adf81a5853fb4f21382403577d219365ae",
+  "revision": "cca8e5cfbc016ff5cc66d8105d67c10d503f4896",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -64,8 +64,8 @@
     },
     "CONTRIBUTING.md": {
       "type": "markdown",
-      "bytes": 3961,
-      "sha256": "da15bee16a0d2a79ec490c62751a1607081b0ff80d3d168d077afd1737ef288d"
+      "bytes": 4066,
+      "sha256": "af7efb19b0db2cd010195f4d24bfed4aa218c2d1b0c43534c32d0c4fd87a03b1"
     },
     "LICENSE": {
       "type": "other",
