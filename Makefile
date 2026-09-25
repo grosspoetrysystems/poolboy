@@ -33,4 +33,5 @@ site: build
 	cp site/obsidian.svg assets/poolboy-og.jpg .site/
 	sed "s|{{site}}|$(SITE_URL)|g" site/index.html > .site/index.html
 	cp README.md .site/install.md
+	cp site/start.md site/try.md site/llms.txt .site/
 	cp -R dist/. .site/docs/

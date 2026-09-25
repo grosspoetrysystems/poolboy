@@ -27,6 +27,17 @@
       ]
     },
     {
+      "name": "preview",
+      "summary": "Build and serve the configured corpus through a private loopback URL.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/preview.go",
+      "flags": [
+        {"name": "--port N", "description": "Use a loopback port; 0 chooses an available port."},
+        {"name": "--renderer PATH", "description": "Use a trusted Knap companion path."}
+      ]
+    },
+    {
       "name": "scan",
       "summary": "Record a bounded source inventory baseline.",
       "mutates": true,
@@ -268,6 +279,58 @@
       "flags": [
         {"name": "--fix", "description": "Apply safe repairs, such as syncing okf_version."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "keygen",
+      "summary": "Generate a private Ed25519 key for explicit TOFU publishing.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/signing.go",
+      "flags": [
+        {"name": "--out PATH", "description": "Private key destination; defaults to poolboy.key."},
+        {"name": "--force", "description": "Overwrite an existing key file."}
+      ]
+    },
+    {
+      "name": "sign",
+      "summary": "Sign the built graph for explicit Ed25519 TOFU verification.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/signing.go",
+      "flags": [
+        {"name": "--key PATH", "description": "Private key file; alternatively set POOLBOY_SIGNING_KEY."}
+      ]
+    },
+    {
+      "name": "verify",
+      "summary": "Verify an approved exact corpus release or report a pending update.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/signing.go",
+      "flags": [
+        {"name": "DIR-OR-URL", "description": "Local publication directory or HTTP(S) publication root."},
+        {"name": "--lock PATH", "description": "Use an authoritative project trust lock."},
+        {"name": "--identity URI", "description": "Require an exact Sigstore workflow identity on first contact."},
+        {"name": "--tofu", "description": "Explicitly use weaker Ed25519 trust on first use."},
+        {"name": "--channel NAME", "description": "Trust channel; defaults to stable."}
+      ]
+    },
+    {
+      "name": "approve",
+      "summary": "Fully verify and interactively approve one exact corpus digest.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/signing.go",
+      "flags": [
+        {"name": "DIR-OR-URL", "description": "Local publication directory or HTTP(S) publication root."},
+        {"name": "--lock PATH", "description": "Write the authoritative project trust lock."},
+        {"name": "--identity URI", "description": "Require an exact Sigstore workflow identity."},
+        {"name": "--tofu", "description": "Explicitly use weaker Ed25519 trust on first use."},
+        {"name": "--channel NAME", "description": "Trust channel; defaults to stable."},
+        {"name": "--minimum-release-age DURATION", "description": "Minimum trusted release age; stable Sigstore defaults to 72h."},
+        {"name": "--override-age", "description": "Record a human emergency override for this exact digest."},
+        {"name": "--migrate-identity", "description": "Explicitly replace an existing publisher identity or TOFU key."}
       ]
     },
     {

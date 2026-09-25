@@ -78,7 +78,9 @@ Go/TypeScript components a maintainer actually edits or reasons about.
    attempts for later I/O failures. See [Build and render](build-and-render.md).
 
 Queries and refactors (`status`, `links`, `backlinks`, `move`, `tidy`, `check`)
-operate on the index and never publish. Only `build` writes `dist/`.
+operate on the index and never publish. `build` writes `dist/`; `preview` runs
+the same build and exposes that output through a temporary loopback-only HTTP
+server without signing or uploading it.
 
 ## What a consumer needs
 

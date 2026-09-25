@@ -74,7 +74,9 @@ also renders generated documents and publishes the static output.
 requires `scan --accept` after review. `drift` compares the baseline without
 writing, and `affected SOURCE` finds documents that directly cite that source
 in `sources[].resource`. These are evidence/review candidates, not semantic
-staleness conclusions. `build` is the separate publication transaction; see
+staleness conclusions. `build` is the separate publication transaction.
+`preview` runs that same build, then serves its static output from `127.0.0.1`
+under a random URL prefix with no signing or upload. See
 [Build and render](build-and-render.md).
 
 ## Reserved and compatibility behavior

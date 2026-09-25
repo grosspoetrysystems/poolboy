@@ -38,6 +38,18 @@ Render and publish the configured corpus.
 
 - `--renderer PATH` — Use a trusted Knap companion path.
 - `--format text|json|csv|tsv` — Choose result output format.
+## `preview`
+
+Build and serve the configured corpus through a private loopback URL.
+
+- Mutation: `true`
+- Aliases: `none`
+- Source: `cmd/poolboy/preview.go`
+
+### Flags and arguments
+
+- `--port N` — Use a loopback port; 0 chooses an available port.
+- `--renderer PATH` — Use a trusted Knap companion path.
 ## `scan`
 
 Record a bounded source inventory baseline.
@@ -302,6 +314,62 @@ Report conformance and corpus health issues.
 
 - `--fix` — Apply safe repairs, such as syncing okf_version.
 - `--format text|json|csv|tsv` — Choose result output format.
+## `keygen`
+
+Generate a private Ed25519 key for explicit TOFU publishing.
+
+- Mutation: `true`
+- Aliases: `none`
+- Source: `cmd/poolboy/signing.go`
+
+### Flags and arguments
+
+- `--out PATH` — Private key destination; defaults to poolboy.key.
+- `--force` — Overwrite an existing key file.
+## `sign`
+
+Sign the built graph for explicit Ed25519 TOFU verification.
+
+- Mutation: `true`
+- Aliases: `none`
+- Source: `cmd/poolboy/signing.go`
+
+### Flags and arguments
+
+- `--key PATH` — Private key file; alternatively set POOLBOY_SIGNING_KEY.
+## `verify`
+
+Verify an approved exact corpus release or report a pending update.
+
+- Mutation: `false`
+- Aliases: `none`
+- Source: `cmd/poolboy/signing.go`
+
+### Flags and arguments
+
+- `DIR-OR-URL` — Local publication directory or HTTP(S) publication root.
+- `--lock PATH` — Use an authoritative project trust lock.
+- `--identity URI` — Require an exact Sigstore workflow identity on first contact.
+- `--tofu` — Explicitly use weaker Ed25519 trust on first use.
+- `--channel NAME` — Trust channel; defaults to stable.
+## `approve`
+
+Fully verify and interactively approve one exact corpus digest.
+
+- Mutation: `true`
+- Aliases: `none`
+- Source: `cmd/poolboy/signing.go`
+
+### Flags and arguments
+
+- `DIR-OR-URL` — Local publication directory or HTTP(S) publication root.
+- `--lock PATH` — Write the authoritative project trust lock.
+- `--identity URI` — Require an exact Sigstore workflow identity.
+- `--tofu` — Explicitly use weaker Ed25519 trust on first use.
+- `--channel NAME` — Trust channel; defaults to stable.
+- `--minimum-release-age DURATION` — Minimum trusted release age; stable Sigstore defaults to 72h.
+- `--override-age` — Record a human emergency override for this exact digest.
+- `--migrate-identity` — Explicitly replace an existing publisher identity or TOFU key.
 ## `version`
 
 Print the Poolboy version as a bare string.

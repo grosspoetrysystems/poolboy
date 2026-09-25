@@ -1,0 +1,10 @@
+# Poolboy
+
+Poolboy maintains software documentation as portable Markdown, then compiles it into a static, agent-readable corpus.
+
+- [Try Poolboy privately](try.md)
+- [Set up Poolboy in this repository](start.md)
+- [Poolboy documentation entry point](docs/llms.txt)
+- [Documentation index](docs/index.md)
+- [Signed corpus manifest](docs/graph.json)
+- [Installation guide](install.md)

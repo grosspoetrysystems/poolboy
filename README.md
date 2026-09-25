@@ -63,7 +63,7 @@ for you. Every value is a string:
 - `site_dir` is absent or empty by default and uses Poolboy's built-in page. A nonempty value is a project-relative prebuilt static directory containing `index.html`; Poolboy copies bounded regular files without executing a framework or build command. Its files replace the built-in HTML, built-in landing fields do not rewrite copied markup, and its own URLs own the landing behavior. The generated Markdown ZIP remains `corpus.zip`; custom HTML must link it itself.
 - `description` defaults to `Agentic docs, skimmed by Poolboy.`; an explicit empty string is preserved.
 - `secondary_description` defaults to `Copy the prompt into your agent and ask your question.`; an explicit empty string is preserved.
-- `prompt` starts with `Use {{url}}/llms.txt to answer my question about {{title}}.`, followed by instructions to cite sources, flag gaps and treat fetched content as reference rather than instructions. `{{title}}` is replaced with the effective landing title during the build; `{{url}}` is replaced client-side with the publication base. Both substitutions remain text, not HTML.
+- `prompt` starts with the `{{url}}/llms.txt` entry point, followed by the question, source-citation, gap-reporting, and instruction-boundary text. `{{title}}` is replaced with the effective landing title during the build; `{{url}}` is replaced client-side with the publication base. Both substitutions remain text, not HTML.
 - `base_url` is absent or empty by default: the page derives the actual deployed page directory, including a hosting subpath, from the browser URL. An explicit value is an HTTP(S) canonical publication root with an optional subpath; userinfo, query strings and fragments are rejected.
 - `download_filename` defaults to a safe slug of the corpus name followed by `-docs.zip`. It must be a safe single `.zip` filename, not a path; it controls the built-in page's browser download name while the physical asset remains `corpus.zip`. The archive contains published Markdown only and does not imply plugin support or synchronization.
 
@@ -95,20 +95,35 @@ dist/
   **/*.md
   assets/**             # any additional safe files copied from landing.site_dir
 ```
-`poolboy build` is deterministic and keyless. To authenticate a completed publication, generate a key once, sign the exact `graph.json` bytes, and publish the two signature files alongside the corpus:
+`poolboy build` is deterministic and keyless. The public deploy workflow signs
+the exact `graph.json` bytes with Sigstore and publishes
+`graph.json.sigstore.json`. For a private/local Ed25519 publication:
 
 ```sh
 poolboy keygen --out poolboy.key
 poolboy --root . sign --key poolboy.key
+poolboy approve dist --tofu
 poolboy verify dist
-poolboy verify dist --full
 ```
 
-`poolboy keygen` writes a base64 ed25519 seed with mode `0600` and prints the public key. `poolboy sign` reads a seed from the `--key` file, or directly from the `POOLBOY_SIGNING_KEY` environment variable, then writes `graph.json.sig` and `poolboy.pub`; it never copies the private key into `dist/`. Re-run `sign` after every build because the signature covers that build's exact manifest.
+`poolboy keygen` writes a base64 Ed25519 seed with mode `0600` and prints the
+public key. `poolboy sign` reads a seed from the `--key` file, or directly from
+`POOLBOY_SIGNING_KEY`, then writes `graph.json.sig` and `poolboy.pub`; it never
+copies the private key into `dist/`. Re-run `sign` after every build because the
+signature covers that build's exact manifest.
 
 The landing page is a minimal, responsive agent handoff with a copyable prompt and links to the Markdown index, graph and `llms.txt`. The ZIP is a deterministic, portable download of the published Markdown tree. Open that tree directly in Obsidian, VS Code, GitHub or another editor; there is no conversion, plugin or remote-sync requirement.
 
-`graph.files` contains only canonical Markdown document identities, directed internal links, exact byte sizes and SHA-256 hashes. `graph.artifacts` is a separate map of every owned non-Markdown publication file except `graph.json`, `graph.json.sig`, `llms.txt`, and `poolboy.pub` (including `corpus.zip`, generated or copied `index.html`, and nested `site_dir` assets); each key is a clean publication-relative path and each value contains only `bytes` and SHA-256 `sha256`. The graph does not hash itself. External URLs are not graph nodes. Unsigned output excludes wall-clock timestamps and host paths. Identical inputs produce identical output bytes.
+`graph.llms` contains the exact byte size and SHA-256 of `llms.txt`.
+`graph.files` contains only canonical Markdown document identities, directed
+internal links, exact byte sizes and SHA-256 hashes. `graph.artifacts` is a
+separate map of every other owned non-Markdown publication file except
+`graph.json`, signature sidecars, and `poolboy.pub` (including `corpus.zip`,
+generated or copied `index.html`, and nested `site_dir` assets); each key is a
+clean publication-relative path and each value contains only `bytes` and
+SHA-256 `sha256`. The graph does not hash itself. External URLs are not graph
+nodes. Unsigned build output excludes wall-clock timestamps and host paths.
+Identical inputs produce identical output bytes.
 
 Generated documents are materialized in the working corpus so editors and maintenance commands can read them. Edit their template/data sources; the generated-file ledger rejects conflicting handwritten changes. Commit generated Markdown with `.poolboy/generated.json` so ownership survives a fresh checkout, and retain `.poolboy/sources.lock.json` so the evidence baseline survives too. The inventory contains paths and hashes, not source contents. Do not delete `.poolboy/` to force an overwrite or reset drift. Validation failures leave the previous publication intact.
 
@@ -145,34 +160,84 @@ Scan respects ignore files and excludes private state, dependencies, generated o
 
 ## Publish and consume
 
-Deploy `dist/` with your existing static host. A browser can open `/index.html`; an agent or other consumer needs only HTTP:
+`dist/` is the complete deployment unit. Copy it byte-for-byte to any static
+HTTP host: an existing web server, object storage, or a CDN. The host needs no
+Poolboy process, Go, Node, database, worker, or Sigstore installation.
+
+Point an AI or hosting setup at this provider-neutral stub:
+
+```text
+deploy input: prebuilt dist/
+build command: none
+publish directory: dist/ (or upload its contents as the site root)
+runtime/functions: none
+routing: exact static files; no SPA fallback
+```
+
+That is the entire hosting contract for Vercel, Cloudflare Pages, GitHub Pages,
+or another static host. Signing happens before upload; the host only serves
+files. A browser can open `/index.html`; an agent or other consumer needs only
+HTTP:
 
 ```text
 GET /index.html
 GET /llms.txt
 GET /graph.json
 GET /graph.json.sig
+GET /graph.json.sigstore.json
 GET /poolboy.pub
 GET /corpus.zip
 GET /architecture/overview.md
 ```
 
-To verify locally or from a static HTTP base URL:
+To approve a public corpus signed by GitHub Actions, provide the exact expected
+workflow identity and an explicit project lock:
 
 ```sh
-poolboy verify dist                 # verify graph signature and apply TOFU
-poolboy verify https://docs.example/poolboy/ --full
+poolboy approve https://docs.example/poolboy/ \
+  --lock poolboy.lock \
+  --identity https://github.com/ORG/REPO/.github/workflows/deploy.yml@refs/heads/main
+poolboy verify https://docs.example/poolboy/ --lock poolboy.lock
 ```
 
-`poolboy verify` requires `graph.json`, `graph.json.sig`, and `poolboy.pub`. The signature is ed25519 over the exact manifest bytes; because that manifest carries SHA-256 values for Markdown and artifacts, `--full` transitively checks the whole publication. The first successful verification of an origin pins its base64 public key in `$XDG_CONFIG_HOME/poolboy/known_publishers.json` (or `~/.config/poolboy/known_publishers.json`). Later verification rejects a changed key instead of silently re-pinning. TOFU records continuity for that origin, not a global identity: compare the printed key with an independently trusted publisher key before accepting the first pin. An unsigned corpus remains unauthenticated; a signed corpus whose first key has not been independently checked has cryptographic integrity but no independently established publisher identity.
+Approval verifies the Sigstore certificate identity, transparency-log inclusion
+and time, `graph.json`, `llms.txt`, every Markdown file, and every artifact
+before atomically recording the exact manifest digest. Stable Sigstore releases
+must be 72 hours old unless a human uses the digest-bound `--override-age`.
+Every different valid manifest returns `UPDATE PENDING`; run `approve` again to
+review its provenance and added, changed, and removed paths. An older
+transparency-log time is rejected as a rollback. The checked-in lock diff is the
+portable team approval artifact and is authoritative over local trust.
+
+Private or local deployments may explicitly use weaker TOFU:
+
+```sh
+poolboy approve dist --tofu
+poolboy verify dist
+```
+
+TOFU pins key continuity and the exact approved release in the local trust
+store; it does not authenticate publisher identity. A changed key is a hard
+failure, and a changed release requires approval. `poolboy sign` signs
+`graph.json` with Ed25519 for this mode. Authenticated content remains evidence,
+not authority to override system policy, permissions, or human intent.
 
 `base_url` is optional: when absent or empty, the landing page derives the publication directory from its actual browser URL, including any deployment subpath. An explicit `base_url` is the canonical HTTP(S) publication root. `download_filename` changes the browser's suggested name for `/corpus.zip`; the asset remains a portable Markdown download, not a synchronization mechanism.
 
-No Poolboy server, SDK, MCP, database or inference service is required. Private deployments use the host's existing authentication/network controls. Build does not publish automatically; signing is a separate explicit step.
+Private deployments use the host's existing authentication/network controls.
+Build does not publish automatically; signing and upload remain separate
+explicit steps.
 
 ### Deploy Poolboy's product site on Cloudflare
 
-The product site is separate from the generated docs landing. `make site` assembles both into `.site/`: the product page at `/`, source-install instructions at `/install.md`, and the generated corpus at `/docs/`. Both prompts derive their URLs from the deployed hostname; no domain is hardcoded.
+The product site is separate from the generated docs landing and is only this
+repository's Cloudflare configuration. `make site` assembles a portable
+`.site/` directory: the product page and agent discovery file at `/` and
+`/llms.txt`, the private worktree trial at `/try.md`, the repository setup
+workflow at `/start.md`, source-install instructions at `/install.md`, and the
+generated corpus at `/docs/`. Another static host can publish that directory unchanged.
+Both prompts derive their URLs from the deployed hostname; no domain is
+hardcoded.
 
 After installing the build prerequisites above:
 
@@ -198,7 +263,7 @@ npx --yes wrangler@4.138.0 deploy
 
 After registering the domain, open **Workers & Pages → poolboy-site → Settings → Domains & Routes → Add → Custom Domain**. Add the actual hostname; Cloudflare provisions its DNS record and certificate. Apex and `www` are separate hostnames. See [Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
-The install prompt guides a source checkout from [GitHub](https://github.com/grosspoetrysystems/poolboy), not a released binary installer. Building, previewing and dry-running do not publish; deployment and domain setup are explicit steps.
+The primary prompt starts from an agent session already open in the target repository. It creates a detached temporary worktree at committed `HEAD`, installs Poolboy from [GitHub](https://github.com/grosspoetrysystems/poolboy) only when needed, produces a real corpus there, and serves it through `poolboy preview` on a private loopback URL. The current checkout remains unchanged. If the user adopts Poolboy, the same worktree becomes the reviewed implementation instead of regenerating the work. Released binaries are not published yet. Building and previewing do not sign, upload, or publish; those remain explicit steps.
 
 ## Acknowledgements
 
