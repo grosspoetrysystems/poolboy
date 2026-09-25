@@ -95,10 +95,20 @@ dist/
   **/*.md
   assets/**             # any additional safe files copied from landing.site_dir
 ```
+`poolboy build` is deterministic and keyless. To authenticate a completed publication, generate a key once, sign the exact `graph.json` bytes, and publish the two signature files alongside the corpus:
+
+```sh
+poolboy keygen --out poolboy.key
+poolboy --root . sign --key poolboy.key
+poolboy verify dist
+poolboy verify dist --full
+```
+
+`poolboy keygen` writes a base64 ed25519 seed with mode `0600` and prints the public key. `poolboy sign` reads a seed from the `--key` file, or directly from the `POOLBOY_SIGNING_KEY` environment variable, then writes `graph.json.sig` and `poolboy.pub`; it never copies the private key into `dist/`. Re-run `sign` after every build because the signature covers that build's exact manifest.
 
 The landing page is a minimal, responsive agent handoff with a copyable prompt and links to the Markdown index, graph and `llms.txt`. The ZIP is a deterministic, portable download of the published Markdown tree. Open that tree directly in Obsidian, VS Code, GitHub or another editor; there is no conversion, plugin or remote-sync requirement.
 
-`graph.files` contains only canonical Markdown document identities, directed internal links, exact byte sizes and SHA-256 hashes. `graph.artifacts` is a separate map of every owned non-Markdown publication file except `graph.json` and `llms.txt` (including `corpus.zip`, generated or copied `index.html`, and nested `site_dir` assets); each key is a clean publication-relative path and each value contains only `bytes` and SHA-256 `sha256`. The graph does not hash itself. External URLs are not graph nodes. Unsigned output excludes wall-clock timestamps and host paths. Identical inputs produce identical output bytes.
+`graph.files` contains only canonical Markdown document identities, directed internal links, exact byte sizes and SHA-256 hashes. `graph.artifacts` is a separate map of every owned non-Markdown publication file except `graph.json`, `graph.json.sig`, `llms.txt`, and `poolboy.pub` (including `corpus.zip`, generated or copied `index.html`, and nested `site_dir` assets); each key is a clean publication-relative path and each value contains only `bytes` and SHA-256 `sha256`. The graph does not hash itself. External URLs are not graph nodes. Unsigned output excludes wall-clock timestamps and host paths. Identical inputs produce identical output bytes.
 
 Generated documents are materialized in the working corpus so editors and maintenance commands can read them. Edit their template/data sources; the generated-file ledger rejects conflicting handwritten changes. Commit generated Markdown with `.poolboy/generated.json` so ownership survives a fresh checkout, and retain `.poolboy/sources.lock.json` so the evidence baseline survives too. The inventory contains paths and hashes, not source contents. Do not delete `.poolboy/` to force an overwrite or reset drift. Validation failures leave the previous publication intact.
 
@@ -141,13 +151,24 @@ Deploy `dist/` with your existing static host. A browser can open `/index.html`;
 GET /index.html
 GET /llms.txt
 GET /graph.json
+GET /graph.json.sig
+GET /poolboy.pub
 GET /corpus.zip
 GET /architecture/overview.md
 ```
 
+To verify locally or from a static HTTP base URL:
+
+```sh
+poolboy verify dist                 # verify graph signature and apply TOFU
+poolboy verify https://docs.example/poolboy/ --full
+```
+
+`poolboy verify` requires `graph.json`, `graph.json.sig`, and `poolboy.pub`. The signature is ed25519 over the exact manifest bytes; because that manifest carries SHA-256 values for Markdown and artifacts, `--full` transitively checks the whole publication. The first successful verification of an origin pins its base64 public key in `$XDG_CONFIG_HOME/poolboy/known_publishers.json` (or `~/.config/poolboy/known_publishers.json`). Later verification rejects a changed key instead of silently re-pinning. TOFU records continuity for that origin, not a global identity: compare the printed key with an independently trusted publisher key before accepting the first pin. An unsigned corpus remains unauthenticated; a signed corpus whose first key has not been independently checked has cryptographic integrity but no independently established publisher identity.
+
 `base_url` is optional: when absent or empty, the landing page derives the publication directory from its actual browser URL, including any deployment subpath. An explicit `base_url` is the canonical HTTP(S) publication root. `download_filename` changes the browser's suggested name for `/corpus.zip`; the asset remains a portable Markdown download, not a synchronization mechanism.
 
-No Poolboy server, SDK, MCP, database or inference service is required. Private deployments use the host's existing authentication/network controls. Build does not publish automatically. Resource hashes provide a comparison target; an unauthenticated manifest does not itself establish publisher authenticity.
+No Poolboy server, SDK, MCP, database or inference service is required. Private deployments use the host's existing authentication/network controls. Build does not publish automatically; signing is a separate explicit step.
 
 ### Deploy Poolboy's product site on Cloudflare
 

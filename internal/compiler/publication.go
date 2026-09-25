@@ -103,7 +103,7 @@ func validateExistingPublication(output string) error {
 		}
 	}
 
-	expected := map[string]bool{"graph.json": true, "llms.txt": true}
+	expected := map[string]bool{"graph.json": true, "graph.json.sig": true, "llms.txt": true, "poolboy.pub": true}
 	expectedDirs := map[string]bool{}
 	seenGraph := map[string]bool{}
 	seenArtifact := map[string]bool{}

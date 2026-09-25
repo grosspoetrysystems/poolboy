@@ -21,6 +21,9 @@ Usage: poolboy [--root <dir>] <command> [flags]
 Commands:
   init          scaffold a documentation project (--force)
   build         render and publish the configured corpus
+  keygen        generate a signing keypair (--out --force)
+  sign          sign the published graph.json (--root --key)
+  verify        verify a signed corpus locally or over HTTP (--full)
   scan          record a source inventory (--accept to replace baseline)
   drift         compare the source inventory with current files
   affected      find documents citing a source resource
@@ -79,6 +82,12 @@ func run(args []string) int {
 		return 0
 	case "build":
 		return cmdBuild(args[1:])
+	case "keygen":
+		return cmdKeygen(args[1:])
+	case "sign":
+		return cmdSign(args[1:])
+	case "verify":
+		return cmdVerify(args[1:])
 	case "scan":
 		return cmdScan(args[1:])
 	case "drift":

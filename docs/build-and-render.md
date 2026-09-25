@@ -8,10 +8,12 @@ sources:
   - resource: ../poolboy.toml
   - resource: ../cmd/poolboy/product.go
   - resource: ../cmd/poolboy/commands.go
+  - resource: ../cmd/poolboy/signing.go
   - resource: ../internal/compiler/build.go
   - resource: ../internal/compiler/graph.go
   - resource: ../internal/compiler/ledger.go
   - resource: ../internal/compiler/validate.go
+  - resource: ../internal/sign/sign.go
   - resource: ../internal/scaffold/scaffold.go
   - resource: ../internal/output/output.go
 ---
@@ -25,6 +27,12 @@ directory. The configured output is commonly `dist/`, but the compiler does
 not hard-code that name. The landing page's `download_filename` changes the
 browser's suggested name for `corpus.zip`; it does not rename the physical
 asset.
+
+Build is deterministic and keyless. After a successful build, `poolboy sign`
+reads the exact output `graph.json` bytes and writes `graph.json.sig` plus
+`poolboy.pub`; signing is never automatic. A later build may replace an
+existing signed publication, because those two files are recognized Poolboy
+output, but the new output is unsigned until `sign` runs again.
 
 The ZIP contains only the candidate published Markdown, preserving relative
 directories and links. Entries are sorted and use fixed metadata so identical
@@ -81,14 +89,32 @@ are still validated against the target document's headings during the build,
 and the authored Markdown keeps its fragment in the published body.
 
 `graph.artifacts` is a sibling map of every owned non-Markdown publication
-file except `graph.json` and `llms.txt`. Its keys are clean,
-publication-relative paths without a leading slash, such as `index.html`,
-`assets/app.js`, and `corpus.zip`; each value contains only its exact byte
-`bytes` and lowercase SHA-256 `sha256`. The map includes safe files copied
-from a custom `site_dir` and the generated ZIP. It does not hash `graph.json`
-itself. The configurable `download_filename` is only the built-in page's
-browser suggestion for `corpus.zip`, and is not an artifact key; custom
+file except `graph.json`, `graph.json.sig`, `llms.txt`, and `poolboy.pub`. Its
+keys are clean, publication-relative paths without a leading slash, such as
+`index.html`, `assets/app.js`, and `corpus.zip`; each value contains only its
+exact byte `bytes` and lowercase SHA-256 `sha256`. The map includes safe files
+copied from a custom `site_dir` and the generated ZIP. It does not hash
+`graph.json` itself. The configurable `download_filename` is only the built-in
+page's browser suggestion for `corpus.zip`, and is not an artifact key; custom
 `site_dir` HTML is copied verbatim and owns its own links.
+
+`graph.json.sig` is a deterministic JSON object (`alg`, `key`, `sig`) followed
+by a newline. Its signature is ed25519 over the exact bytes of `graph.json`;
+`key` and `sig` use standard base64. `poolboy.pub` is the same standard-base64
+public key followed by a newline. These files authenticate the manifest and,
+transitively, the bytes whose hashes the manifest contains; they are not
+themselves graph artifacts. Keep the private seed in its 0600 `--key` file or
+provide the base64 seed directly via `POOLBOY_SIGNING_KEY`, never in the
+publication.
+
+`poolboy verify <dir-or-url>` first checks those three files, then applies
+trust-on-first-use. It pins the first key for the normalized URL origin or
+absolute local path in `$XDG_CONFIG_HOME/poolboy/known_publishers.json` (or
+`~/.config/poolboy/known_publishers.json`) and rejects a later key change
+instead of silently re-pinning. `--full` fetches every Markdown file and
+artifact named in the signed manifest and checks its SHA-256. TOFU establishes
+continuity for an origin, not publisher identity; independently confirm the
+first key before trusting it. An unsigned corpus remains unauthenticated.
 
 The built-in `index.html` derives its favicon from `logo`, or from the
 effective nonempty `mark` when no logo is set. Empty mark plus no logo
@@ -103,9 +129,9 @@ and final newlines; compiler-generated metadata does not include timestamps or
 host filesystem roots.
 
 The published directory is intended for a static HTTP consumer: fetch
-`index.html`, `llms.txt`, `graph.json`, `corpus.zip`, a copied static asset, or
-a Markdown path with `GET`. Poolboy does not serve those files or provide a
-runtime SDK.
+`index.html`, `llms.txt`, `graph.json`, `graph.json.sig`, `poolboy.pub`,
+`corpus.zip`, a copied static asset, or a Markdown path with `GET`. Poolboy
+does not serve those files or provide a runtime SDK.
 
 ## Generated ownership
 
