@@ -13,6 +13,7 @@
     "coverage": "vitest run --coverage",
     "dev": "tsx src/bin/cli.ts",
     "format": "biome check --write .",
+    "hooks:check": "lefthook validate",
     "knip": "knip --no-progress",
     "lint": "biome ci .",
     "test": "vitest run",
@@ -37,6 +38,6 @@
   },
   "packageManager": "pnpm@11.24.0",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=24"
   }
 }

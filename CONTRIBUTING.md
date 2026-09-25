@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Go version declared in `go.mod`
-- Node.js 22.12 or newer
+- Node.js 24 or newer
 - Corepack
 
 ## Set up
@@ -27,7 +27,7 @@ make check    # tests, lint, types, coverage, and dead-code checks
 make verify   # check, build the site, verify generated files, and smoke-test the CLI
 ```
 
-Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and Conventional Commit messages. Pre-push runs `make verify`. CI runs the same verification command on Linux plus Go tests and a build on Windows.
+Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and Conventional Commit messages. Pre-push runs `make verify`. CI runs the same verification command on Linux, then compiles packages and tests and smoke-tests the CLI on Windows.
 
 Commit messages must be one-line [Conventional Commits](https://www.conventionalcommits.org/) headers, for example `fix(preview): reject non-loopback hosts`.
 
@@ -51,6 +51,8 @@ AI assistance is welcome; unattended submissions are not. A named human must rev
 Disclose material AI use in the pull request template. Assisted work identifies the tool and model. Materially agent-authored work also records an immutable run or sanitized trace, the protected base SHA, and the agent's command, network, secret, and MCP capabilities. Evidence must report observed behavior, not merely that an agent or generated test claims success.
 
 Only maintainer-authorized automation may submit without a human operating each run. An agent may not approve or merge its own work, bypass checks or reviews, weaken project policy to make its pull request pass, impersonate a human, or answer substantive review questions as though it represented the accountable human's judgment. Pull-request changes to this policy or its validator do not govern that same pull request; intake validation runs the version from the protected base branch.
+
+Dependabot is authorized repository automation. Its generated pull requests are exempt from the human-authored body template, but not from required CI or owner approval.
 
 ## Generated documentation
 
