@@ -65,6 +65,15 @@ func validateExistingPublication(output string) error {
 	if manifest.Version != "0" || manifest.Root != "/index.md" || len(manifest.Files) == 0 {
 		return fmt.Errorf("existing publication has incompatible graph.json")
 	}
+	legacyLLMS := manifest.LLMS.Bytes == 0 && manifest.LLMS.SHA256 == ""
+	if !legacyLLMS {
+		if manifest.LLMS.Bytes < 0 || manifest.LLMS.Bytes > maxOutputBytes || len(manifest.LLMS.SHA256) != sha256.Size*2 {
+			return fmt.Errorf("existing publication has invalid llms.txt entry")
+		}
+		if _, err := hex.DecodeString(manifest.LLMS.SHA256); err != nil {
+			return fmt.Errorf("existing publication has invalid llms.txt hash: %w", err)
+		}
+	}
 	if len(manifest.Files) > maxCorpusDocuments {
 		return fmt.Errorf("existing publication graph exceeds %d Markdown files", maxCorpusDocuments)
 	}
@@ -103,7 +112,7 @@ func validateExistingPublication(output string) error {
 		}
 	}
 
-	expected := map[string]bool{"graph.json": true, "graph.json.sig": true, "llms.txt": true, "poolboy.pub": true}
+	expected := map[string]bool{"graph.json": true, "graph.json.sig": true, "graph.json.sigstore.json": true, "llms.txt": true, "poolboy.pub": true}
 	expectedDirs := map[string]bool{}
 	seenGraph := map[string]bool{}
 	seenArtifact := map[string]bool{}
@@ -176,13 +185,17 @@ func validateExistingPublication(output string) error {
 		if !expected[rel] {
 			return fmt.Errorf("existing publication contains unknown file: %s", rel)
 		}
-		if rel == "graph.json" || rel == "llms.txt" {
+		if rel == "graph.json" || rel == "llms.txt" || rel == "graph.json.sig" || rel == "graph.json.sigstore.json" || rel == "poolboy.pub" {
 			limit := int64(maxPublicationManifestBytes)
 			if rel == "llms.txt" {
 				limit = maxOutputBytes
 			}
-			if _, err := readBoundedRegular(path, limit, "published metadata"); err != nil {
+			data, err := readBoundedRegular(path, limit, "published metadata")
+			if err != nil {
 				return err
+			}
+			if rel == "llms.txt" && !legacyLLMS && (len(data) != manifest.LLMS.Bytes || hashBytes(data) != manifest.LLMS.SHA256) {
+				return fmt.Errorf("existing publication graph does not own llms.txt")
 			}
 			seenSpecial[rel] = true
 			return nil

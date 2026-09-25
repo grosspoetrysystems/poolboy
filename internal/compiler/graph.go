@@ -18,6 +18,7 @@ import (
 type graph struct {
 	Version   string                   `json:"version"`
 	Root      string                   `json:"root"`
+	LLMS      graphArtifact            `json:"llms"`
 	Files     map[string]graphFile     `json:"files"`
 	Artifacts map[string]graphArtifact `json:"artifacts,omitempty"`
 }
@@ -42,7 +43,7 @@ var (
 	htmlHref      = regexp.MustCompile(`(?i)<\s*a\b[^>]*\bhref\s*=`)
 )
 
-func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string][]byte) ([]byte, error) {
+func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string][]byte, llms []byte) ([]byte, error) {
 	if _, ok := docs["/index.md"]; !ok {
 		return nil, fmt.Errorf("corpus is missing required root /index.md")
 	}
@@ -98,7 +99,7 @@ func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string
 		}
 		artifactManifest[path] = graphArtifact{Bytes: len(data), SHA256: hashBytes(data)}
 	}
-	data, err := json.MarshalIndent(graph{Version: "0", Root: "/index.md", Files: files, Artifacts: artifactManifest}, "", "  ")
+	data, err := json.MarshalIndent(graph{Version: "0", Root: "/index.md", LLMS: graphArtifact{Bytes: len(llms), SHA256: hashBytes(llms)}, Files: files, Artifacts: artifactManifest}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("encode graph: %w", err)
 	}

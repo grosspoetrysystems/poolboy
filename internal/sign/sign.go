@@ -1,8 +1,6 @@
-// Package sign adds publisher authenticity to a Poolboy publication: an
-// ed25519 signature over the deterministic graph.json manifest (which already
-// carries the SHA-256 of every Markdown file and artifact, so signing it
-// transitively authenticates the whole corpus) plus trust-on-first-use (TOFU)
-// verification for consumers, in the style of SSH known_hosts.
+// Package sign authenticates Poolboy publication manifests with either
+// Sigstore workflow identity or an explicit Ed25519 TOFU fallback, then
+// verifies every corpus byte named by the manifest.
 package sign
 
 import (
@@ -19,7 +17,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
 // Reserved publication file names.
@@ -30,8 +30,8 @@ const (
 	PubName   = "poolboy.pub"
 )
 
-// maxFetchBytes bounds a single file read during --full verification so a
-// hostile origin cannot exhaust memory. 64 MiB matches the corpus ceiling.
+// maxFetchBytes bounds a single verification read so a hostile origin cannot
+// exhaust memory. 64 MiB matches the corpus ceiling.
 const maxFetchBytes = 64 << 20
 
 // Signature is the on-disk graph.json.sig payload. Field order is locked
@@ -42,9 +42,8 @@ type Signature struct {
 	Sig string `json:"sig"`
 }
 
-// VerifyError marks a negative verification result (bad signature, key
-// mismatch, TOFU divergence, or a --full hash mismatch) as opposed to an IO or
-// usage error. Callers map it to the "not found / negative" exit code.
+// VerifyError marks a negative verification result (bad provenance, rollback,
+// publisher change, or content mismatch) rather than an IO or usage error.
 type VerifyError struct{ msg string }
 
 func (e *VerifyError) Error() string { return e.msg }
@@ -192,84 +191,24 @@ func Dir(dir string, priv ed25519.PrivateKey) error {
 	return os.WriteFile(filepath.Join(dir, PubName), pub, 0o644) //nolint:gosec // published metadata is intentionally world-readable
 }
 
-// Result reports what a Verify call established.
-type Result struct {
-	Origin  string // pin key: normalized URL or absolute local path
-	Key     string // base64 public key
-	Pinned  bool   // true when this call pinned a new publisher
-	Full    bool   // whether artifact hashes were checked
-	Checked int    // files+artifacts hash-verified in --full mode
-}
-
-// Verify loads graph.json, graph.json.sig and poolboy.pub from a local
-// directory or an http(s) base URL, verifies the signature, optionally checks
-// every file's SHA-256 against the manifest (full), and applies TOFU: the first
-// verification of an origin pins its key; later ones must match.
-func Verify(target string, full bool) (*Result, error) {
-	src, err := newSource(target)
-	if err != nil {
-		return nil, err
-	}
-	graph, err := src.fetch(GraphName)
-	if err != nil {
-		return nil, fmt.Errorf("load %s: %w", GraphName, err)
-	}
-	sig, err := src.fetch(SigName)
-	if err != nil {
-		return nil, fmt.Errorf("load %s: %w (the corpus is not signed; run poolboy sign)", SigName, err)
-	}
-	pub, err := src.fetch(PubName)
-	if err != nil {
-		return nil, fmt.Errorf("load %s: %w", PubName, err)
-	}
-	key, err := VerifyGraph(graph, sig, pub)
-	if err != nil {
-		return nil, err
-	}
-	res := &Result{Origin: src.origin, Key: key, Full: full}
-	if full {
-		checked, err := verifyFull(src, graph)
-		if err != nil {
-			return nil, err
-		}
-		res.Checked = checked
-	}
-	pinned, err := Pin(src.origin, key)
-	if err != nil {
-		return nil, err
-	}
-	res.Pinned = pinned
-	return res, nil
-}
-
-// verifyFull re-reads every Markdown file and artifact named in the manifest and
-// checks its SHA-256 against the signed hash.
+// verifyFull checks every byte named by the signed manifest, including the
+// llms.txt discovery entrypoint.
 func verifyFull(src *source, graph []byte) (int, error) {
-	var manifest struct {
-		Files map[string]struct {
-			SHA256 string `json:"sha256"`
-		} `json:"files"`
-		Artifacts map[string]struct {
-			SHA256 string `json:"sha256"`
-		} `json:"artifacts"`
+	files, err := manifestFiles(graph)
+	if err != nil {
+		return 0, err
 	}
-	if err := json.Unmarshal(graph, &manifest); err != nil {
-		return 0, fmt.Errorf("parse %s: %w", GraphName, err)
+	paths := make([]string, 0, len(files))
+	for path := range files {
+		paths = append(paths, path)
 	}
-	checked := 0
-	for path, entry := range manifest.Files {
-		if err := src.checkHash(strings.TrimPrefix(path, "/"), entry.SHA256); err != nil {
-			return checked, err
+	sort.Strings(paths)
+	for i, path := range paths {
+		if err := src.checkHash(path, files[path]); err != nil {
+			return i, err
 		}
-		checked++
 	}
-	for path, entry := range manifest.Artifacts {
-		if err := src.checkHash(path, entry.SHA256); err != nil {
-			return checked, err
-		}
-		checked++
-	}
-	return checked, nil
+	return len(paths), nil
 }
 
 // source loads named files from a publication and reports a normalized origin.
@@ -292,9 +231,12 @@ func newSource(target string) (*source, error) {
 		return &source{
 			origin: base,
 			base:   base,
-			client: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			}},
+			client: &http.Client{
+				Timeout: 30 * time.Second,
+				CheckRedirect: func(*http.Request, []*http.Request) error {
+					return http.ErrUseLastResponse
+				},
+			},
 		}, nil
 	}
 	abs, err := filepath.Abs(target)
@@ -390,69 +332,4 @@ func (s *source) checkHash(name, want string) error {
 		return verifyErrf("%s hash mismatch:\n  manifest: %s\n  actual:   %s", name, want, actual)
 	}
 	return nil
-}
-
-// KnownPublishersPath returns the TOFU store location, honoring XDG_CONFIG_HOME
-// and falling back to ~/.config.
-func KnownPublishersPath() (string, error) {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dir = filepath.Join(home, ".config")
-	}
-	return filepath.Join(dir, "poolboy", "known_publishers.json"), nil
-}
-
-// Pin records key for origin in the TOFU store. A new origin is pinned and
-// reported (pinned=true). An origin whose stored key differs is a loud failure
-// naming both keys; it is never silently re-pinned.
-func Pin(origin, key string) (bool, error) {
-	path, err := KnownPublishersPath()
-	if err != nil {
-		return false, err
-	}
-	known := map[string]string{}
-	// #nosec G304 -- path is derived from the user's own config home.
-	data, err := os.ReadFile(path)
-	switch {
-	case err == nil:
-		if uerr := json.Unmarshal(data, &known); uerr != nil {
-			return false, fmt.Errorf("read %s: %w", path, uerr)
-		}
-		if known == nil {
-			return false, fmt.Errorf("read %s: expected a JSON object", path)
-		}
-	case !errors.Is(err, os.ErrNotExist):
-		return false, err
-	}
-	if existing, ok := known[origin]; ok {
-		if existing == key {
-			return false, nil
-		}
-		return false, verifyErrf(
-			"PUBLISHER KEY CHANGED for %s\n"+
-				"  pinned key:  %s\n"+
-				"  offered key: %s\n"+
-				"This corpus is signed by a different key than the one you trusted.\n"+
-				"If this is intentional, remove the origin from %s and verify again.",
-			origin, existing, key, path)
-	}
-	known[origin] = key
-	out, err := json.MarshalIndent(known, "", "  ")
-	if err != nil {
-		return false, err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return false, err
-	}
-	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
-		return false, err
-	}
-	if err := os.Chmod(path, 0o600); err != nil {
-		return false, err
-	}
-	return true, nil
 }

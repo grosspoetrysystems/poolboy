@@ -135,11 +135,11 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 	if err != nil {
 		return err
 	}
-	graphBytes, err := buildGraph(stagedIndex, candidate, artifacts)
+	llmsBytes := renderLLMS(b.Name)
+	graphBytes, err := buildGraph(stagedIndex, candidate, artifacts, llmsBytes)
 	if err != nil {
 		return err
 	}
-	llmsBytes := renderLLMS(b.Name)
 
 	publicationParent := filepath.Dir(r.output)
 	// #nosec G301 -- publication directories intentionally expose static output.
