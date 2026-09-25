@@ -17,6 +17,7 @@ check:
 	go test -race -cover ./...
 	$(GOLANGCI_LINT) run ./...
 	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+	node .github/scripts/check-pr-contract.mjs --self-test
 	pnpm --dir companion typecheck
 	pnpm --dir companion lint
 	pnpm --dir companion coverage

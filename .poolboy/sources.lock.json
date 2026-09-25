@@ -1,12 +1,7 @@
 {
   "version": "0",
-  "revision": "d99492906fc326c75b293ca1104830ee749b1772",
+  "revision": "a1e6e9f0211d3b82da3a74bb1fffe1ebb6497a82",
   "files": {
-    ".git": {
-      "type": "other",
-      "bytes": 78,
-      "sha256": "8dfbd024598735c2176917fc09e837ed3e7404e5bb8bee367bce1fc34762312a"
-    },
     ".github/CODEOWNERS": {
       "type": "other",
       "bytes": 42,
@@ -24,18 +19,18 @@
     },
     ".github/scripts/check-pr-contract.mjs": {
       "type": "javascript",
-      "bytes": 7954,
-      "sha256": "2265efc1ddbff716949aa292983f4b9de9000e44e8eaa7b5aec87605e4838e47"
+      "bytes": 10265,
+      "sha256": "8adafa56f0fb0722239cb7fa242dbca90ea3086b6b71dff043e4f3e43b6ef1c1"
     },
     ".github/workflows/check.yml": {
       "type": "yaml",
-      "bytes": 1700,
-      "sha256": "19d693ea2cf0eabdb25f57cf12b2f01051f12b618817a5fc80fadc28c4ab0ad9"
+      "bytes": 1802,
+      "sha256": "0d30499e6eff35c72984817573da70d0716302f8d05ccf16616d54a5d171dcbb"
     },
     ".github/workflows/deploy.yml": {
       "type": "yaml",
-      "bytes": 1854,
-      "sha256": "7a31694ff6fbe26738cdd7d9e50ef129e509f092ca4a3c9aad1d7ed71219371f"
+      "bytes": 1905,
+      "sha256": "194f833203a7ec9d8365d464cc7b4dd4e9dbd2b66e50b42d08b317370347869e"
     },
     ".github/workflows/pr-contract.yml": {
       "type": "yaml",
@@ -44,8 +39,8 @@
     },
     ".github/workflows/release.yml": {
       "type": "yaml",
-      "bytes": 1690,
-      "sha256": "ba156274bf7caf4cb78990bc584d6e683f08da677c652976145c8333dc986176"
+      "bytes": 1727,
+      "sha256": "20d8dbe982cee969969a95c25f5855605cfcef8c833fe698694177f072000a61"
     },
     ".gitignore": {
       "type": "ignore",
@@ -64,8 +59,8 @@
     },
     "CONTRIBUTING.md": {
       "type": "markdown",
-      "bytes": 3665,
-      "sha256": "0a15f260c3488c5a80fbd1cc0b400e8287abf73adcf11249eaa16daaa02304dd"
+      "bytes": 3857,
+      "sha256": "5e6e23231450d2f86f7124418d6bfab84ab752585784e1807c16d731537f54e5"
     },
     "LICENSE": {
       "type": "other",
@@ -74,8 +69,8 @@
     },
     "Makefile": {
       "type": "make",
-      "bytes": 1322,
-      "sha256": "96f5857c903d59b560965b09cdf8a6e72bd82d3788660facf818513ca8096ab2"
+      "bytes": 1378,
+      "sha256": "f3a8c8ceae64b3f87cc85a2ad639c42ff87083459060ef0290b1f8aefe7d8d11"
     },
     "README.md": {
       "type": "markdown",
@@ -169,8 +164,8 @@
     },
     "companion/pnpm-workspace.yaml": {
       "type": "yaml",
-      "bytes": 72,
-      "sha256": "18e5d95b674c6b413bca4d739b94578c23b7664475ca9c68c2aa6f6f9ced5d90"
+      "bytes": 170,
+      "sha256": "21b4cc8c3f983669579d9c4c456a7505cefb35fb2cdb8d19a0a2b928c6d31b3e"
     },
     "companion/src/bin/cli.ts": {
       "type": "typescript",

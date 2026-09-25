@@ -3,3 +3,6 @@ allowBuilds:
   lefthook: true
 
 minimumReleaseAge: 10080
+minimumReleaseAgeIgnoreMissingTime: false
+minimumReleaseAgeStrict: true
+trustPolicy: no-downgrade
