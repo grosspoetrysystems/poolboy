@@ -9,7 +9,7 @@ A big hat tip to [Agentic Wiki](https://github.com/agentic-wiki/wiki) and its au
 
 ## Build locally
 
-Prerequisites: Go 1.25+, Node 22.12+, and pnpm. Install the pnpm version declared in `companion/package.json`.
+Prerequisites: Go 1.25+, Node 24+, and pnpm. Install the pnpm version declared in `companion/package.json`.
 
 ```sh
 git clone https://github.com/grosspoetrysystems/poolboy.git

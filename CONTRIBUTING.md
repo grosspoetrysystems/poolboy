@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Go version declared in `go.mod`
-- Node.js 22.12 or newer
+- Node.js 24 or newer
 - Corepack
 
 ## Set up
@@ -27,7 +27,7 @@ make check    # tests, lint, types, coverage, and dead-code checks
 make verify   # check, build the site, verify generated files, and smoke-test the CLI
 ```
 
-Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and Conventional Commit messages. Pre-push runs `make verify`. CI runs the same verification command on Linux plus Go tests and a build on Windows.
+Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and Conventional Commit messages. Pre-push runs `make verify`. CI runs the same verification command on Linux, then compiles packages and tests and smoke-tests the CLI on Windows.
 
 Commit messages must be one-line [Conventional Commits](https://www.conventionalcommits.org/) headers, for example `fix(preview): reject non-loopback hosts`.
 
