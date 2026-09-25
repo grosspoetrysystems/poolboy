@@ -33,36 +33,73 @@ func TestWrite(t *testing.T) {
 	if slices.Contains(written, "CLAUDE.md") {
 		t.Errorf("docs scaffold should not emit generic agent files: %v", written)
 	}
-	// a non-empty target is refused without force, allowed with it
-	if _, err := Write(dir, false); err == nil {
-		t.Errorf("re-write without force should error")
+	// repeated initialization preserves existing starter files unless forced
+	custom := []byte("custom docs\n")
+	if err := os.WriteFile(filepath.Join(dir, "docs", "getting-started.md"), custom, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Write(dir, false); err != nil {
+		t.Errorf("non-destructive re-write: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "docs", "getting-started.md"))
+	if err != nil || string(got) != string(custom) {
+		t.Errorf("non-destructive re-write changed existing file: %q, %v", got, err)
 	}
 	if _, err := Write(dir, true); err != nil {
 		t.Errorf("force re-write: %v", err)
 	}
 }
 
-// A lone .git directory does not make the target "non-empty": a freshly
-// `git init`'d (or empty-cloned) repo is a normal init target.
+func TestWriteMergesIntoExistingRepo(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		t.Helper()
+		path := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("README.md", "project\n")
+	write(".gitignore", "bin/\n")
+	write("docs/index.md", "existing docs\n")
+
+	if _, err := Write(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	for rel, want := range map[string]string{
+		"README.md":     "project\n",
+		"docs/index.md": "existing docs\n",
+	} {
+		got, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+		if err != nil || string(got) != want {
+			t.Errorf("%s = %q, %v", rel, got, err)
+		}
+	}
+	ignore, err := os.ReadFile(filepath.Join(dir, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"bin/", ".poolboy/*", "dist/", "poolboy.key"} {
+		if !strings.Contains(string(ignore), want+"\n") {
+			t.Errorf(".gitignore missing %q:\n%s", want, ignore)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "poolboy.toml")); err != nil {
+		t.Errorf("missing poolboy.toml: %v", err)
+	}
+}
+
+// A lone .git directory is preserved like any other existing repository state.
 func TestWriteToleratesGitDir(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Write(dir, false); err != nil {
-		t.Errorf("init into a .git-only dir should succeed without force: %v", err)
-	}
-
-	// .git alongside real content still requires --force
-	dir2 := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir2, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir2, "notes.md"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Write(dir2, false); err == nil {
-		t.Errorf("init into a dir with .git + content should still require force")
+		t.Errorf("init into a .git-only dir should succeed: %v", err)
 	}
 }
 

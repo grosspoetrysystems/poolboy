@@ -18,7 +18,7 @@ import (
 // Legacy commands use flag.ExitOnError, so Parse either returns nil or exits.
 func cmdInit(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
-	force := fs.Bool("force", false, "write into a non-empty directory")
+	force := fs.Bool("force", false, "overwrite existing starter files")
 	format := fs.String("format", "text", "output format: text|json|csv|tsv")
 	_ = fs.Parse(args)
 	dir := "."

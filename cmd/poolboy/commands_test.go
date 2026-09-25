@@ -339,9 +339,9 @@ func TestCmdInit(t *testing.T) {
 	if _, code := capture(t, func() int { return cmdCheck(nil) }); code != 0 {
 		t.Errorf("fresh bundle should pass check, exit=%d", code)
 	}
-	// re-init into the now-non-empty dir is refused without --force
-	if _, code := capture(t, func() int { return cmdInit(nil) }); code != 2 {
-		t.Errorf("re-init without --force exit=%d want 2", code)
+	// re-init is non-destructive by default; --force remains an explicit overwrite
+	if _, code := capture(t, func() int { return cmdInit(nil) }); code != 0 {
+		t.Errorf("non-destructive re-init exit=%d want 0", code)
 	}
 	if _, code := capture(t, func() int { return cmdInit([]string{"--force"}) }); code != 0 {
 		t.Errorf("init --force exit=%d want 0", code)
