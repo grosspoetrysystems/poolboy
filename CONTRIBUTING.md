@@ -42,7 +42,7 @@ Open unfinished work as a draft. Before requesting review, complete
 - a named accountable human and, when applicable, agent provenance;
 - the accountable human's verification and attestations.
 
-Discuss large features, migrations, dependencies, security-sensitive work, and architectural changes in an issue before implementation. A ready pull request must be focused enough to review as one change. To be merge eligible, all required CI checks must pass on the latest commit, every review conversation must be resolved, and `@thekidnamedkd` must approve.
+Discuss large features, migrations, dependencies, security-sensitive work, and architectural changes in an issue before implementation. A ready pull request must be focused enough to review as one change. To be merge eligible, contributor pull requests must pass required CI on the latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval. The sole maintainer's own pull requests merge on passing required CI without a second approval, because GitHub does not allow a pull request author to approve their own work; see `MAINTAINERS.md`.
 
 ## AI and agent contributions
 
