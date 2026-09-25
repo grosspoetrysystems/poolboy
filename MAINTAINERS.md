@@ -8,7 +8,7 @@ Poolboy's files express policy; GitHub settings enforce it. Keep the written pol
 
 Contributor changes to governance files, workflows, dependency manifests, lockfiles, release logic, security-sensitive code, generated artifacts, and agent instructions should receive maintainer review before merge. A ready contributor pull request must pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval.
 
-Repository administrators retain full branch-protection bypass. While Poolboy has one maintainer, `@thekidnamedkd` may merge their own pull requests without the impossible requirement of self-approval. Contributor protections remain in force, and this authority is not delegated to bots or agents.
+Repository administrators retain full branch-protection bypass. While Poolboy has one maintainer, `@thekidnamedkd` may merge their own pull requests without the impossible requirement of self-approval. The PR Contract validator waives exactly one check for their same-repository pull requests: the external agent-run trace, which no self-hosted run can mint. Every other requirement — the five human attestations, agent identity, provider and model, base SHA, and declared capabilities — stays enforced, so the maintainer still states responsibility rather than having it assumed. The waiver is keyed to a human account opening a branch in this repository; bots and forks get the full contract. Contributor protections remain in force, and this authority is not delegated to bots or agents.
 
 ## Review path
 

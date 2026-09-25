@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "f560116c7ab38e41fe65b18cbd1ff93a30da0ee1",
+  "revision": "9d5772adf81a5853fb4f21382403577d219365ae",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -74,8 +74,8 @@
     },
     "MAINTAINERS.md": {
       "type": "markdown",
-      "bytes": 3290,
-      "sha256": "37fc981e0d17e50f943b3e4149a59d2cbd05854b4f15a4fde39c0f7bc8a0f0d9"
+      "bytes": 3787,
+      "sha256": "a98d7877f85fd45b93418b5615a48e7606612d5d4f11952bde8b7292d1ad9cb2"
     },
     "Makefile": {
       "type": "make",
