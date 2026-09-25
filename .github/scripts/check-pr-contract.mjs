@@ -152,6 +152,33 @@ export function validate(body, waiveRunTrace = false) {
   return errors;
 }
 
+function validateDependabotEvent(event) {
+  const pr = event.pull_request ?? {};
+  const errors = [];
+  const repository = event.repository?.full_name ?? "";
+  const baseRepo = pr.base?.repo?.full_name ?? "";
+  const headRepo = pr.head?.repo?.full_name ?? "";
+  const headRef = pr.head?.ref ?? "";
+
+  if (pr.user?.type !== "Bot") {
+    errors.push("Dependabot PR must be authored by a GitHub Bot account.");
+  }
+  if (!repository || baseRepo !== repository || headRepo !== baseRepo) {
+    errors.push("Dependabot PR must come from a branch in this repository.");
+  }
+  if (pr.base?.ref !== "main") {
+    errors.push("Dependabot PR must target main.");
+  }
+  if (!/^dependabot\/(?:github_actions|go_modules|npm_and_yarn)\/\S+$/.test(headRef)) {
+    errors.push("Dependabot PR branch must match a configured dependency ecosystem.");
+  }
+  if (!/^(?:Bump|chore\(deps(?:-dev)?\): bump)\s+\S/i.test(pr.title ?? "")) {
+    errors.push("Dependabot PR title must use its standard dependency bump format.");
+  }
+
+  return errors;
+}
+
 function isTrustedMaintainer(event) {
   const pr = event.pull_request ?? {};
   const repository = event.repository?.full_name ?? "";
@@ -165,7 +192,9 @@ function isTrustedMaintainer(event) {
 }
 
 export function validateEvent(event) {
-  if (event.pull_request?.user?.login === "dependabot[bot]") return [];
+  if (event.pull_request?.user?.login === "dependabot[bot]") {
+    return validateDependabotEvent(event);
+  }
   return validate(event.pull_request?.body, isTrustedMaintainer(event));
 }
 
@@ -201,11 +230,50 @@ inline
 - [x] I personally verified the behavior and evidence described above.
 - [x] I have the right to submit this contribution under the project's license.
 - [x] This is not an unattended agent submission; I remain responsible for the contribution.`;
+const dependabotFixture = {
+  repository: { full_name: "owner/repo" },
+  pull_request: {
+    title: "chore(deps): bump actions/checkout from 4.1.0 to 4.2.0",
+    user: { login: "dependabot[bot]", type: "Bot" },
+    base: { ref: "main", repo: { full_name: "owner/repo" } },
+    head: {
+      ref: "dependabot/github_actions/actions/checkout-4.2.0",
+      repo: { full_name: "owner/repo" },
+    },
+    body: "",
+  },
+};
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "--self-test") {
     assert.deepEqual(validate(validFixture), []);
+    assert.deepEqual(validateEvent(dependabotFixture), []);
+    assert(
+      validateEvent({
+        ...dependabotFixture,
+        pull_request: {
+          ...dependabotFixture.pull_request,
+          user: { login: "dependabot[bot]", type: "User" },
+        },
+      }).includes("Dependabot PR must be authored by a GitHub Bot account."),
+    );
+    assert(
+      validateEvent({
+        ...dependabotFixture,
+        pull_request: {
+          ...dependabotFixture.pull_request,
+          title: "Refresh generated files",
+          head: { ...dependabotFixture.pull_request.head, ref: "bot/refresh-generated-files" },
+        },
+      }).some((error) => error.startsWith("Dependabot PR branch must match")),
+    );
+    assert(
+      validateEvent({
+        pull_request: { user: { login: "renovate[bot]", type: "Bot" }, body: "" },
+      }).some((error) => error.includes(marker)),
+    );
     assert.deepEqual(
-      validateEvent({ pull_request: { user: { login: "dependabot[bot]" }, body: "" } }),
+      validateEvent({ pull_request: { user: { login: "octocat" }, body: validFixture } }),
       [],
     );
     const maintainerEvent = (body, overrides = {}) => ({
@@ -249,6 +317,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       "Materially agent-authored work requires a 40-character base SHA.",
       "Materially agent-authored work must declare commands, network, secrets, and MCP capabilities.",
     ]);
+    assert(
+      validateEvent({ pull_request: { user: { login: "octocat" }, body: "" } }).some((error) =>
+        error.includes(marker),
+      ),
+    );
     const unchecked = validFixture.replace("- [x]", "- [ ]\n> - [x]");
     assert(
       validate(unchecked).some((error) => error.startsWith("Check the attestation:")),

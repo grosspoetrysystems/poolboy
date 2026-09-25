@@ -19,8 +19,8 @@
     },
     ".github/scripts/check-pr-contract.mjs": {
       "type": "javascript",
-      "bytes": 10265,
-      "sha256": "8adafa56f0fb0722239cb7fa242dbca90ea3086b6b71dff043e4f3e43b6ef1c1"
+      "bytes": 12797,
+      "sha256": "3c6caefa3aa4923a3f2e239b7e1cb0d32cf34bee44e4df57c59b4af340adc85e"
     },
     ".github/workflows/check.yml": {
       "type": "yaml",
