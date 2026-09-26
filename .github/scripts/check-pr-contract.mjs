@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const marker = "<!-- pr-contract:v2 -->";
-const trustedMaintainers = new Set(["thekidnamedkd"]);
+const trustedMaintainerIds = new Set([65736142]); // @thekidnamedkd
 const headings = [
   "Outcome",
   "Issue or spec",
@@ -183,7 +183,7 @@ function isTrustedMaintainer(event) {
   const pr = event.pull_request ?? {};
   const repository = event.repository?.full_name ?? "";
   return (
-    trustedMaintainers.has(pr.user?.login ?? "") &&
+    trustedMaintainerIds.has(pr.user?.id) &&
     pr.user?.type === "User" &&
     Boolean(repository) &&
     pr.base?.repo?.full_name === repository &&
@@ -280,7 +280,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const maintainerEvent = (body, overrides = {}) => ({
       repository: { full_name: "owner/repo" },
       pull_request: {
-        user: { login: "thekidnamedkd", type: "User" },
+        user: { id: 65736142, login: "thekidnamedkd", type: "User" },
         base: { repo: { full_name: "owner/repo" } },
         head: { repo: { full_name: "owner/repo" } },
         body,
@@ -291,7 +291,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const noTrace = validFixture.replace("- Run/trace: run-123", "- Run/trace: none");
     assert.deepEqual(validateEvent(maintainerEvent("")), []);
     for (const overrides of [
-      { user: { login: "thekidnamedkd", type: "Bot" } },
+      { user: { id: 65736142, login: "thekidnamedkd", type: "Bot" } },
+      { user: { id: 1, login: "thekidnamedkd", type: "User" } },
       { head: { repo: { full_name: "fork/repo" } } },
     ]) {
       assert(validateEvent(maintainerEvent(noTrace, overrides)).includes(missingTrace));
