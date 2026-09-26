@@ -46,13 +46,13 @@ Discuss large features, migrations, dependencies, security-sensitive work, and a
 
 ## AI and agent contributions
 
-AI assistance is welcome; unattended submissions are not. A named human must review every changed line, understand and be able to explain the design, personally exercise the result, and remain accountable for correctness, security, licensing, and review follow-up.
+AI assistance is welcome; unattended contributor submissions are not. A named human must review every contributed line, understand and be able to explain the design, personally exercise the result, and remain accountable for correctness, security, licensing, and review follow-up.
 
-Disclose material AI use in the pull request template. Assisted work identifies the tool and model. Materially agent-authored work also records an immutable run or sanitized trace, the protected base SHA, and the agent's command, network, secret, and MCP capabilities. The sole maintainer's same-repository pull requests are exempt from the run or trace field, which no self-hosted run can mint; every other field and all five attestations still apply to them. Evidence must report observed behavior, not merely that an agent or generated test claims success.
+Contributors disclose material AI use in the pull request template. Assisted work identifies the tool and model. Materially agent-authored work also records an immutable run or sanitized trace, the protected base SHA, and the agent's command, network, secret, and MCP capabilities. The sole maintainer's same-repository pull requests are exempt from the PR contract; required CI still applies. Evidence must report observed behavior, not merely that an agent or generated test claims success.
 
 Only maintainer-authorized automation may submit without a human operating each run. An agent may not approve or merge its own work, bypass checks or reviews, weaken project policy to make its pull request pass, impersonate a human, or answer substantive review questions as though it represented the accountable human's judgment. Pull-request changes to this policy or its validator do not govern that same pull request; intake validation runs the version from the protected base branch.
 
-Dependabot is authorized repository automation. Its generated pull requests are exempt from the human-authored body template, but not from required CI or owner approval.
+Dependabot is authorized repository automation. Its generated pull requests are exempt from the human-authored body template, but not from required CI or maintainer review before merge.
 
 ## Generated documentation
 

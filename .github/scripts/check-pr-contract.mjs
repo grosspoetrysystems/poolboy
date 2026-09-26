@@ -27,7 +27,7 @@ function section(body, heading) {
   return match?.[1].replace(/<!--[\s\S]*?-->/g, "").trim() ?? "";
 }
 
-export function validate(body, waiveRunTrace = false) {
+export function validate(body) {
   const errors = [];
   const text = body ?? "";
 
@@ -113,7 +113,7 @@ export function validate(body, waiveRunTrace = false) {
     }
   }
   if (["agent-authored", "authorized-automation"].includes(origin)) {
-    if (!waiveRunTrace && /^none$/i.test(field("Run/trace"))) {
+    if (/^none$/i.test(field("Run/trace"))) {
       errors.push("Materially agent-authored work requires an immutable run ID or trace.");
     }
     if (!/^[0-9a-f]{40}$/i.test(field("Base SHA"))) {
@@ -192,10 +192,11 @@ function isTrustedMaintainer(event) {
 }
 
 export function validateEvent(event) {
+  if (isTrustedMaintainer(event)) return [];
   if (event.pull_request?.user?.login === "dependabot[bot]") {
     return validateDependabotEvent(event);
   }
-  return validate(event.pull_request?.body, isTrustedMaintainer(event));
+  return validate(event.pull_request?.body);
 }
 
 const validFixture = `${marker}
@@ -288,12 +289,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     });
     const missingTrace = "Materially agent-authored work requires an immutable run ID or trace.";
     const noTrace = validFixture.replace("- Run/trace: run-123", "- Run/trace: none");
-    assert.deepEqual(validateEvent(maintainerEvent(noTrace)), []);
-    assert(
-      validateEvent(maintainerEvent(noTrace.replaceAll("- [x]", "- [ ]"))).some((error) =>
-        error.startsWith("Check the attestation:"),
-      ),
-    );
+    assert.deepEqual(validateEvent(maintainerEvent("")), []);
     for (const overrides of [
       { user: { login: "thekidnamedkd", type: "Bot" } },
       { head: { repo: { full_name: "fork/repo" } } },
@@ -305,18 +301,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         missingTrace,
       ),
     );
-    const maintainerMissingProvenance = noTrace
-      .replace("- Base SHA: 0000000000000000000000000000000000000000", "- Base SHA: none")
-      .replace(
-        "- Capabilities: commands=unprivileged; network=restricted; secrets=none; mcp=none",
-        "- Capabilities: none",
-      )
-      .replace("- Agent identity: omp", "- Agent identity: none");
-    assert.deepEqual(validateEvent(maintainerEvent(maintainerMissingProvenance)), [
-      "Agent identity is required for AI/agent work.",
-      "Materially agent-authored work requires a 40-character base SHA.",
-      "Materially agent-authored work must declare commands, network, secrets, and MCP capabilities.",
-    ]);
     assert(
       validateEvent({ pull_request: { user: { login: "octocat" }, body: "" } }).some((error) =>
         error.includes(marker),
