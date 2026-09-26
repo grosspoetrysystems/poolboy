@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "dfa0d8e856cb308c9090eeb4b9e392fb0593e9dd",
+  "revision": "551fdcc08af24aa56cfcaeab9dcb89901c7419c4",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -19,8 +19,8 @@
     },
     ".github/scripts/check-pr-contract.mjs": {
       "type": "javascript",
-      "bytes": 11918,
-      "sha256": "adce45780ddab334bd0d0f736ca4c7fe582c43fcb2b212e9f5cc437d9aa019f7"
+      "bytes": 12017,
+      "sha256": "27826fc21e3f9e32925e73e1e0d073460b3136caca4af24a4ab34b8ce9e8bd30"
     },
     ".github/workflows/check.yml": {
       "type": "yaml",
