@@ -1,10 +1,10 @@
 # Maintaining Poolboy
 
-Poolboy's files express policy; GitHub settings enforce it. Keep the written policy, CODEOWNERS, branch protection, and automation permissions in sync.
+Poolboy's files express policy; GitHub settings enforce required CI and automation boundaries. Keep the written policy, CODEOWNERS, branch protection, and automation permissions in sync, including which review rules are documented but not enforced.
 
 ## Ownership
 
-`.github/CODEOWNERS` is the source of review ownership. It currently assigns the repository and `.github/` policy plane to `@thekidnamedkd`.
+`.github/CODEOWNERS` documents review ownership. It currently assigns the repository and `.github/` policy plane to `@thekidnamedkd`; branch protection does not enforce CODEOWNERS while Poolboy has one maintainer.
 
 Contributor changes to governance files, workflows, dependency manifests, lockfiles, release logic, security-sensitive code, generated artifacts, and agent instructions should receive maintainer review before merge. A ready contributor pull request must pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval. Branch protection enforces the required checks; the approval is maintainer practice rather than an enforced gate, because GitHub's required-review setting cannot be satisfied while the only reviewer is also the only author. Re-enable required reviews when a second maintainer joins.
 
@@ -15,7 +15,7 @@ Repository administrators retain full branch-protection bypass. While Poolboy ha
 1. Route contributions through pull requests.
 2. Let the PR Contract workflow check metadata from the protected base repository.
 3. Run builds and tests in the normal `pull_request` checks without repository secrets.
-4. Require maintainer review for CODEOWNERS-owned or security-sensitive paths.
+4. Have `@thekidnamedkd` review contributor changes to CODEOWNERS-owned or security-sensitive paths. This is maintainer practice, not a branch-protection gate.
 5. Merge contributor changes through the protected branch path after required checks and conversations are resolved. Repository administrators may bypass these gates under their maintainer authority.
 
 Use one actionable response for policy failures: one reason, one policy link, and one repair path.
