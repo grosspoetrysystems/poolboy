@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "551fdcc08af24aa56cfcaeab9dcb89901c7419c4",
+  "revision": "cd9809d34158d03a898559ddbcc9e3f7071ff084",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -29,8 +29,8 @@
     },
     ".github/workflows/deploy.yml": {
       "type": "yaml",
-      "bytes": 1905,
-      "sha256": "194f833203a7ec9d8365d464cc7b4dd4e9dbd2b66e50b42d08b317370347869e"
+      "bytes": 1876,
+      "sha256": "833135c23e5ab4b31494ad88f0fc410cdee6676a7f221d66e6dcb8ee6529f8a1"
     },
     ".github/workflows/pr-contract.yml": {
       "type": "yaml",
