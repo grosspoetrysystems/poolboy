@@ -71,7 +71,7 @@ jobs:
           SITE_URL: ${{ vars.SITE_URL }}
           SITE_VERSION: ${{ steps.version.outputs.version }}
       - name: Sign corpus manifest
-        run: cosign sign-blob --bundle .site/docs/graph.json.sigstore.json --yes .site/docs/graph.json
+        run: cosign sign-blob --new-bundle-format --bundle .site/docs/graph.json.sigstore.json --yes .site/docs/graph.json
       - name: Deploy
         uses: cloudflare/wrangler-action@25853364521e0d392ece9b0c1e97a4b37b638087 # v4.1.2
         with:
