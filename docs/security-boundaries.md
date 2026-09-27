@@ -38,6 +38,11 @@ with `graph.json.sig` and `poolboy.pub`; that proves key continuity, not
 publisher identity or trusted release time. There is no automatic TOFU
 downgrade.
 
+Remote fetches follow same-origin redirects, bounded at five hops, so ordinary
+static hosts that canonicalize paths remain verifiable. A redirect that changes
+scheme or host is refused: signed publication bytes never come from an origin
+other than the one the operator named.
+
 `poolboy verify` never changes trust. An approved digest is fully verified; a
 different authenticated digest exposes provenance and path changes but withholds
 content as `UPDATE PENDING`. `poolboy approve` refetches and fully verifies the
