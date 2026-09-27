@@ -5,11 +5,53 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestFetchFollowsSameOriginRedirectButRefusesCrossOrigin(t *testing.T) {
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("attacker"))
+	}))
+	defer other.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/docs/index.html":
+			http.Redirect(w, r, "/docs/real.html", http.StatusTemporaryRedirect)
+		case "/docs/real.html":
+			_, _ = w.Write([]byte("published"))
+		case "/docs/away.html":
+			http.Redirect(w, r, other.URL+"/evil.html", http.StatusTemporaryRedirect)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer origin.Close()
+
+	src, err := newSource(origin.URL + "/docs")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := src.fetch("index.html")
+	if err != nil {
+		t.Fatalf("same-origin redirect must be followed: %v", err)
+	}
+	if string(got) != "published" {
+		t.Fatalf("got %q, want %q", got, "published")
+	}
+
+	if _, err := src.fetch("away.html"); err == nil {
+		t.Fatal("cross-origin redirect must be refused")
+	} else if !strings.Contains(err.Error(), "cross-origin") {
+		t.Fatalf("want cross-origin refusal, got %v", err)
+	}
+}
 
 func TestGraphRoundTrip(t *testing.T) {
 	seed, wantKey, err := GenerateSeed()

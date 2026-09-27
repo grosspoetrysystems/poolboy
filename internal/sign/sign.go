@@ -233,8 +233,14 @@ func newSource(target string) (*source, error) {
 			base:   base,
 			client: &http.Client{
 				Timeout: 30 * time.Second,
-				CheckRedirect: func(*http.Request, []*http.Request) error {
-					return http.ErrUseLastResponse
+				CheckRedirect: func(req *http.Request, via []*http.Request) error {
+					if len(via) >= 5 {
+						return errors.New("too many redirects")
+					}
+					if !strings.EqualFold(req.URL.Scheme, scheme) || !strings.EqualFold(req.URL.Host, host) {
+						return fmt.Errorf("refusing cross-origin redirect to %s://%s", req.URL.Scheme, req.URL.Host)
+					}
+					return nil
 				},
 			},
 		}, nil
