@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -349,6 +350,27 @@ func TestDiscoverExactDir(t *testing.T) {
 func TestDiscoverNotFound(t *testing.T) {
 	if _, err := Discover(t.TempDir()); err != ErrNotFound {
 		t.Errorf("err=%v want ErrNotFound", err)
+	}
+}
+
+func TestDiscoverPartialAllowsOnlyMissingCorpus(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec=\"0.1\"\ncorpus=\"docs\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "corpus directory does not exist") {
+		t.Fatalf("Discover error = %v", err)
+	}
+	b, err := DiscoverPartial(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Dir != filepath.Join(canonicalRoot, "docs") {
+		t.Fatalf("Dir = %q", b.Dir)
 	}
 }
 

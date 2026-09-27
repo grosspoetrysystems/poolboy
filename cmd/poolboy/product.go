@@ -10,6 +10,7 @@ import (
 
 	"github.com/grosspoetrysystems/poolboy/bundle"
 	"github.com/grosspoetrysystems/poolboy/internal/compiler"
+	"github.com/grosspoetrysystems/poolboy/internal/health"
 	"github.com/grosspoetrysystems/poolboy/internal/output"
 	"github.com/grosspoetrysystems/poolboy/internal/source"
 )
@@ -30,6 +31,13 @@ func productBundle() (*bundle.Bundle, error) {
 		start = "."
 	}
 	return bundle.Discover(start)
+}
+func productPartialBundle() (*bundle.Bundle, error) {
+	start := rootDir
+	if start == "" {
+		start = "."
+	}
+	return bundle.DiscoverPartial(start)
 }
 
 func productError(err error) int {
@@ -78,15 +86,29 @@ func cmdScan(args []string) int {
 	if fs.NArg() != 0 {
 		return productError(errors.New("scan accepts no positional arguments"))
 	}
-	b, err := productBundle()
+	b, err := productPartialBundle()
 	if err != nil {
 		return productError(err)
 	}
-	inventory, err := source.Scan(b, *accept)
+	previous, inventory, err := source.ScanEvidence(b, *accept)
 	if err != nil {
 		return productError(err)
 	}
-	return productOutput(*format, []string{"Saved evidence baseline: .poolboy/sources.lock.json"}, inventory)
+	items, healthErr := health.Inspect(b, previous, inventory)
+	lines := []string{"Saved source baseline: .poolboy/sources.lock.json", ""}
+	if healthErr != nil {
+		lines = append(lines, "Documentation smell test unavailable: "+healthErr.Error())
+	} else {
+		lines = append(lines, healthSummary(items)...)
+		lines = append(lines, "", "Nothing was excluded or rewritten.")
+		if len(items) > 0 {
+			lines = append(lines, "Run `poolboy health` to inspect.")
+		}
+	}
+	return productOutput(*format, lines, struct {
+		Inventory *source.Inventory `json:"inventory"`
+		Health    []health.Item     `json:"health"`
+	}{inventory, items})
 }
 
 func cmdDrift(args []string) int {
@@ -98,19 +120,88 @@ func cmdDrift(args []string) int {
 	if fs.NArg() != 0 {
 		return productError(errors.New("drift accepts no positional arguments"))
 	}
-	b, err := productBundle()
+	b, err := productPartialBundle()
 	if err != nil {
 		return productError(err)
 	}
-	changes, err := source.Drift(b)
+	changes, baseline, current, err := source.DriftEvidence(b)
 	if err != nil {
 		return productError(err)
 	}
-	lines := make([]string, 0, len(changes))
+	items, healthErr := health.Inspect(b, baseline, current)
+	lines := make([]string, 0, len(changes)+8)
 	for _, change := range changes {
 		lines = append(lines, fmt.Sprintf("%s\t%s", change.Status, change.Path))
 	}
-	return productOutput(*format, lines, changes)
+	if len(lines) > 0 {
+		lines = append(lines, "")
+	}
+	if healthErr != nil {
+		lines = append(lines, "Documentation smell test unavailable: "+healthErr.Error())
+	} else {
+		lines = append(lines, healthSummary(items)...)
+	}
+	value := any(struct {
+		Changes []source.Change `json:"changes"`
+		Health  []health.Item   `json:"health"`
+	}{changes, items})
+	if *format == "csv" || *format == "tsv" {
+		value = changes
+	}
+	return productOutput(*format, lines, value)
+}
+
+func cmdHealth(args []string) int {
+	fs := flag.NewFlagSet("health", flag.ContinueOnError)
+	format := fs.String("format", "text", "output format: text|json|csv|tsv")
+	if code := productFlags(fs, args); code >= 0 {
+		return code
+	}
+	if fs.NArg() != 0 {
+		return productError(errors.New("health accepts no positional arguments"))
+	}
+	b, err := productPartialBundle()
+	if err != nil {
+		return productError(err)
+	}
+	items, err := health.Current(b)
+	if err != nil {
+		return productError(err)
+	}
+	lines := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.Status == health.Unavailable {
+			lines = append(lines, fmt.Sprintf("unavailable\t%s", item.Signal))
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s\t%s\t%s", item.Signal, item.Document, item.Source))
+	}
+	if len(lines) == 0 {
+		lines = append(lines, "No documentation health findings.")
+	}
+	return productOutput(*format, lines, items)
+}
+
+func healthSummary(items []health.Item) []string {
+	counts := map[string]int{}
+	for _, item := range items {
+		counts[item.Signal]++
+	}
+	lines := []string{"Documentation smell test:"}
+	for _, signal := range []string{"orphan", "missing_sources", "source_missing", "source_not_in_baseline", "source_changed"} {
+		if counts[signal] > 0 {
+			lines = append(lines, fmt.Sprintf("  %d %s", counts[signal], signal))
+		}
+	}
+	for _, signal := range []string{"corpus", "source_baseline"} {
+		if counts[signal] > 0 {
+			lines = append(lines, fmt.Sprintf("  %s unavailable", signal))
+		}
+	}
+	if len(lines) == 1 {
+		lines = append(lines, "  no findings")
+	}
+	return lines
 }
 
 func cmdAffected(args []string) int {

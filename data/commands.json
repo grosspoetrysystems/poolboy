@@ -39,7 +39,7 @@
     },
     {
       "name": "scan",
-      "summary": "Record a bounded source inventory baseline.",
+      "summary": "Record a bounded source inventory baseline and summarize documentation health.",
       "mutates": true,
       "aliases": "none",
       "source": "cmd/poolboy/product.go",
@@ -50,7 +50,17 @@
     },
     {
       "name": "drift",
-      "summary": "Compare the source inventory with current files.",
+      "summary": "Compare current sources and summarize affected documentation.",
+      "mutates": false,
+      "aliases": "none",
+      "source": "cmd/poolboy/product.go",
+      "flags": [
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+      ]
+    },
+    {
+      "name": "health",
+      "summary": "Inspect documentation provenance and graph evidence.",
       "mutates": false,
       "aliases": "none",
       "source": "cmd/poolboy/product.go",

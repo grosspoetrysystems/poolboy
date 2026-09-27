@@ -28,6 +28,7 @@ Commands:
   approve       fully verify and approve one exact corpus release
   scan          record a source inventory (--accept to replace baseline)
   drift         compare the source inventory with current files
+  health        inspect documentation provenance and graph evidence
   affected      find documents citing a source resource
   status        corpus counts: entries, links, tags, checkboxes, broken, orphans
   list, ls      list entries (--where key=value --prefix --sort=path|timestamp --reverse)
@@ -98,6 +99,8 @@ func run(args []string) int {
 		return cmdScan(args[1:])
 	case "drift":
 		return cmdDrift(args[1:])
+	case "health":
+		return cmdHealth(args[1:])
 	case "affected":
 		return cmdAffected(args[1:])
 	case "status":

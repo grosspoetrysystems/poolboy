@@ -39,6 +39,12 @@ type scanner struct {
 	traversed     int
 }
 
+// Current computes the bounded source inventory without reading or writing the
+// accepted baseline.
+func Current(b *bundle.Bundle) (*Inventory, error) {
+	return scanCurrent(b)
+}
+
 // scanCurrent computes an inventory without reading or writing the baseline.
 // Scan and Drift use this common path so Drift cannot accidentally refresh the
 // lock while reporting evidence.

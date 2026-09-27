@@ -1,7 +1,7 @@
 ---
 type: concept
 title: Source inventory and drift
-description: The bounded source evidence baseline, drift comparison, and direct-provenance workflow.
+description: The bounded source baseline, drift comparison, and documentation health workflow.
 status: draft
 sources:
   - resource: ../README.md
@@ -9,6 +9,7 @@ sources:
   - resource: ../internal/source/scan.go
   - resource: ../internal/source/source.go
   - resource: ../internal/source/affected.go
+  - resource: ../internal/health/health.go
   - resource: ../internal/compiler/publication.go
 ---
 # Source inventory and drift
@@ -69,15 +70,34 @@ and lock are also required to remain inside a real, non-symlink project root.
 
 ## Scan, drift, and accept
 
-The first `scan` writes a missing lock. Once a regular baseline exists, a
-scan without `--accept` refuses to replace it. `scan --accept` is the explicit
-baseline-advance step: it can replace the baseline only after a complete,
-successful fresh scan, and the lock write is atomic.
+The first `scan` writes a missing lock and prints a compact documentation smell
+test. Once a regular baseline exists, a scan without `--accept` preserves the
+existing contract: it refuses to replace the lock and prints no smell test.
+Use `drift` or `health` for repeat inspection before acceptance. The initial
+scan marks source-drift evidence unavailable because no prior baseline exists.
+
+`scan --accept` is the explicit baseline-advance step. It computes health
+against the previous baseline, completes the fresh scan and atomic lock write,
+then prints that pre-accept evidence. Accepting the new lock therefore does not
+erase the findings from the review that justified it.
 
 `drift` is read-only. It reports paths as `added`, `removed`, or `modified`
-when the fresh bounded inventory differs from the baseline. It compares
-SHA-256 values only; matching bytes produce no change. Results are sorted by
-path and status.
+when the fresh bounded inventory differs from the baseline, then summarizes
+the same documentation health evidence. It compares SHA-256 values only;
+matching bytes produce no change. Results are sorted by path and status.
+
+## Documentation health
+
+`health` is the read-only, document-level view behind the compact `scan` and
+`drift` summaries. It reports documents with no declared sources, declared
+local sources missing from the worktree or accepted baseline, declared sources
+whose current SHA-256 differs from that baseline, and corpus orphans from the
+same `ignore_orphans`-aware graph query used elsewhere.
+
+Findings are advisory. They identify observable review evidence; they do not
+declare a document stale, exclude it, or rewrite it. A missing corpus or
+baseline appears as `unavailable`, not as a clean result. The command still
+returns the evidence it can compute and supports text, JSON, CSV, and TSV.
 
 ## Review and reconciliation workflow
 

@@ -1045,3 +1045,90 @@ func TestVocabularyCommandsAcceptWhere(t *testing.T) {
 		t.Errorf("a named file should ignore --where, got %q", out)
 	}
 }
+
+func TestDocumentationHealthCommands(t *testing.T) {
+	t.Chdir(writeBundle(t))
+
+	out, code := capture(t, func() int { return cmdScan(nil) })
+	if code != 0 || !strings.Contains(out, "Documentation smell test:") || !strings.Contains(out, "source_baseline unavailable") {
+		t.Fatalf("scan health output=%q code=%d", out, code)
+	}
+	out, code = capture(t, func() int { return cmdHealth([]string{"--format", "json"}) })
+	if code != 0 || !strings.Contains(out, `"signal": "missing_sources"`) || !strings.Contains(out, `"/guide.md"`) {
+		t.Fatalf("health json output=%q code=%d", out, code)
+	}
+	out, code = capture(t, func() int { return cmdDrift(nil) })
+	if code != 0 || !strings.Contains(out, "Documentation smell test:") {
+		t.Fatalf("drift health output=%q code=%d", out, code)
+	}
+}
+
+func TestHealthReportsMissingCorpus(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec=\"0.1\"\ncorpus=\"docs\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	if _, code := capture(t, func() int { return cmdStatus(nil) }); code != 2 {
+		t.Fatalf("status with missing corpus exit=%d want 2", code)
+	}
+
+	out, code := capture(t, func() int { return cmdHealth(nil) })
+	if code != 0 || !strings.Contains(out, "unavailable\tcorpus") || !strings.Contains(out, "unavailable\tsource_baseline") {
+		t.Fatalf("missing-corpus health output=%q code=%d", out, code)
+	}
+}
+
+func TestDriftKeepsDelimitedOutput(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, content string) {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec=\"0.1\"\ncorpus=\"docs\"\n")
+	write("docs/index.md", "---\nokf_version: \"0.1\"\n---\n# Home\n")
+	write("app.go", "package app\n")
+	t.Chdir(root)
+	if _, code := capture(t, func() int { return cmdScan(nil) }); code != 0 {
+		t.Fatalf("scan exit=%d", code)
+	}
+	write("app.go", "package changed\n")
+
+	out, code := capture(t, func() int { return cmdDrift([]string{"--format", "csv"}) })
+	if code != 0 || !strings.HasPrefix(out, "path,status\n") || !strings.Contains(out, "app.go,modified") {
+		t.Fatalf("drift csv output=%q code=%d", out, code)
+	}
+}
+
+func TestScanDoesNotFailWhenHealthIsUnavailable(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec=\"0.1\"\ncorpus=\"docs\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "index.md"), []byte("# Home\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("index.md", filepath.Join(root, "docs", "alias.md")); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	out, code := capture(t, func() int { return cmdScan(nil) })
+	if code != 0 || !strings.Contains(out, "Saved source baseline") || !strings.Contains(out, "smell test unavailable") {
+		t.Fatalf("scan advisory output=%q code=%d", out, code)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".poolboy", "sources.lock.json")); err != nil {
+		t.Fatalf("baseline not written: %v", err)
+	}
+}

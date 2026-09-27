@@ -263,78 +263,91 @@ func validProjectPath(path string) bool {
 	return true
 }
 
-// Scan computes a safe inventory. With no existing lock it writes the initial
-// baseline. When a baseline exists, accept must be true to replace it; a
-// non-accepting call returns ErrBaselineExists so a caller reviews Drift first.
-// The lock is replaced only after the current scan succeeds.
+// Scan computes a safe inventory and writes it as the accepted baseline.
 func Scan(b *bundle.Bundle, accept bool) (*Inventory, error) {
+	_, current, err := ScanEvidence(b, accept)
+	return current, err
+}
+
+// ScanEvidence returns the preceding and newly written inventories. The previous
+// value is nil for an initial scan.
+func ScanEvidence(b *bundle.Bundle, accept bool) (*Inventory, *Inventory, error) {
 	if b != nil && len(b.Unknown) > 0 {
 		unknown := append([]string(nil), b.Unknown...)
 		sort.Strings(unknown)
-		return nil, fmt.Errorf("unknown configuration setting: %s", strings.Join(unknown, ", "))
+		return nil, nil, fmt.Errorf("unknown configuration setting: %s", strings.Join(unknown, ", "))
 	}
 	_, lock, err := statePaths(b, false)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
+		return nil, nil, err
 	}
+	var previous *Inventory
 	if err == nil {
 		info, statErr := os.Lstat(lock)
 		switch {
 		case statErr == nil:
 			if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-				return nil, errors.New("source: sources.lock.json must be a regular file")
+				return nil, nil, errors.New("source: sources.lock.json must be a regular file")
 			}
 			if !accept {
-				return nil, fmt.Errorf("%w: %s", ErrBaselineExists, filepath.Join(".poolboy", lockName))
+				return nil, nil, fmt.Errorf("%w: %s", ErrBaselineExists, filepath.Join(".poolboy", lockName))
+			}
+			previous, err = ReadLock(b)
+			if err != nil {
+				return nil, nil, err
 			}
 		case !errors.Is(statErr, fs.ErrNotExist):
-			return nil, fmt.Errorf("source: checking baseline: %w", statErr)
+			return nil, nil, fmt.Errorf("source: checking baseline: %w", statErr)
 		}
 	}
-	inv, err := scanCurrent(b)
+	current, err := scanCurrent(b)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	root, err := projectRoot(b)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	inv.Version = Version
-	inv.Revision = gitRevision(root)
-	if err := writeLock(b, inv, !accept); err != nil {
-		return nil, err
+	current.Version = Version
+	current.Revision = gitRevision(root)
+	if err := writeLock(b, current, !accept); err != nil {
+		return nil, nil, err
 	}
-	return inv, nil
+	return previous, current, nil
 }
 
-// Drift compares the written baseline inventory against a fresh safe scan and
-// reports added, removed and modified source files. It never rewrites the
-// baseline: the comparison is read-only against the recorded hashes.
+// Drift compares the written baseline inventory against a fresh safe scan.
 func Drift(b *bundle.Bundle) ([]Change, error) {
+	changes, _, _, err := DriftEvidence(b)
+	return changes, err
+}
+
+// DriftEvidence returns the comparison and both inventories used to compute it.
+func DriftEvidence(b *bundle.Bundle) ([]Change, *Inventory, *Inventory, error) {
 	base, err := ReadLock(b)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("source: no baseline inventory at %s; run scan first",
+			return nil, nil, nil, fmt.Errorf("source: no baseline inventory at %s; run scan first",
 				filepath.Join(".poolboy", lockName))
 		}
-		return nil, err
+		return nil, nil, nil, err
 	}
-	cur, err := scanCurrent(b)
+	current, err := scanCurrent(b)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	var changes []Change
-	for path, be := range base.Files {
-		ce, ok := cur.Files[path]
+	for path, before := range base.Files {
+		now, ok := current.Files[path]
 		if !ok {
 			changes = append(changes, Change{Path: path, Status: string(Removed)})
 			continue
 		}
-		if ce.SHA256 != be.SHA256 {
+		if now.SHA256 != before.SHA256 {
 			changes = append(changes, Change{Path: path, Status: string(Modified)})
 		}
 	}
-	for path := range cur.Files {
+	for path := range current.Files {
 		if _, ok := base.Files[path]; !ok {
 			changes = append(changes, Change{Path: path, Status: string(Added)})
 		}
@@ -345,7 +358,7 @@ func Drift(b *bundle.Bundle) ([]Change, error) {
 		}
 		return changes[i].Status < changes[j].Status
 	})
-	return changes, nil
+	return changes, base, current, nil
 }
 
 // gitRevision returns the current HEAD commit if root is a Git work tree, or ""

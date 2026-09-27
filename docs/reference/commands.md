@@ -52,7 +52,7 @@ Build and serve the configured corpus through a private loopback URL.
 - `--renderer PATH` — Use a trusted Knap companion path.
 ## `scan`
 
-Record a bounded source inventory baseline.
+Record a bounded source inventory baseline and summarize documentation health.
 
 - Mutation: `true`
 - Aliases: `none`
@@ -64,7 +64,18 @@ Record a bounded source inventory baseline.
 - `--format text|json|csv|tsv` — Choose result output format.
 ## `drift`
 
-Compare the source inventory with current files.
+Compare current sources and summarize affected documentation.
+
+- Mutation: `false`
+- Aliases: `none`
+- Source: `cmd/poolboy/product.go`
+
+### Flags and arguments
+
+- `--format text|json|csv|tsv` — Choose result output format.
+## `health`
+
+Inspect documentation provenance and graph evidence.
 
 - Mutation: `false`
 - Aliases: `none`

@@ -100,8 +100,18 @@ func (b *Bundle) DecodeTool(name string, v any) (bool, error) {
 var ErrNotFound = errors.New("no poolboy.toml found (not inside a Poolboy project)")
 
 // Discover walks up from start until it finds a directory containing
-// poolboy.toml. The returned paths are canonical absolute paths.
+// poolboy.toml. The configured corpus must exist.
 func Discover(start string) (*Bundle, error) {
+	return discover(start, true)
+}
+
+// DiscoverPartial loads project configuration while allowing a missing corpus.
+// Source evidence commands use it so they can report corpus checks unavailable.
+func DiscoverPartial(start string) (*Bundle, error) {
+	return discover(start, false)
+}
+
+func discover(start string, requireCorpus bool) (*Bundle, error) {
 	dir, err := filepath.Abs(start)
 	if err != nil {
 		return nil, err
@@ -118,7 +128,7 @@ func Discover(start string) (*Bundle, error) {
 			if fi.IsDir() {
 				return nil, fmt.Errorf("poolboy.toml is a directory: %s", cfg)
 			}
-			return load(dir, cfg)
+			return load(dir, cfg, requireCorpus)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -163,7 +173,7 @@ func loadLanding(dir string) (Landing, []string, error) {
 	return l, unknown, nil
 }
 
-func load(projectRoot, cfgPath string) (*Bundle, error) {
+func load(projectRoot, cfgPath string, requireCorpus bool) (*Bundle, error) {
 	root, err := canonicalDir(projectRoot)
 	if err != nil {
 		return nil, fmt.Errorf("project root: %w", err)
@@ -184,7 +194,7 @@ func load(projectRoot, cfgPath string) (*Bundle, error) {
 		return nil, err
 	}
 	corpusDir := filepath.Join(root, filepath.FromSlash(corpus))
-	if err := safeExistingDir(root, corpusDir, "corpus"); err != nil {
+	if err := safeCorpusDir(root, corpusDir, requireCorpus); err != nil {
 		return nil, err
 	}
 
@@ -384,16 +394,19 @@ func canonicalDir(dir string) (string, error) {
 	return filepath.Clean(resolved), nil
 }
 
-func safeExistingDir(root, p, label string) error {
-	if err := safePath(root, p, label); err != nil {
+func safeCorpusDir(root, p string, required bool) error {
+	if err := safePath(root, p, "corpus"); err != nil {
 		return err
 	}
 	fi, err := os.Stat(p)
+	if os.IsNotExist(err) && !required {
+		return nil
+	}
 	if err != nil {
-		return fmt.Errorf("%s directory does not exist: %s", label, p)
+		return fmt.Errorf("corpus directory does not exist: %s", p)
 	}
 	if !fi.IsDir() {
-		return fmt.Errorf("%s is not a directory: %s", label, p)
+		return fmt.Errorf("corpus is not a directory: %s", p)
 	}
 	return nil
 }
