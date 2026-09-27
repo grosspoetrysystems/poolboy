@@ -1,13 +1,17 @@
 package compiler
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/grosspoetrysystems/poolboy/bundle"
 )
@@ -350,6 +354,73 @@ func landingProject(t *testing.T) (string, *bundle.Bundle) {
 		t.Fatal(err)
 	}
 	return root, &bundle.Bundle{Root: root, Dir: root, Name: "Acme Docs", Output: "dist", Spec: "0.2"}
+}
+
+func TestBuildLandingZIPUsesPortableEpoch(t *testing.T) {
+	root, b := landingProject(t)
+	zipPath := filepath.Join(root, "dist", "corpus.zip")
+	if err := Build(context.Background(), b, ""); err != nil {
+		t.Fatal(err)
+	}
+	first, err := os.ReadFile(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Build(context.Background(), b, ""); err != nil {
+		t.Fatal(err)
+	}
+	second, err := os.ReadFile(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("repeated landing ZIP builds differ")
+	}
+
+	archive, err := zip.NewReader(bytes.NewReader(first), int64(len(first)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(archive.File), 1; got != want {
+		t.Fatalf("ZIP entries = %d, want %d", got, want)
+	}
+	entry := archive.File[0]
+	if got, want := entry.Name, "index.md"; got != want {
+		t.Fatalf("ZIP entry name = %q, want %q", got, want)
+	}
+	if got, want := entry.Mode().Perm(), os.FileMode(0o644); got != want {
+		t.Fatalf("ZIP entry mode = %o, want %o", got, want)
+	}
+	reader, err := entry.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotContents, readErr := io.ReadAll(reader)
+	closeErr := reader.Close()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	wantContents, err := os.ReadFile(filepath.Join(root, "index.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(gotContents, wantContents) {
+		t.Fatalf("ZIP entry contents = %q, want %q", gotContents, wantContents)
+	}
+
+	wantModified := time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
+	if !entry.Modified.Equal(wantModified) {
+		t.Fatalf("ZIP modern timestamp = %s, want %s", entry.Modified, wantModified)
+	}
+	if got, want := entry.ModifiedDate, uint16(0x21); got != want {
+		t.Fatalf("ZIP DOS date = %#x, want %#x", got, want)
+	}
+	if got, want := entry.ModifiedTime, uint16(0); got != want {
+		t.Fatalf("ZIP DOS time = %#x, want %#x", got, want)
+	}
 }
 
 func TestBuildLandingAppliesConfiguredText(t *testing.T) {

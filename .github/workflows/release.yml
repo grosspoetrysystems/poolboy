@@ -7,17 +7,40 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
+      - name: Require a version tag
+        id: version
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "Run this workflow against a v* tag." >&2
+            exit 1
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "${GITHUB_REF_NAME} is not a supported semantic version tag." >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -33,7 +56,7 @@ jobs:
           package_json_file: companion/package.json
 
       - name: Set up Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
@@ -46,6 +69,7 @@ jobs:
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
         with:
           cosign-release: v2.6.0
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
         with:
@@ -55,9 +79,135 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify released version
+        shell: bash
+        run: |
+          ARCHIVE=".release/poolboy_${{ steps.version.outputs.version }}_linux_amd64.tar.gz"
+          tar -xOf "${ARCHIVE}" poolboy > /tmp/poolboy
+          chmod +x /tmp/poolboy
+          ACTUAL="$(/tmp/poolboy version)"
+          if [ "${ACTUAL}" != "${{ steps.version.outputs.version }}" ]; then
+            echo "Built CLI reports ${ACTUAL}; expected ${{ steps.version.outputs.version }}." >&2
+            exit 1
+          fi
+
+      - name: Pack npm distributions
+        run: node scripts/package-npm.mjs "${{ steps.version.outputs.version }}"
+
+      - name: Upload npm distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-${{ steps.version.outputs.version }}
+          path: .release/npm/
+          include-hidden-files: true
+          retention-days: 1
+
       - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: |
-            dist/*.tar.gz
-            dist/*.zip
+            .release/*.tar.gz
+            .release/*.zip
+
+  publish-npm:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Verify trusted-publishing npm version
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const required = [11, 5, 1];
+          const version = execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
+          const actual = version.split('.').map(Number);
+          const firstDiff = actual.findIndex((part, index) => part !== required[index]);
+          const ok = actual.length === 3 && actual.every(Number.isFinite) &&
+            (firstDiff === -1 || actual[firstDiff] > required[firstDiff]);
+          if (!ok) {
+            console.error(`npm ${version} is too old for trusted publishing; need >= ${required.join('.')}.`);
+            process.exit(1);
+          }
+          console.log(`npm ${version} supports trusted publishing.`);
+          NODE
+
+      - name: Download npm distributions
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-${{ needs.release.outputs.version }}
+          path: .release/npm/
+
+      - name: Publish platform packages, then wrapper
+        run: node scripts/publish-npm.mjs
+        env:
+          # Bootstrap unpublished packages once, then delete this secret after configuring OIDC.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  smoke-npm:
+    needs: [release, publish-npm]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install and run the published package
+        shell: bash
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          CACHE="$(mktemp -d)"
+          for attempt in $(seq 1 18); do
+            if npm view "@grosspoetrysystems/poolboy@${VERSION}" version --cache "${CACHE}" --prefer-online >/dev/null 2>&1; then
+              break
+            fi
+            if [ "${attempt}" = 18 ]; then
+              echo "npm did not expose @grosspoetrysystems/poolboy@${VERSION} within three minutes." >&2
+              exit 1
+            fi
+            rm -rf "${CACHE}"
+            CACHE="$(mktemp -d)"
+            sleep 10
+          done
+          mkdir smoke && cd smoke
+          npm init --yes >/dev/null
+          npm install --ignore-scripts --no-audit --no-fund "@grosspoetrysystems/poolboy@${VERSION}"
+          ACTUAL="$(./node_modules/.bin/poolboy version)"
+          if [ "${ACTUAL}" != "${VERSION}" ]; then
+            echo "Published CLI reports ${ACTUAL}; expected ${VERSION}." >&2
+            exit 1
+          fi
+
+  publish-release:
+    needs: [release, smoke-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish inspected GitHub release
+        shell: bash
+        run: gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

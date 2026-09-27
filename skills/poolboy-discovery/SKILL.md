@@ -59,3 +59,12 @@ Repeated reference content belongs in `templates/*.md.knap` plus `data/*.json` w
 - Ask a separate reader to answer concrete architecture and behavior questions using only the published `llms.txt`, `graph.json` and Markdown. Missing evidence is a documentation gap, not a reason to guess.
 
 Humans can open the same corpus directory in Obsidian, GitHub or VS Code. No conversion step or synchronization copy is needed. End the workflow with a concise list of established knowledge, unresolved questions, changed source evidence and verification performed.
+
+## Record acceptance evidence
+
+Before claiming discovery is complete or handing a corpus off, keep a compact evidence record; a clean `check` or a successful `build` is not that record. Scanned, reviewed, checked, published and deployed are separate claims: a scan hash, a passing check, a compiled artifact and a served landing each stand only for themselves, and none authorizes the next.
+
+- Preexisting documentation: list every prior document included or excluded and why. Never quietly drop an invalid or nonconforming doc to obtain a clean check; report it as a gap with its disposition.
+- Source-backed pages: authored and generated pages that state source-derived facts carry structured OKF `sources` entries, not a source path mentioned in prose. Record representative `affected SOURCE` lookups with their honest gaps; an empty result is a coverage gap, not proof of irrelevance. Unrelated handwritten notes need no citation and must not be forced to carry one.
+- Independent reader: a fresh reader answers the frozen questions using only the published `llms.txt`, `graph.json` and Markdown, citing document and heading. Preserve failed and partial answers and the unsupported question's honest gap; a later corrected pass is retained alongside the first, never overwriting it.
+- Orphans: record the exact `orphans` paths and each disposition—linked from the index or explicitly justified—and the fix actually made, not the fix intended.

@@ -58,6 +58,7 @@ type Entry struct {
 	abs         string
 	root        string // the bundle dir, so an entry can re-parse itself after a write
 	fm          map[string]any
+	parseErr    error // malformed closed YAML; retained for Check/Body diagnostics
 }
 
 // base is the entry's filename (basename of Path), computed on demand: the path
@@ -98,7 +99,10 @@ func (e *Entry) Body() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_, body := parse.Frontmatter(raw)
+	_, body, parseErr := parse.Frontmatter(raw)
+	if parseErr != nil {
+		return body, fmt.Errorf("invalid YAML in %s: %w", e.Path, parseErr)
+	}
 	return body, nil
 }
 
@@ -289,7 +293,7 @@ func parseEntry(root, abs string) (*Entry, error) {
 	}
 	rel, _ := filepath.Rel(root, abs)
 	content := string(data)
-	fm, body := parse.Frontmatter(content)
+	fm, body, parseErr := parse.Frontmatter(content)
 	// Links/checkboxes/headings are parsed from the frontmatter-stripped body, so
 	// their line numbers are body-relative; offset by the frontmatter's length
 	// to make them file-relative (what `unresolved`/`backlinks`/`tasks` report).
@@ -321,6 +325,7 @@ func parseEntry(root, abs string) (*Entry, error) {
 		abs:         abs,
 		root:        root,
 		fm:          fm,
+		parseErr:    parseErr,
 	}, nil
 }
 
@@ -867,6 +872,11 @@ func (idx *Index) Move(srcArg, dest string, dryRun, includeFrontmatter bool) (*M
 	case !withinDir(idx.Bundle.Dir, destAbs):
 		return nil, fmt.Errorf("destination escapes the bundle: %s", dest)
 	}
+	for _, e := range idx.Entries {
+		if e.parseErr != nil {
+			return nil, fmt.Errorf("move refused for %s: invalid YAML: %w", e.Path, e.parseErr)
+		}
+	}
 	if err := safeMovePath(idx.Bundle.Dir, destAbs, "destination"); err != nil {
 		return nil, err
 	}
@@ -953,7 +963,10 @@ func (idx *Index) Move(srcArg, dest string, dryRun, includeFrontmatter bool) (*M
 		}
 		fields := 0
 		if len(fmRWs) > 0 {
-			_, body := parse.Frontmatter(raw)
+			_, body, parseErr := parse.Frontmatter(raw)
+			if parseErr != nil {
+				return res, fmt.Errorf("move %s: invalid YAML: %w", e.Path, parseErr)
+			}
 			fmEnd := strings.Count(raw[:len(raw)-len(body)], "\n")
 			fields = rewriteFrontmatterRefs(lines, fmEnd, fmRWs)
 		}
@@ -1286,7 +1299,17 @@ func (idx *Index) Check() []Issue {
 	}
 	for _, e := range idx.Entries {
 		b := e.base()
-		if b == "index.md" || b == "log.md" {
+		switch {
+		case e.parseErr != nil:
+			issues = append(issues, Issue{"error", e.Path, "invalid YAML: " + e.parseErr.Error()})
+			if b == "log.md" {
+				for _, h := range e.Headings {
+					if looksLikeNonISODate(h.Text) {
+						issues = append(issues, Issue{"warning", e.Path, "log date heading should be ISO YYYY-MM-DD: " + h.Text})
+					}
+				}
+			}
+		case b == "index.md" || b == "log.md":
 			// Reserved files (OKF §6/§7) are not concept documents: they carry no
 			// frontmatter (the bundle-root index.md may carry okf_version) and are
 			// exempt from the type requirement.
@@ -1305,7 +1328,7 @@ func (idx *Index) Check() []Issue {
 					}
 				}
 			}
-		} else {
+		default:
 			switch {
 			case e.Type == "":
 				issues = append(issues, Issue{"error", e.Path, "missing required `type` (or add this file to `ignore` in poolboy.toml if it is not a bundle entry)"})
@@ -1380,8 +1403,7 @@ func (idx *Index) Check() []Issue {
 		}
 	}
 	// The bundle-root index.md carries OKF's okf_version badge; poolboy.toml `spec`
-	// is the source of truth, and the tool flags any drift between them.
-	if root, ok := idx.byPath["/index.md"]; ok {
+	if root, ok := idx.byPath["/index.md"]; ok && root.parseErr == nil {
 		if want, embedsOKF := idx.Bundle.OKFVersion(); embedsOKF {
 			switch got := parse.String(root.fm, "okf_version"); got {
 			case want:
@@ -1431,6 +1453,9 @@ func (idx *Index) fixOKFVersion(apply bool) (*Fix, error) {
 	want, embedsOKF := idx.Bundle.OKFVersion()
 	if !embedsOKF {
 		return nil, nil
+	}
+	if root.parseErr != nil {
+		return nil, fmt.Errorf("fix %s: invalid YAML: %w", root.Path, root.parseErr)
 	}
 	got := parse.String(root.fm, "okf_version")
 	if got == want {
@@ -1519,6 +1544,9 @@ func (idx *Index) ConvertWikilinks(apply bool) ([]Fix, error) {
 		if len(e.wikilinks) == 0 {
 			continue
 		}
+		if e.parseErr != nil {
+			return nil, fmt.Errorf("tidy %s: invalid YAML: %w", e.Path, e.parseErr)
+		}
 		raw, err := e.Raw()
 		if err != nil {
 			return nil, err
@@ -1589,7 +1617,10 @@ func (idx *Index) normalizeEntryLinks(e *Entry, apply bool) ([]Fix, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, body := parse.Frontmatter(raw)
+	_, body, parseErr := parse.Frontmatter(raw)
+	if parseErr != nil {
+		return nil, fmt.Errorf("tidy %s: invalid YAML: %w", e.Path, parseErr)
+	}
 	offset := strings.Count(raw[:len(raw)-len(body)], "\n")
 	abs := parse.Links(body).Absolute
 	if len(abs) == 0 {

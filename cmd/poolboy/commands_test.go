@@ -348,6 +348,87 @@ func TestCmdInit(t *testing.T) {
 	}
 }
 
+func TestCmdInitReportsExistingMarkdownAdoption(t *testing.T) {
+	dir := t.TempDir()
+	readme := []byte("# Project README\n")
+	guide := []byte("# Existing guide\n")
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), readme, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "docs", "guide.md"), guide, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	out, code := capture(t, func() int { return cmdInit(nil) })
+	if code != 0 {
+		t.Fatalf("init exit=%d, output=%q", code, out)
+	}
+	if got, err := os.ReadFile("README.md"); err != nil || string(got) != string(readme) {
+		t.Fatalf("init changed README.md: got %q, err %v", got, err)
+	}
+	if got, err := os.ReadFile(filepath.Join("docs", "guide.md")); err != nil || string(got) != string(guide) {
+		t.Fatalf("init changed docs/guide.md: got %q, err %v", got, err)
+	}
+	for _, want := range []string{
+		"selected corpus: docs",
+		"/guide.md: missing required `type`",
+		"README.md",
+		"outside selected corpus",
+		"not included",
+		"type: guide",
+		"poolboy check",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("init adoption report missing %q:\n%s", want, out)
+		}
+	}
+
+	adopted := "---\ntype: guide\n---\n# Existing guide\n"
+	if err := os.WriteFile(filepath.Join("docs", "guide.md"), []byte(adopted), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, code := capture(t, func() int { return cmdCheck(nil) }); code != 0 {
+		t.Fatalf("check after reviewed metadata exit=%d, output=%q", code, out)
+	}
+}
+func TestCmdInitReportFailurePreservesScaffold(t *testing.T) {
+	dir := t.TempDir()
+	existing := []byte("spec = [\n")
+	config := filepath.Join(dir, "poolboy.toml")
+	if err := os.WriteFile(config, existing, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	out, code := capture(t, func() int { return cmdInit(nil) })
+	if code != 0 {
+		t.Fatalf("init exit=%d, output=%q", code, out)
+	}
+	if !strings.Contains(out, "inspection incomplete") ||
+		!strings.Contains(out, "could not inspect existing Markdown") {
+		t.Fatalf("init should warn about incomplete inspection: %q", out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "docs", "getting-started.md")); err != nil {
+		t.Fatalf("scaffold did not succeed: %v", err)
+	}
+	if got, err := os.ReadFile(config); err != nil || string(got) != string(existing) {
+		t.Fatalf("init changed malformed config: got %q, err %v", got, err)
+	}
+
+	jsonOut, code := capture(t, func() int { return cmdInit([]string{"--format", "json"}) })
+	if code != 0 {
+		t.Fatalf("json init exit=%d, output=%q", code, jsonOut)
+	}
+	if !strings.Contains(jsonOut, `"inspection_error"`) ||
+		!strings.Contains(jsonOut, "poolboy.toml") {
+		t.Fatalf("json init should expose inspection failure: %q", jsonOut)
+	}
+}
+
 func TestCmdStatus(t *testing.T) {
 	t.Chdir(writeBundle(t)) // guide.md has one `- [ ]`; 3 entries (index, guide, flat)
 	out, code := capture(t, func() int { return cmdStatus(nil) })
@@ -407,6 +488,17 @@ func TestRun(t *testing.T) {
 		if _, code := capture(t, func() int { return run(tc.args) }); code != tc.want {
 			t.Errorf("run(%v) = %d, want %d", tc.args, code, tc.want)
 		}
+	}
+}
+
+func TestVersionOutput(t *testing.T) {
+	old := Version
+	Version = "1.2.3"
+	t.Cleanup(func() { Version = old })
+
+	out, code := capture(t, func() int { return run([]string{"version"}) })
+	if code != 0 || strings.TrimSpace(out) != "1.2.3" {
+		t.Fatalf("version: output=%q exit=%d", out, code)
 	}
 }
 

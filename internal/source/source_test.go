@@ -37,6 +37,8 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 	root := t.TempDir()
 	b := testBundle(root)
 	writeTestFile(t, root, ".gitignore", "*.log\nignored/\n")
+	writeTestFile(t, root, ".git", "gitdir: /common/worktrees/example\n")
+	writeTestFile(t, root, "src/nested/.git", "gitdir: ../../.git/worktrees/example\n")
 	writeTestFile(t, root, ".poolboyignore", "custom/**\n!custom/keep.go\n")
 	writeTestFile(t, root, "src/main.go", "package src\n")
 	writeTestFile(t, root, "src/bin/cli.ts", "export const cli = true\n")
@@ -75,6 +77,7 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, excluded := range []string{
+		".git", "src/nested/.git",
 		"src/debug.log", "src/nested/drop.txt", "ignored/keep.go", "custom/drop.go",
 		".env", "tls/private.pem", "src/aws-real.go", "src/blob.dat", "src/oversized.txt",
 		"src/link.go", "vendor/lib.go", "node_modules/lib.js", ".substrate/audit.md",
@@ -84,7 +87,7 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 			t.Errorf("excluded path present in inventory: %s", excluded)
 		}
 	}
-	for _, included := range []string{"src/main.go", "src/bin/cli.ts", "src/internal/build/keep.ts", "src/nested/keep.txt", "custom/keep.go"} {
+	for _, included := range []string{".gitignore", "src/main.go", "src/bin/cli.ts", "src/internal/build/keep.ts", "src/nested/keep.txt", "custom/keep.go"} {
 		if _, ok := inv.Files[included]; !ok {
 			t.Errorf("safe path missing from inventory: %s", included)
 		}

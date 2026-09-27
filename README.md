@@ -7,6 +7,20 @@ Maintain software documentation as portable OKF Markdown, then compile it into a
 
 A big hat tip to [Agentic Wiki](https://github.com/agentic-wiki/wiki) and its authors and contributors. Poolboy builds directly on their Go CLI code and takes inspiration from their approach to Markdown and agent workflows. Thank you for the foundation and permission to build on it.
 
+## Install
+
+Poolboy requires Node 22 or newer:
+
+```sh
+npm install --global @grosspoetrysystems/poolboy
+poolboy version
+```
+
+Every npm package contains the platform binary it executes; installation runs
+no lifecycle scripts and downloads no executable from another host. Published
+versions carry npm provenance and correspond to the signed archives on the
+[GitHub Releases](https://github.com/grosspoetrysystems/poolboy/releases) page.
+
 ## Build locally
 
 Prerequisites: Go 1.25+, Node 24+, and pnpm. Install the pnpm version declared in `companion/package.json`.

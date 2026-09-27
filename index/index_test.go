@@ -636,6 +636,47 @@ func TestCheckSeverity(t *testing.T) {
 	}
 }
 
+func TestMalformedFrontmatterIsReportedAndReadOnly(t *testing.T) {
+	idx := build(t, map[string]string{
+		"a.md": "---\ntype: note\ntitle: bad: value\n---\n[x](/b.md)\n",
+		"b.md": "---\ntype: note\n---\nbody\n",
+	})
+	issues := idx.Check()
+	errors := 0
+	for _, issue := range issues {
+		if issue.Entry != "/a.md" || issue.Level != "error" {
+			continue
+		}
+		errors++
+		if !strings.Contains(issue.Msg, "invalid YAML:") {
+			t.Fatalf("malformed frontmatter issue = %+v", issue)
+		}
+		if strings.Contains(issue.Msg, "missing required") {
+			t.Fatalf("malformed frontmatter must not become missing type: %+v", issue)
+		}
+	}
+	if errors != 1 {
+		t.Fatalf("malformed frontmatter errors = %d, want one YAML error: %+v", errors, issues)
+	}
+	entry, _ := idx.Resolve("a.md")
+	body, err := entry.Body()
+	if err == nil || !strings.Contains(err.Error(), "mapping values") {
+		t.Fatalf("Body error = %v, want original YAML failure", err)
+	}
+	if body != "[x](/b.md)\n" {
+		t.Fatalf("Body = %q, want stripped body", body)
+	}
+	if _, err := idx.NormalizeLinks(true); err == nil || !strings.Contains(err.Error(), "invalid YAML") {
+		t.Fatalf("NormalizeLinks error = %v, want malformed YAML refusal", err)
+	}
+	if _, err := idx.Move("/a.md", "/moved/a.md", false, true); err == nil || !strings.Contains(err.Error(), "invalid YAML") {
+		t.Fatalf("Move error = %v, want malformed YAML refusal", err)
+	}
+	if _, err := os.Stat(filepath.Join(idx.Bundle.Dir, "a.md")); err != nil {
+		t.Fatalf("malformed source was moved despite refusal: %v", err)
+	}
+}
+
 func TestCheckTypeVocabulary(t *testing.T) {
 	// A declared vocabulary (build() sets types=[note,concept]) makes an undeclared
 	// type an error that names the fix.

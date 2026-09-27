@@ -79,7 +79,14 @@ func Affected(b *bundle.Bundle, source string) ([]string, error) {
 			if readErr != nil {
 				return fmt.Errorf("source: reading corpus document: %w", readErr)
 			}
-			resources := frontmatterResources(string(content))
+			resources, parseErr := frontmatterResources(string(content))
+			if parseErr != nil {
+				rel, relErr := filepath.Rel(corpus, path)
+				if relErr != nil {
+					return fmt.Errorf("source: parsing corpus document %s frontmatter: invalid YAML: %w", path, parseErr)
+				}
+				return fmt.Errorf("source: parsing corpus document /%s frontmatter: invalid YAML: %w", filepath.ToSlash(rel), parseErr)
+			}
 			for _, resource := range resources {
 				for _, candidate := range resourceCandidates(root, path, resource) {
 					if candidate == target {
@@ -164,11 +171,14 @@ func hasURLScheme(value string) bool {
 // frontmatterResources extracts only sources[].resource from the parsed OKF
 // frontmatter. The shared parser preserves nested YAML maps and sequences, so
 // provenance does not need a second YAML grammar in this package.
-func frontmatterResources(content string) []string {
-	fm, _ := parse.Frontmatter(content)
+func frontmatterResources(content string) ([]string, error) {
+	fm, _, parseErr := parse.Frontmatter(content)
+	if parseErr != nil {
+		return nil, parseErr
+	}
 	raw, ok := fm["sources"]
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	var resources []string
 	var visit func(any)
@@ -193,5 +203,5 @@ func frontmatterResources(content string) []string {
 		}
 	}
 	visit(raw)
-	return resources
+	return resources, nil
 }

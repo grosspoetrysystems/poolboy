@@ -156,7 +156,9 @@ func (s *scanner) skipDir(rel []string, name string) bool {
 
 func (s *scanner) skipFile(rel []string, name string) bool {
 	path := strings.Join(rel, "/")
-	if s.excludedFiles[path] || likelySecretName(name) {
+	// A linked worktree represents .git as a regular pointer file, so it slips
+	// past the .git directory exclusion; refuse it as administrative at any depth.
+	if name == ".git" || s.excludedFiles[path] || likelySecretName(name) {
 		return true
 	}
 	for _, component := range rel[:len(rel)-1] {

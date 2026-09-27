@@ -8,7 +8,10 @@ import (
 )
 
 func TestFrontmatterCRLF(t *testing.T) {
-	fm, body := Frontmatter("---\r\ntype: note\r\ntitle: A\r\n---\r\nbody line\r\n")
+	fm, body, err := Frontmatter("---\r\ntype: note\r\ntitle: A\r\n---\r\nbody line\r\n")
+	if err != nil {
+		t.Fatalf("CRLF frontmatter: %v", err)
+	}
 	if fm["type"] != "note" || fm["title"] != "A" {
 		t.Errorf("CRLF frontmatter: type=%v title=%v", fm["type"], fm["title"])
 	}
@@ -38,7 +41,7 @@ func TestLinksStripTitle(t *testing.T) {
 
 func TestFrontmatter(t *testing.T) {
 	content := "---\ntype: concept\ntitle: \"A: B\"\ntags: [x, y, z]\n---\n\n# Body\ntext\n"
-	fm, body := Frontmatter(content)
+	fm, body, _ := Frontmatter(content)
 	if fm["type"] != "concept" {
 		t.Errorf("type = %v", fm["type"])
 	}
@@ -55,7 +58,7 @@ func TestFrontmatter(t *testing.T) {
 
 func TestFrontmatterNone(t *testing.T) {
 	content := "# No frontmatter\n"
-	fm, body := Frontmatter(content)
+	fm, body, _ := Frontmatter(content)
 	if len(fm) != 0 || body != content {
 		t.Errorf("fm=%v body=%q", fm, body)
 	}
@@ -63,14 +66,30 @@ func TestFrontmatterNone(t *testing.T) {
 
 func TestFrontmatterUnclosed(t *testing.T) {
 	content := "---\ntype: note\nno closing fence\n"
-	fm, body := Frontmatter(content)
+	fm, body, err := Frontmatter(content)
+	if err != nil {
+		t.Fatalf("unclosed frontmatter: %v", err)
+	}
 	if len(fm) != 0 || body != content {
 		t.Errorf("unclosed frontmatter should be left intact: fm=%v body=%q", fm, body)
 	}
 }
+func TestFrontmatterMalformed(t *testing.T) {
+	content := "---\ntype: note\ntitle: bad: value\n---\nbody\n"
+	fm, body, err := Frontmatter(content)
+	if err == nil {
+		t.Fatal("malformed YAML should return an error")
+	}
+	if len(fm) != 0 {
+		t.Fatalf("malformed YAML metadata = %#v, want empty", fm)
+	}
+	if body != "body\n" {
+		t.Fatalf("malformed YAML body = %q, want stripped body", body)
+	}
+}
 
 func TestFrontmatterBlockList(t *testing.T) {
-	fm, _ := Frontmatter("---\ntags:\n  - a\n  - b\n---\nbody\n")
+	fm, _, _ := Frontmatter("---\ntags:\n  - a\n  - b\n---\nbody\n")
 	if got := fm["tags"]; !reflect.DeepEqual(got, []string{"a", "b"}) {
 		t.Errorf("block-list tags = %#v", got)
 	}
@@ -78,7 +97,7 @@ func TestFrontmatterBlockList(t *testing.T) {
 
 func TestFrontmatterTagsTrimmed(t *testing.T) {
 	// Quoted and unquoted alike trim surrounding whitespace; internal spaces stay.
-	fm, _ := Frontmatter("---\ntags: [ \"hi \", ho  , \"x y\" ]\n---\nbody\n")
+	fm, _, _ := Frontmatter("---\ntags: [ \"hi \", ho  , \"x y\" ]\n---\nbody\n")
 	want := []string{"hi", "ho", "x y"}
 	if got := fm["tags"]; !reflect.DeepEqual(got, want) {
 		t.Errorf("tags = %#v, want %#v", got, want)
@@ -86,7 +105,7 @@ func TestFrontmatterTagsTrimmed(t *testing.T) {
 }
 
 func TestFrontmatterComments(t *testing.T) {
-	fm, _ := Frontmatter("---\ntype: note  # trailing comment\ntitle: \"a # b\"  # real comment\nurl: http://x/p#frag\ntags: [a, b]  # list comment\n---\nbody\n")
+	fm, _, _ := Frontmatter("---\ntype: note  # trailing comment\ntitle: \"a # b\"  # real comment\nurl: http://x/p#frag\ntags: [a, b]  # list comment\n---\nbody\n")
 	if fm["type"] != "note" {
 		t.Errorf("inline comment not stripped: type=%q", fm["type"])
 	}
@@ -102,7 +121,7 @@ func TestFrontmatterComments(t *testing.T) {
 }
 
 func TestFrontmatterBlockScalar(t *testing.T) {
-	fm, body := Frontmatter("---\ntype: note\ndescription: |\n  line one\n  line two\ntitle: After\n---\nbody\n")
+	fm, body, _ := Frontmatter("---\ntype: note\ndescription: |\n  line one\n  line two\ntitle: After\n---\nbody\n")
 	if fm["description"] != "line one\nline two" {
 		t.Errorf("block scalar = %q", fm["description"])
 	}
@@ -116,7 +135,7 @@ func TestFrontmatterBlockScalar(t *testing.T) {
 
 func TestFrontmatterNestedMapGraceful(t *testing.T) {
 	// A nested map is not interpreted, but must not corrupt sibling keys.
-	fm, _ := Frontmatter("---\ntype: note\nmeta:\n  a: 1\n  b: 2\ntitle: Kept\n---\nbody\n")
+	fm, _, _ := Frontmatter("---\ntype: note\nmeta:\n  a: 1\n  b: 2\ntitle: Kept\n---\nbody\n")
 	if fm["type"] != "note" || fm["title"] != "Kept" {
 		t.Errorf("nested map corrupted siblings: type=%q title=%q", fm["type"], fm["title"])
 	}
@@ -132,6 +151,10 @@ func TestValidateOKFRejectsAliasExpansion(t *testing.T) {
 		block.WriteString(name + ": &" + name + " [*" + previous + ", *" + previous + "]\n")
 	}
 	block.WriteString("payload: *a15\n---\nbody\n")
+	_, _, err := Frontmatter(block.String())
+	if err == nil || !strings.Contains(err.Error(), "alias expansion") {
+		t.Fatalf("Frontmatter alias expansion error = %v", err)
+	}
 
 	issues := ValidateOKF("/aliases.md", block.String())
 	if len(issues) != 1 || issues[0].Field != "frontmatter" ||

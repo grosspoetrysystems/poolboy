@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/grosspoetrysystems/poolboy/bundle"
 	"github.com/grosspoetrysystems/poolboy/index"
 	"github.com/grosspoetrysystems/poolboy/internal/output"
 	"github.com/grosspoetrysystems/poolboy/internal/scaffold"
@@ -31,15 +33,119 @@ func cmdInit(args []string) int {
 		fmt.Fprintln(os.Stderr, "poolboy:", err)
 		return 2
 	}
+
+	report, reportErr := initAdoptionReport(dir)
+	inspectionErr := ""
+	if reportErr != nil {
+		inspectionErr = reportErr.Error()
+		fmt.Fprintln(os.Stderr, "poolboy: scaffold initialized; existing Markdown inspection incomplete:", reportErr)
+	}
 	out := struct {
-		Dir   string   `json:"dir"`
-		Files []string `json:"files"`
-	}{dir, written}
+		Dir             string        `json:"dir"`
+		Files           []string      `json:"files"`
+		Adoption        *initAdoption `json:"adoption,omitempty"`
+		InspectionError string        `json:"inspection_error,omitempty"`
+	}{dir, written, report, inspectionErr}
 	lines := []string{"initialized poolboy bundle in " + dir}
 	for _, f := range written {
 		lines = append(lines, "  "+f)
 	}
+	if inspectionErr != "" {
+		lines = append(lines,
+			"",
+			"existing Markdown adoption: inspection incomplete",
+			"  could not inspect existing Markdown: "+inspectionErr,
+		)
+	}
+	if report != nil {
+		lines = append(lines, "")
+		lines = append(lines, "existing Markdown adoption:")
+		lines = append(lines, "  selected corpus: "+report.Corpus)
+		if len(report.Issues) > 0 {
+			lines = append(lines, "  corpus documents with validation issues requiring review:")
+			for _, issue := range report.Issues {
+				lines = append(lines, fmt.Sprintf("    %s: %s", issue.Entry, issue.Msg))
+			}
+		}
+		if len(report.RootMarkdown) > 0 {
+			lines = append(lines, "  outside selected corpus (known root-level Markdown; not included):")
+			for _, file := range report.RootMarkdown {
+				lines = append(lines, "    "+file)
+			}
+			lines = append(lines, "    Nested Markdown outside the corpus is not enumerated by init.")
+		}
+		lines = append(lines,
+			"  adoption path:",
+			"    review each reported corpus issue; add frontmatter only where it is missing, choosing the correct type:",
+			"      ---",
+			"      type: guide",
+			"      ---",
+			"    replace `guide` with the reviewed type; fix malformed existing YAML in place rather than adding a second block.",
+			"    then run `poolboy check`; leave outer files outside the corpus, or add non-bundle files inside it to `ignore` in poolboy.toml.",
+		)
+	}
 	return productOutput(*format, lines, out)
+}
+
+type initAdoption struct {
+	Corpus       string        `json:"corpus"`
+	Issues       []index.Issue `json:"issues,omitempty"`
+	RootMarkdown []string      `json:"root_markdown_outside_corpus,omitempty"`
+}
+
+// initAdoptionReport reuses bundle/index traversal and validation for files in
+// the configured corpus. Outside the corpus it reports only known root-level
+// Markdown: init must not turn onboarding into an unbounded filesystem scan.
+func initAdoptionReport(dir string) (*initAdoption, error) {
+	b, err := bundle.Discover(dir)
+	if err != nil {
+		return nil, err
+	}
+	idx, err := index.Build(b)
+	if err != nil {
+		return nil, err
+	}
+
+	issues := make([]index.Issue, 0)
+	for _, issue := range idx.Check() {
+		if issue.Level == "error" {
+			issues = append(issues, issue)
+		}
+	}
+	rootMarkdown, err := rootMarkdownOutsideCorpus(b)
+	if err != nil {
+		return nil, err
+	}
+	if len(issues) == 0 && len(rootMarkdown) == 0 {
+		return nil, nil
+	}
+	corpus, err := filepath.Rel(b.Root, b.Dir)
+	if err != nil {
+		return nil, err
+	}
+	return &initAdoption{
+		Corpus:       filepath.ToSlash(corpus),
+		Issues:       issues,
+		RootMarkdown: rootMarkdown,
+	}, nil
+}
+
+func rootMarkdownOutsideCorpus(b *bundle.Bundle) ([]string, error) {
+	if filepath.Clean(b.Root) == filepath.Clean(b.Dir) {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(b.Root)
+	if err != nil {
+		return nil, err
+	}
+	files := make([]string, 0)
+	for _, entry := range entries {
+		if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		files = append(files, entry.Name())
+	}
+	return files, nil
 }
 
 func cmdStatus(args []string) int {

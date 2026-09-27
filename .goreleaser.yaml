@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
+dist: .release
+
 project_name: poolboy
 
 before:
@@ -77,5 +79,8 @@ release:
   github:
     owner: grosspoetrysystems
     name: poolboy
-  draft: false
+  # Keep releases private until assets, signatures, and provenance are inspected.
+  draft: true
+  use_existing_draft: true
+  replace_existing_artifacts: true
   prerelease: auto

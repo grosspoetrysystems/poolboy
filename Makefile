@@ -5,6 +5,7 @@ GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v
 # SITE_URL absolutizes the product page's share-card and canonical URLs
 # (e.g. https://poolboy.example). Empty keeps them root-relative to the host.
 SITE_URL ?=
+SITE_VERSION ?= development
 
 build:
 	pnpm --dir companion build
@@ -36,7 +37,7 @@ site: build
 	rm -rf .site
 	mkdir -p .site/docs
 	cp site/obsidian.svg assets/poolboy-og.jpg .site/
-	sed "s|{{site}}|$(SITE_URL)|g" site/index.html > .site/index.html
+	sed -e "s|{{site}}|$(SITE_URL)|g" -e "s|{{version}}|$(SITE_VERSION)|g" site/index.html > .site/index.html
 	cp README.md .site/install.md
 	cp site/start.md site/try.md site/llms.txt .site/
 	cp -R dist/. .site/docs/

@@ -80,7 +80,7 @@ func run(args []string) int {
 	case "init":
 		return cmdInit(args[1:])
 	case "version", "--version", "-v":
-		fmt.Println("poolboy", Version)
+		fmt.Println(Version)
 		return 0
 	case "build":
 		return cmdBuild(args[1:])

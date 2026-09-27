@@ -43,17 +43,21 @@ type Table struct {
 
 // Frontmatter splits a leading YAML frontmatter block from the body. Scalars
 // remain strings (including numbers, booleans, and dates); nested mappings and
-// sequences are retained so OKF provenance is inspectable.
-func Frontmatter(content string) (map[string]any, string) {
+// sequences are retained so OKF provenance is inspectable. A closed frontmatter
+// block whose YAML fails to decode returns the stripped body (so line offsets
+// stay correct) together with a non-nil error, rather than silently yielding
+// empty metadata; content with no frontmatter (or an unclosed fence) returns an
+// empty map, the original content, and a nil error.
+func Frontmatter(content string) (map[string]any, string, error) {
 	block, body, ok := frontmatterParts(content)
 	if !ok {
-		return map[string]any{}, content
+		return map[string]any{}, content, nil
 	}
 	fm, err := decodeYAML(block)
 	if err != nil {
-		return map[string]any{}, body
+		return map[string]any{}, body, err
 	}
-	return fm, body
+	return fm, body, nil
 }
 
 func frontmatterParts(content string) (block, body string, ok bool) {

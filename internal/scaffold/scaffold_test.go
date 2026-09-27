@@ -122,7 +122,7 @@ func assertOKFConformant(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		fm, _ := parse.Frontmatter(string(raw))
+		fm, _, _ := parse.Frontmatter(string(raw))
 		rel, _ := filepath.Rel(dir, p)
 		rel = filepath.ToSlash(rel)
 		switch d.Name() {

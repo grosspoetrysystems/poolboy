@@ -194,7 +194,7 @@ echo "--- no results => empty, exit 0 (like ls) ---"
 $BIN list --where type=nonexistent >/dev/null
 
 echo "--- version ---"
-contains "$($BIN version)" "poolboy"
+test "$($BIN version)" = "dev"
 
 echo "--- init scaffolds a check-clean docs bundle ---"
 mkdir -p "$TMP/fresh"

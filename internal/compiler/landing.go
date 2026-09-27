@@ -564,7 +564,7 @@ func buildMarkdownZIP(docs map[string]document) ([]byte, error) {
 	for _, path := range paths {
 		name := strings.TrimPrefix(filepath.ToSlash(path), "/")
 		h := &zip.FileHeader{Name: name, Method: zip.Deflate}
-		h.Modified = time.Unix(0, 0).UTC()
+		h.Modified = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 		h.SetMode(0o644)
 		writer, err := zw.CreateHeader(h)
 		if err != nil {

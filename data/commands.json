@@ -5,13 +5,13 @@
   "commands": [
     {
       "name": "init",
-      "summary": "Scaffold a documentation project in an optional directory.",
+      "summary": "Scaffold a documentation project in an optional directory and report existing Markdown adoption issues; existing files are preserved unless --force is used.",
       "mutates": true,
       "aliases": "none",
       "source": "cmd/poolboy/commands.go",
       "flags": [
         {"name": "[dir]", "description": "Target directory; defaults to the current directory."},
-        {"name": "--force", "description": "Write into a non-empty directory."},
+        {"name": "--force", "description": "Overwrite existing starter files."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
       ]
     },

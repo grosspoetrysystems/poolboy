@@ -15,7 +15,7 @@ Use a leading --root DIR or --root=DIR to select a project. Result commands acce
 
 ## `init`
 
-Scaffold a documentation project in an optional directory.
+Scaffold a documentation project in an optional directory and report existing Markdown adoption issues; existing files are preserved unless --force is used.
 
 - Mutation: `true`
 - Aliases: `none`
@@ -24,7 +24,7 @@ Scaffold a documentation project in an optional directory.
 ### Flags and arguments
 
 - `[dir]` — Target directory; defaults to the current directory.
-- `--force` — Write into a non-empty directory.
+- `--force` — Overwrite existing starter files.
 - `--format text|json|csv|tsv` — Choose result output format.
 ## `build`
 

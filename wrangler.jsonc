@@ -1,6 +1,9 @@
 {
   "name": "poolboy-site",
   "compatibility_date": "2026-09-24",
+  "routes": [
+    { "pattern": "poolboy.sh", "custom_domain": true }
+  ],
   "assets": {
     "directory": "./.site",
     "html_handling": "auto-trailing-slash",
