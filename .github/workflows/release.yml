@@ -156,14 +156,11 @@ jobs:
 
       - name: Publish platform packages, then wrapper
         run: node scripts/publish-npm.mjs
-        env:
-          # Bootstrap unpublished packages once, then delete this secret after configuring OIDC.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   smoke-npm:
     needs: [release, publish-npm]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -179,12 +176,12 @@ jobs:
         run: |
           VERSION="${{ needs.release.outputs.version }}"
           CACHE="$(mktemp -d)"
-          for attempt in $(seq 1 18); do
+          for attempt in $(seq 1 60); do
             if npm view "@grosspoetrysystems/poolboy@${VERSION}" version --cache "${CACHE}" --prefer-online >/dev/null 2>&1; then
               break
             fi
-            if [ "${attempt}" = 18 ]; then
-              echo "npm did not expose @grosspoetrysystems/poolboy@${VERSION} within three minutes." >&2
+            if [ "${attempt}" = 60 ]; then
+              echo "npm did not expose @grosspoetrysystems/poolboy@${VERSION} within ten minutes." >&2
               exit 1
             fi
             rm -rf "${CACHE}"
