@@ -15,6 +15,28 @@ versioned publication manifest. Project files and `.poolboy/` are the mutable
 workspace. A client must not treat source inventory, generated-file ownership,
 or publisher trust as a review-decision store.
 
+## Domain vocabulary
+
+- A **corpus** is the authored set of portable Markdown documents governed by
+  one `poolboy.toml`.
+- A **logical locator** is a canonical root-absolute corpus path such as
+  `/guide.md`. It names where a document is addressed, not particular bytes,
+  and does not survive a rename automatically.
+- A **content revision** is the lowercase SHA-256 of exact document or artifact
+  bytes, paired with their byte count. It identifies bytes, not truth,
+  approval, or stable document identity.
+- A **workspace** is the private mutable project containing authored Markdown,
+  source evidence, and generated-file ownership.
+- A **publication** is an immutable set of static files described by one
+  `graph.json`.
+- A **review plan** is a regenerable view of maintenance candidates derived
+  from current evidence. It is not durable authority.
+- A **review decision** is a durable private choice about a candidate, bound to
+  exact document and evidence revisions.
+- A **reconciliation** records that exact reviewed document bytes were
+  considered against exact evidence bytes. It does not claim semantic truth or
+  advance the project-wide source baseline.
+
 ## Identity
 
 A canonical root-absolute Markdown path such as `/guide.md` is a logical
@@ -64,18 +86,16 @@ State has one job each:
 | authored Markdown | corpus content | no |
 | `.poolboy/sources.lock.json` | accepted source evidence baseline | no |
 | `.poolboy/generated.json` | generated-file ownership | no |
-| `.poolboy/reviews.json` version 0 | future durable review decisions and reconciliations | no |
 | computed review plan | current candidate view | yes |
 | `dist/` | static publication described by `graph.json` | yes |
 | publisher trust lock | approval of an exact graph digest and publisher | no |
 
-`reviews.json` is reserved for GPS-307. Until its schema and commands ship, no
-Poolboy operation creates or consumes it. It must remain private, versioned,
-and separate from the source baseline, generated ledger, and publisher trust.
-A durable decision must bind the candidate locator, document revision, evidence
-locator and revision, operation, and decision state. Changed or missing
-preconditions make it stale. Unknown versions and private data presented as
-publication input must be rejected.
+GPS-307 owns the schema and location for future durable review decisions and
+reconciliations. No current Poolboy operation creates or consumes such state.
+It must remain private and separate from the source baseline, generated ledger,
+and publisher trust. Changed or missing preconditions make a prior decision
+stale; unknown versions and private data presented as publication input must be
+rejected.
 
 ## Process boundary
 

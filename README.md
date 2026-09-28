@@ -21,6 +21,28 @@ no lifecycle scripts and downloads no executable from another host. Published
 versions carry npm provenance and correspond to the signed archives on the
 [GitHub Releases](https://github.com/grosspoetrysystems/poolboy/releases) page.
 
+## First useful result
+
+Run this inside a Git repository containing Markdown, or in an empty directory:
+
+```sh
+poolboy init .
+poolboy check
+poolboy build
+poolboy read /getting-started.md
+```
+
+Open `dist/index.html` to use the generated landing page. `poolboy init`
+preserves existing files and creates a `docs/` corpus only when no configuration
+selects another location. Query paths such as `/getting-started.md` are
+corpus-relative, not project-relative.
+
+Review and keep `poolboy.toml`, `docs/`, `templates/`, `data/`, and the tracked
+`.poolboy` ledgers. Delete and rebuild `dist/` freely. Malformed YAML is reported
+at the document instead of being rewritten; fix it, rerun `check`, then build.
+If a source build cannot find the renderer, keep `bin/poolboy-knap.mjs` beside
+`bin/poolboy` or pass its absolute path with `build --renderer`.
+
 ## Build locally
 
 Prerequisites: Go 1.25+, Node 24+, and pnpm. Install the pnpm version declared in `companion/package.json`.

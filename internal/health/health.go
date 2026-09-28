@@ -64,7 +64,7 @@ func Inspect(b *bundle.Bundle, baseline, current *source.Inventory) ([]Item, err
 	}
 	for _, entry := range idx.Entries {
 		resources := resources(entry.Frontmatter()["sources"])
-		if len(resources) == 0 {
+		if entry.Path != "/index.md" && len(resources) == 0 {
 			items = append(items, Item{Document: entry.Path, Signal: "missing_sources", Status: Finding})
 		}
 		document := filepath.Join(b.Dir, filepath.FromSlash(strings.TrimPrefix(entry.Path, "/")))

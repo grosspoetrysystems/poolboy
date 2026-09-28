@@ -96,7 +96,6 @@ func TestCurrentReportsUnavailableInputsWithoutMaskingFindings(t *testing.T) {
 	}
 	want := []string{
 		"|source_baseline|unavailable",
-		"/index.md|missing_sources|finding",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("health items:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

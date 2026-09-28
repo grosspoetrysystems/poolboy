@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "cd9809d34158d03a898559ddbcc9e3f7071ff084",
+  "revision": "94dc5261068c0e0c9403614838cbc5ffee94ea14",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -29,8 +29,8 @@
     },
     ".github/workflows/deploy.yml": {
       "type": "yaml",
-      "bytes": 1876,
-      "sha256": "833135c23e5ab4b31494ad88f0fc410cdee6676a7f221d66e6dcb8ee6529f8a1"
+      "bytes": 2776,
+      "sha256": "c8de09a4c8e4ef3b5df97e60fc69fd402767bcd7f789215d02d3a21256e07aed"
     },
     ".github/workflows/pr-contract.yml": {
       "type": "yaml",
@@ -39,13 +39,13 @@
     },
     ".github/workflows/release.yml": {
       "type": "yaml",
-      "bytes": 1727,
-      "sha256": "20d8dbe982cee969969a95c25f5855605cfcef8c833fe698694177f072000a61"
+      "bytes": 6923,
+      "sha256": "168fd49df44d080c1b32e37bdec2bafe47e408fa9df26648b500e74196f00688"
     },
     ".gitignore": {
       "type": "ignore",
-      "bytes": 272,
-      "sha256": "312ec25457babeb4ee82c0fdb37f3ce7565a36f141ea8f103aa9eca45fd7cad3"
+      "bytes": 283,
+      "sha256": "eb279b4a28bdeeba95db5a115f1a48a67921a6c6ee6df48db708ee149d49b8bc"
     },
     ".golangci.yml": {
       "type": "yaml",
@@ -54,8 +54,8 @@
     },
     ".goreleaser.yaml": {
       "type": "yaml",
-      "bytes": 1867,
-      "sha256": "fc91711726b3b80edd7a575c6cab22db25d3cc9284186bdcf96a7d25b9f876d9"
+      "bytes": 2026,
+      "sha256": "21dee027ae1a8c93e12b95d7c73d86008db40258777295f0a22a8e441488184e"
     },
     "CODE_OF_CONDUCT.md": {
       "type": "markdown",
@@ -79,13 +79,13 @@
     },
     "Makefile": {
       "type": "make",
-      "bytes": 1378,
-      "sha256": "f3a8c8ceae64b3f87cc85a2ad639c42ff87083459060ef0290b1f8aefe7d8d11"
+      "bytes": 1446,
+      "sha256": "6e77e3b7255efd7b02aa9bf4e8d220486fa0f11d798ea4c356b79f4f6595ac34"
     },
     "README.md": {
       "type": "markdown",
-      "bytes": 16131,
-      "sha256": "56a285fa364d04446e16579c4aa93e1fddbac25925f4746aa951d191f6e343ac"
+      "bytes": 17411,
+      "sha256": "42e016931faa10b98fda42e3d0e363c96c482e829d12ecdae66bc0ac698b721e"
     },
     "SECURITY.md": {
       "type": "markdown",
@@ -94,23 +94,23 @@
     },
     "bundle/bundle.go": {
       "type": "go",
-      "bytes": 14680,
-      "sha256": "e5777e5e200e28ce4b06bfefca9f9eff5df8f396753eb5101a211acc1cd83c76"
+      "bytes": 15109,
+      "sha256": "5f7102ee86d834ba77e313c5fb4de080cd42324208bd7c4a08456c25cfaa7431"
     },
     "bundle/bundle_test.go": {
       "type": "go",
-      "bytes": 11234,
-      "sha256": "424e24e39ac7aefd631077e8d99b54ca12af3ecee4c210fdf7e915a1150f9146"
+      "bytes": 11869,
+      "sha256": "c094ac0445031d3cf080ad8d0461aa983b53c50f611e7f548dd0af49158ad4a6"
     },
     "cmd/poolboy/commands.go": {
       "type": "go",
-      "bytes": 23874,
-      "sha256": "af5d0e29f8c131b936667c09f5adf4ba49b1863873e16a80f59cbe223d59822f"
+      "bytes": 27364,
+      "sha256": "ed6b0fd738cb7bb1c905807764beafdf61a058458666d5a2fcffb59c67e2baaf"
     },
     "cmd/poolboy/commands_test.go": {
       "type": "go",
-      "bytes": 39021,
-      "sha256": "f4a2ec6daa0e6a90de6b16ffa5b3d69e71fa80c7e54fd14fc3203df65eacd1b2"
+      "bytes": 46021,
+      "sha256": "984b1aca131c1b5bb223dd6d5c09ab305b413edb997ce09539a8e8f6d57d158a"
     },
     "cmd/poolboy/helpers.go": {
       "type": "go",
@@ -119,8 +119,8 @@
     },
     "cmd/poolboy/main.go": {
       "type": "go",
-      "bytes": 5551,
-      "sha256": "5c0c2180067983350d4a316faec3349b89bf01e8819c63ea479333561c8a203c"
+      "bytes": 5653,
+      "sha256": "f1d28e33c2ecb38c8dd19fc95ba89e39f96a28e39afc24baac1f7079eb33dfa8"
     },
     "cmd/poolboy/preview.go": {
       "type": "go",
@@ -134,8 +134,8 @@
     },
     "cmd/poolboy/product.go": {
       "type": "go",
-      "bytes": 3873,
-      "sha256": "133c96566383a12f91f267c8694299599a039633ecce260b5d9d6f5a3a0c9e43"
+      "bytes": 6960,
+      "sha256": "bc254aef8161ba85a925c1b9da2cc779c0f09d02e88c26c0dda2aa31ce203ded"
     },
     "cmd/poolboy/signing.go": {
       "type": "go",
@@ -249,13 +249,13 @@
     },
     "index/index.go": {
       "type": "go",
-      "bytes": 62141,
-      "sha256": "aa6954957b17e2761c595c53c7a6ca4b5b0b1d447176dc6bd147ccab9fb24eae"
+      "bytes": 63253,
+      "sha256": "17d86acdda3218b02c2191db06005d997f4c153a09c78d3a194dabde184ba85b"
     },
     "index/index_test.go": {
       "type": "go",
-      "bytes": 66933,
-      "sha256": "f50ac40eb6197c1e7c45bce5f682b134811965477cb4e8fca4f096770a31ab4a"
+      "bytes": 68459,
+      "sha256": "3098abdc6b089e90a3565cb55e25c02f21cb9d3a7e8da46b8d143bab574aac3b"
     },
     "index/rename.go": {
       "type": "go",
@@ -289,8 +289,8 @@
     },
     "internal/compiler/compiler_test.go": {
       "type": "go",
-      "bytes": 17167,
-      "sha256": "9a5c544dedbebf1fdfc0215d36a8081cd023c9b2448859c0738f969a993d1992"
+      "bytes": 21582,
+      "sha256": "5930737b75fb8c91523f6f4dcfd95afb0ec71ab870760171d4e3ac683fe2db62"
     },
     "internal/compiler/graph.go": {
       "type": "go",
@@ -299,8 +299,8 @@
     },
     "internal/compiler/landing.go": {
       "type": "go",
-      "bytes": 22807,
-      "sha256": "88910ccad188a0350f32892d3faae012e3698cd903b30972d0d2b9b51676f8c1"
+      "bytes": 22829,
+      "sha256": "bf09762c0a92984e678c02632c0271e197a6c87b82613d9c33668a79ae3d07a8"
     },
     "internal/compiler/ledger.go": {
       "type": "go",
@@ -321,6 +321,16 @@
       "type": "go",
       "bytes": 14403,
       "sha256": "eca958ad6f0024ccce8d29033564cb87fee372369bce0985158c3f39dc27eeff"
+    },
+    "internal/health/health.go": {
+      "type": "go",
+      "bytes": 4770,
+      "sha256": "31707f032ba9e55d8cd9028ce39361fd950f1533b677fb3546620713455cb12c"
+    },
+    "internal/health/health_test.go": {
+      "type": "go",
+      "bytes": 5109,
+      "sha256": "b8f3cbe1759eaf8168965383e538328eb4595809a9bbf1d244b617526106c009"
     },
     "internal/output/output.go": {
       "type": "go",
@@ -349,18 +359,18 @@
     },
     "internal/scaffold/scaffold_test.go": {
       "type": "go",
-      "bytes": 4631,
-      "sha256": "0b5b6b1750fecd849f4111b4949418e0667b9575e08763d964d618bae14911a8"
+      "bytes": 4634,
+      "sha256": "55aa3ecbdff4081e7242d916bc405f1798bc0001f384f0e396f1a2c76ea039be"
     },
     "internal/sign/sign.go": {
       "type": "go",
-      "bytes": 10517,
-      "sha256": "b1f374d069e2217f30a98b72d8d6a833071e4bbbf909c4d5c30a8dca007ed639"
+      "bytes": 10783,
+      "sha256": "7dc868624a718e22cb268f69263f71ce64ade0dfe7b8a210e140c4d5adf2403e"
     },
     "internal/sign/sign_test.go": {
       "type": "go",
-      "bytes": 6331,
-      "sha256": "cd704026412a1a1a75fbba8c90747821a29458119da218386360bd602bef4333"
+      "bytes": 7567,
+      "sha256": "6cd3a3bffb42c72a0c65012daa63e6455dd260ffa01c58dcdcb4ec986e149ec1"
     },
     "internal/sign/trust.go": {
       "type": "go",
@@ -369,23 +379,28 @@
     },
     "internal/source/affected.go": {
       "type": "go",
-      "bytes": 5316,
-      "sha256": "b9559fed9cf6a0b606987557df64a812e46b860968063723e93169486a658c90"
+      "bytes": 5738,
+      "sha256": "44e9a1eca38f7cb8b595f3926aa996b672e04573089ef45cf72e14499180b77d"
+    },
+    "internal/source/affected_test.go": {
+      "type": "go",
+      "bytes": 586,
+      "sha256": "9dc72b333bd5f0b3488e7852758dcb3924e8d6c33b204879a312e4dfcc7fe6d7"
     },
     "internal/source/scan.go": {
       "type": "go",
-      "bytes": 14049,
-      "sha256": "3a2c1a74dcac0c01cc6c0d2000e7d1297578341845d54c6f4d6c2a17d0efccc4"
+      "bytes": 14406,
+      "sha256": "1c18902784482e16d075a9b1470a29325682321f94847e37a1beac27e3f47198"
     },
     "internal/source/source.go": {
       "type": "go",
-      "bytes": 12213,
-      "sha256": "b6a4f1164e72a63c1f7aefd62da0ee48406d0976c5c69bab020e1a5dfca71a24"
+      "bytes": 12581,
+      "sha256": "0c015dfebc949ed2805054a1e8910d97bb1f79765dbc6438c36fb7170d98bab6"
     },
     "internal/source/source_test.go": {
       "type": "go",
-      "bytes": 9260,
-      "sha256": "c471bb086097a335f5d1887d73ca5912f0cfbd8a11382765c01406bf4da99fec"
+      "bytes": 9459,
+      "sha256": "4a4fea079922bab2bc253cb60efad3a2f76084a3f590a2a8dbb0befe2d40945b"
     },
     "internal/wikilink/wikilink.go": {
       "type": "go",
@@ -409,28 +424,38 @@
     },
     "parse/parse.go": {
       "type": "go",
-      "bytes": 18742,
-      "sha256": "cec1614141cdf166ef9f4aefd1221ce60afb8096e1a293a27a101d47e2d7b092"
+      "bytes": 19076,
+      "sha256": "eea8ba7b5e6735cdd818f54ea8c7c681f616a52bdda824bb2da180222a19ae39"
     },
     "parse/parse_test.go": {
       "type": "go",
-      "bytes": 12020,
-      "sha256": "5680990894375f3b6906ee4fc8e904ee30d10364920901befe79dd83fd143bf3"
+      "bytes": 12741,
+      "sha256": "4e842905733db7b44ccde54cdd771d42e6698c59a9a9b6cdbb5718f8d22a6448"
     },
     "poolboy.toml": {
       "type": "toml",
       "bytes": 409,
       "sha256": "411fbb200fd38017a2a529fbfbd76851fc378a2492500c0febcd0b1e7eca6205"
     },
+    "scripts/package-npm.mjs": {
+      "type": "javascript",
+      "bytes": 6108,
+      "sha256": "fb211331258ce2a8252353fcee478b7bdf2d832787db4201e60ba219263b24c2"
+    },
+    "scripts/publish-npm.mjs": {
+      "type": "javascript",
+      "bytes": 1055,
+      "sha256": "3f85ca760f2341d4d6f035650b4e2ff2f811500bd61aa83c0ade9950fa6c7fc3"
+    },
     "scripts/smoke.sh": {
       "type": "shell",
-      "bytes": 11178,
-      "sha256": "7d0bb4d18b5d0af8bcc0730ca753e0dbaabf3406097c2906ef3b962d6b8a12a9"
+      "bytes": 11172,
+      "sha256": "128ee31aac07d91b25ef7a87074a3023d148f94c32e6265625bc06bc7451a0fc"
     },
     "site/index.html": {
       "type": "html",
-      "bytes": 7450,
-      "sha256": "c11caf7d2395745cd5feaf3bccb93cf09c2171bc4a485907e4e9332b64a113ba"
+      "bytes": 8102,
+      "sha256": "ce0b3c4bd91b81a86afb4252982825f76bd85cfb74c5cc56909b53a13f9ab7cf"
     },
     "site/llms.txt": {
       "type": "other",
@@ -444,8 +469,8 @@
     },
     "site/start.md": {
       "type": "markdown",
-      "bytes": 2114,
-      "sha256": "e7755950f9d56dbfd4c707907e7833f54d94d3554626de779e713b82d23f1e1c"
+      "bytes": 2582,
+      "sha256": "1b1814d0524d795a234231979c1ad2a25a0dcc2dcd51d4b447fe84a717768d33"
     },
     "site/try.md": {
       "type": "markdown",
@@ -454,8 +479,8 @@
     },
     "skills/poolboy-discovery/SKILL.md": {
       "type": "markdown",
-      "bytes": 8125,
-      "sha256": "8993d0dcca0937b8c9955e65204b5e82c99f327e9182744a509529ca2719bd88"
+      "bytes": 9577,
+      "sha256": "48f82535106056476792ba2c715ca5686ca3049de0c4a51ecc9a169ddd853737"
     },
     "testdata/fixture/data/endpoints.json": {
       "type": "json",
@@ -489,8 +514,8 @@
     },
     "wrangler.jsonc": {
       "type": "other",
-      "bytes": 191,
-      "sha256": "7c5f268a80835dfaff9651e2c803f3b1c05ca4a408c77d2ea29927dfc17c9854"
+      "bytes": 265,
+      "sha256": "24e4cc7e033d50fc9728fa9c2d8e39738ca8fb667b5d844f1a2f616088390faf"
     }
   }
 }

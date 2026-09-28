@@ -95,9 +95,11 @@ func cmdScan(args []string) int {
 		return productError(err)
 	}
 	items, healthErr := health.Inspect(b, previous, inventory)
+	healthError := ""
 	lines := []string{"Saved source baseline: .poolboy/sources.lock.json", ""}
 	if healthErr != nil {
-		lines = append(lines, "Documentation smell test unavailable: "+healthErr.Error())
+		healthError = healthErr.Error()
+		lines = append(lines, "Documentation smell test unavailable: "+healthError)
 	} else {
 		lines = append(lines, healthSummary(items)...)
 		lines = append(lines, "", "Nothing was excluded or rewritten.")
@@ -106,9 +108,10 @@ func cmdScan(args []string) int {
 		}
 	}
 	return productOutput(*format, lines, struct {
-		Inventory *source.Inventory `json:"inventory"`
-		Health    []health.Item     `json:"health"`
-	}{inventory, items})
+		Inventory   *source.Inventory `json:"inventory"`
+		Health      []health.Item     `json:"health"`
+		HealthError string            `json:"health_error,omitempty"`
+	}{inventory, items, healthError})
 }
 
 func cmdDrift(args []string) int {
@@ -129,6 +132,7 @@ func cmdDrift(args []string) int {
 		return productError(err)
 	}
 	items, healthErr := health.Inspect(b, baseline, current)
+	healthError := ""
 	lines := make([]string, 0, len(changes)+8)
 	for _, change := range changes {
 		lines = append(lines, fmt.Sprintf("%s\t%s", change.Status, change.Path))
@@ -137,14 +141,16 @@ func cmdDrift(args []string) int {
 		lines = append(lines, "")
 	}
 	if healthErr != nil {
-		lines = append(lines, "Documentation smell test unavailable: "+healthErr.Error())
+		healthError = healthErr.Error()
+		lines = append(lines, "Documentation smell test unavailable: "+healthError)
 	} else {
 		lines = append(lines, healthSummary(items)...)
 	}
 	value := any(struct {
-		Changes []source.Change `json:"changes"`
-		Health  []health.Item   `json:"health"`
-	}{changes, items})
+		Changes     []source.Change `json:"changes"`
+		Health      []health.Item   `json:"health"`
+		HealthError string          `json:"health_error,omitempty"`
+	}{changes, items, healthError})
 	if *format == "csv" || *format == "tsv" {
 		value = changes
 	}

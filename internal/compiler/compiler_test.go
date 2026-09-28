@@ -254,12 +254,12 @@ func TestBuildReplacesSignedPublication(t *testing.T) {
 func TestPortableContractFixture(t *testing.T) {
 	t.Run("discovery identity and private boundary", func(t *testing.T) {
 		root, b, rendererPath := fixture(t)
-		privateDir := filepath.Join(root, ".poolboy")
+		privateDir := filepath.Join(root, "docs", ".poolboy")
 		if err := os.MkdirAll(privateDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		const privateMarker = "private-review-decision"
-		if err := os.WriteFile(filepath.Join(privateDir, "reviews.json"), []byte(privateMarker), 0o644); err != nil {
+		const privateMarker = "private-source-baseline"
+		if err := os.WriteFile(filepath.Join(privateDir, "private.md"), []byte(privateMarker), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if err := Build(context.Background(), b, rendererPath); err != nil {

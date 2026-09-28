@@ -89,15 +89,19 @@ matching bytes produce no change. Results are sorted by path and status.
 ## Documentation health
 
 `health` is the read-only, document-level view behind the compact `scan` and
-`drift` summaries. It reports documents with no declared sources, declared
-local sources missing from the worktree or accepted baseline, declared sources
-whose current SHA-256 differs from that baseline, and corpus orphans from the
-same `ignore_orphans`-aware graph query used elsewhere.
+`drift` summaries. It reports non-root documents with no declared sources,
+declared local sources missing from the worktree or accepted baseline, declared
+sources whose current SHA-256 differs from that baseline, and corpus orphans
+from the same `ignore_orphans`-aware graph query used elsewhere. The root
+`/index.md` is navigation metadata and is exempt from missing-source findings.
 
 Findings are advisory. They identify observable review evidence; they do not
 declare a document stale, exclude it, or rewrite it. A missing corpus or
 baseline appears as `unavailable`, not as a clean result. The command still
-returns the evidence it can compute and supports text, JSON, CSV, and TSV.
+returns the evidence it can compute and supports text, JSON, CSV, and TSV. If
+the advisory inspection itself fails after `scan` or `drift` succeeds, JSON
+includes `health_error` alongside `health: null`; the source operation remains
+successful.
 
 ## Review and reconciliation workflow
 

@@ -1131,4 +1131,12 @@ func TestScanDoesNotFailWhenHealthIsUnavailable(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".poolboy", "sources.lock.json")); err != nil {
 		t.Fatalf("baseline not written: %v", err)
 	}
+	out, code = capture(t, func() int { return cmdScan([]string{"--accept", "--format", "json"}) })
+	if code != 0 || !strings.Contains(out, `"health_error":`) || !strings.Contains(out, `"health": null`) {
+		t.Fatalf("scan advisory json=%q code=%d", out, code)
+	}
+	out, code = capture(t, func() int { return cmdDrift([]string{"--format", "json"}) })
+	if code != 0 || !strings.Contains(out, `"health_error":`) || !strings.Contains(out, `"health": null`) {
+		t.Fatalf("drift advisory json=%q code=%d", out, code)
+	}
 }
