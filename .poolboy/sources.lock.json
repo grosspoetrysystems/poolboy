@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "94dc5261068c0e0c9403614838cbc5ffee94ea14",
+  "revision": "fa47ec4b27b37e5252857d66c36c553d9f83f809",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -39,8 +39,8 @@
     },
     ".github/workflows/release.yml": {
       "type": "yaml",
-      "bytes": 6923,
-      "sha256": "168fd49df44d080c1b32e37bdec2bafe47e408fa9df26648b500e74196f00688"
+      "bytes": 7361,
+      "sha256": "7909ee3a4513f40ccc35290cf742fa28177ca8db8bf0381ad8918158d610b2b7"
     },
     ".gitignore": {
       "type": "ignore",

@@ -175,13 +175,29 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ needs.release.outputs.version }}"
+          PACKAGES=(
+            poolboy
+            poolboy-darwin-arm64
+            poolboy-darwin-x64
+            poolboy-linux-arm64
+            poolboy-linux-x64
+            poolboy-win32-arm64
+            poolboy-win32-x64
+          )
           CACHE="$(mktemp -d)"
           for attempt in $(seq 1 60); do
-            if npm view "@grosspoetrysystems/poolboy@${VERSION}" version --cache "${CACHE}" --prefer-online >/dev/null 2>&1; then
+            visible=true
+            for package in "${PACKAGES[@]}"; do
+              if ! npm view "@grosspoetrysystems/${package}@${VERSION}" version --cache "${CACHE}" --prefer-online >/dev/null 2>&1; then
+                visible=false
+                break
+              fi
+            done
+            if "${visible}"; then
               break
             fi
             if [ "${attempt}" = 60 ]; then
-              echo "npm did not expose @grosspoetrysystems/poolboy@${VERSION} within ten minutes." >&2
+              echo "npm did not expose every Poolboy package at ${VERSION} within ten minutes." >&2
               exit 1
             fi
             rm -rf "${CACHE}"
