@@ -23,8 +23,8 @@ const maxFileBytes int64 = 5 << 20
 // Aggregate caps keep a hostile or accidental tree from consuming unbounded
 // memory/CPU even when every individual file is small.
 const (
-	maxInventoryFiles   = 10_000
-	maxTraversedEntries = 100_000
+	maxInventoryFiles   = 100_000
+	maxTraversedEntries = 1_000_000
 )
 
 // binaryProbeBytes keeps binary detection cheap while catching the usual NUL

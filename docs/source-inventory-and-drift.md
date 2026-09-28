@@ -50,9 +50,9 @@ Build/output names `target`, `build`, `dist`, `out`, `bin`, `obj`, and
 `coverage` are excluded only at the project root, so source directories such
 as `src/bin`, `src/internal`, and `src/build` remain inspectable.
 
-Traversal and inventory caps are hard errors: reaching 100,000 traversed
-entries or 10,000 admitted files aborts the whole scan rather than producing a
-successful truncated inventory. Intentionally excluded files and directories
+Traversal and inventory caps are hard errors: reaching 1,000,000 traversed
+entries or 100,000 admitted files aborts the whole scan rather than producing
+a successful truncated inventory. Intentionally excluded files and directories
 are outside this evidence boundary; exclusion is not evidence that their
 contents were reviewed.
 

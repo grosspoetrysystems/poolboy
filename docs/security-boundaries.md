@@ -71,7 +71,7 @@ configured corpus/output/render and custom landing `site_dir` paths, dependency/
 directories, and ignore-file matches. Files over 5 MiB are omitted; binary probing
 checks the first 8 KiB for NUL bytes. Likely-secret names, path components, and bounded
 content are filtered by helper heuristics.
-The 100,000-entry traversal and 10,000-file inventory caps fail the scan as
+The 1,000,000-entry traversal and 100,000-file inventory caps fail the scan as
 errors; they do not yield a successful truncated baseline. Intentionally
 excluded files and directories are outside this evidence boundary.
 
