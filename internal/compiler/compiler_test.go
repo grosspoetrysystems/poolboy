@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -248,6 +249,74 @@ func TestBuildReplacesSignedPublication(t *testing.T) {
 	if err := Build(context.Background(), b, rendererPath); err != nil {
 		t.Fatalf("replace signed publication: %v", err)
 	}
+}
+
+func TestPortableContractFixture(t *testing.T) {
+	t.Run("discovery identity and private boundary", func(t *testing.T) {
+		root, b, rendererPath := fixture(t)
+		privateDir := filepath.Join(root, ".poolboy")
+		if err := os.MkdirAll(privateDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		const privateMarker = "private-review-decision"
+		if err := os.WriteFile(filepath.Join(privateDir, "reviews.json"), []byte(privateMarker), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := Build(context.Background(), b, rendererPath); err != nil {
+			t.Fatal(err)
+		}
+
+		graphBytes, err := os.ReadFile(filepath.Join(root, "dist", "graph.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var manifest graph
+		if err := json.Unmarshal(graphBytes, &manifest); err != nil {
+			t.Fatal(err)
+		}
+		if manifest.Version != "0" || manifest.Root != "/index.md" {
+			t.Fatalf("discovery contract = version %q root %q", manifest.Version, manifest.Root)
+		}
+		published, err := os.ReadFile(filepath.Join(root, "dist", "architecture.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry, ok := manifest.Files["/architecture.md"]
+		if !ok || entry.Bytes != len(published) || entry.SHA256 != hashBytes(published) {
+			t.Fatalf("exact document identity = %#v", entry)
+		}
+		if bytes.Contains(graphBytes, []byte(privateMarker)) || bytes.Contains(graphBytes, []byte(".poolboy")) {
+			t.Fatal("private workspace state leaked into publication graph")
+		}
+
+		stale := append([]byte(nil), published...)
+		stale[len(stale)-1] ^= 1
+		if err := os.WriteFile(filepath.Join(root, "dist", "architecture.md"), stale, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "does not own architecture.md") {
+			t.Fatalf("stale publication error = %v", err)
+		}
+	})
+
+	t.Run("unknown graph version", func(t *testing.T) {
+		root, b, rendererPath := fixture(t)
+		if err := Build(context.Background(), b, rendererPath); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(root, "dist", "graph.json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data = bytes.Replace(data, []byte(`"version": "0"`), []byte(`"version": "99"`), 1)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "incompatible graph.json") {
+			t.Fatalf("unknown version error = %v", err)
+		}
+	})
 }
 
 func fixture(t *testing.T) (string, *bundle.Bundle, string) {

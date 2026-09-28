@@ -22,5 +22,6 @@ Start here, then follow the concept you need:
 - [Renderer and companion](renderer.md) — the bounded Go→Node template protocol, its filter allowlist, and its budgets.
 - [Maintenance commands](maintenance-commands.md) — the CLI surface, the link model, and move semantics.
 - [Source inventory and drift](source-inventory-and-drift.md) — the evidence baseline, the scan/drift/accept lifecycle, and reconciliation.
+- [Portable corpus and review contracts](portable-contracts.md) — publication identity, private workspace state, compatibility, and process boundaries.
 - [Security boundaries](security-boundaries.md) — the inspection boundary, scan safety limits, and the render boundary.
 - [Command reference](reference/commands.md) — the generated, per-command CLI reference.

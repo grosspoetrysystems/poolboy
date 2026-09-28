@@ -13,6 +13,7 @@ coverage.out
 **/.poolboy/*
 !**/.poolboy/generated.json
 !**/.poolboy/sources.lock.json
+!**/.poolboy/reviews.json
 /tmp/
 .env
 .env.*
