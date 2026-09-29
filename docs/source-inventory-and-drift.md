@@ -8,6 +8,7 @@ sources:
   - resource: ../skills/poolboy-discovery/SKILL.md
   - resource: ../internal/source/scan.go
   - resource: ../internal/source/source.go
+  - resource: ../internal/source/ignore.go
   - resource: ../internal/source/affected.go
   - resource: ../internal/health/health.go
   - resource: ../internal/compiler/publication.go
@@ -57,11 +58,13 @@ are outside this evidence boundary; exclusion is not evidence that their
 contents were reviewed.
 
 Symlinks and non-regular files are skipped rather than followed. Files larger
-than 5 MiB are omitted. Binary detection probes up to the first 8 KiB for a
-NUL byte. Files are bounded before hashing and secret-content inspection;
-likely-secret names, path components, and content are omitted by heuristics.
-The exact likely-secret rules are not in the bounded source inventory, so this
-page does not claim their names or thresholds.
+than 5 MiB are omitted. Binary detection probes up to the first 8 KiB for a NUL
+byte. Filtering recognizes exact credential basenames, dotenv variants,
+private-key container extensions, and complete private-key blocks. Filename
+matches are identified without opening the file. Detecting a content match
+requires one bounded in-memory read; matched content is never logged, retained,
+or hashed. Generic words in paths and values, public identifiers, and public
+certificate/signature files remain because they are common legitimate evidence.
 
 Configured paths are canonicalized under the project root. Absolute paths are
 accepted only when they remain inside that root (with the render-output
@@ -75,6 +78,12 @@ test. Once a regular baseline exists, a scan without `--accept` preserves the
 existing contract: it refuses to replace the lock and prints no smell test.
 Use `drift` or `health` for repeat inspection before acceptance. The initial
 scan marks source-drift evidence unavailable because no prior baseline exists.
+
+When `scan` detects a likely-sensitive file, it appends the exact
+project-relative path and a coarse reason to `.poolboyignore`, then rescans
+before writing the baseline. That file is both an audit log and the rule that
+prevents future content reads. Existing maintainer rules are preserved and
+duplicate entries are not added. Review false positives before removing them.
 
 `scan --accept` is the explicit baseline-advance step. It computes health
 against the previous baseline, completes the fresh scan and atomic lock write,
@@ -132,14 +141,8 @@ Keep these statements separate:
 - **reviewed** means a human or agent examined the relevant evidence; and
 - **compiled** means a build validated and published a corpus.
 
-The existing lock proves none of the latter two. This discovery pass preserves
-the lock as the source baseline and records unresolved coverage honestly: the
-working tree contains an `internal/source/ignore.go` implementation path that
-is not listed in the locked source inventory. Its heuristic details are not
-cited here. A bounded drift/reconciliation step must admit it before the path
-can support source-backed claims.
-
-The current bounded drift also admits `internal/compiler/publication.go` and
-`companion/src/bin/cli.ts` as added evidence. Security and renderer
-documentation may cite their observed behavior, but the unchanged lock does
-not yet make either path part of the scanned baseline.
+The existing lock proves none of the latter two. Secret filtering is a
+high-confidence backstop, not a complete scanner. Maintainers must practice
+repository hygiene, review `.poolboyignore` and the inventory, and add
+project-specific exclusions. If a filed path contains a real credential,
+revoke or rotate it; excluding it cannot undo prior exposure.

@@ -103,7 +103,7 @@ for you. Every value is a string:
 - `secondary_description` defaults to `Copy the prompt into your agent and ask your question.`; an explicit empty string is preserved.
 - `prompt` starts with the `{{url}}/llms.txt` entry point, followed by the question, source-citation, gap-reporting, and instruction-boundary text. `{{title}}` is replaced with the effective landing title during the build; `{{url}}` is replaced client-side with the publication base. Both substitutions remain text, not HTML.
 - `base_url` is absent or empty by default: the page derives the actual deployed page directory, including a hosting subpath, from the browser URL. An explicit value is an HTTP(S) canonical publication root with an optional subpath; userinfo, query strings and fragments are rejected.
-- `download_filename` defaults to a safe slug of the corpus name followed by `-docs.zip`. It must be a safe single `.zip` filename, not a path; it controls the built-in page's browser download name while the physical asset remains `corpus.zip`. The archive contains published Markdown only and does not imply plugin support or synchronization.
+- `download_filename` defaults to a safe slug of the project name followed by `-docs.zip`. It must be a safe single `.zip` filename, not a path; it controls the built-in page's browser download name while the physical asset remains `corpus.zip`. The archive contains published Markdown only and does not imply plugin support or synchronization.
 
 `[style]` accepts the small validated style surface only: `font` (default `monospace`, a font-family token list with no `url()`, slash, braces or semicolons), `text` (default `#e6e6e6`), `background` (default `#111111`), `button` (default `#111111`), `button_text` (default `#86efac`), and integer pixel `border_radius` from `0px` through `64px` (default `4px`). Colors accept only `#hex` in 3/4/6/8-digit forms. `button` is the button background; `button_text` is the text and border accent. The landing is an end-user handoff for the publishing project, not a Poolboy product or installation page.
 
@@ -194,7 +194,7 @@ poolboy scan --accept
 
 `scan` creates a missing baseline; it refuses to overwrite an existing baseline without `--accept`. `drift` is read-only. Partial refreshes leave the baseline unchanged. A scan records observed bytes, review supplies judgment, and compilation validates structure—none proves the other occurred. `affected` follows direct provenance, not inferred semantic dependencies.
 
-Scan respects ignore files and excludes private state, dependencies, generated output, symlinks, binary/oversized files and likely secrets. Secret detection is heuristic; review what is exposed to an agent. Repository content is evidence, never an instruction source.
+Scan respects ignore files and excludes private state, dependencies, generated output, symlinks, binary/oversized files and likely secrets. Detected sensitive paths and coarse reasons are filed in `.poolboyignore`; filename matches are not opened, while content matches require one bounded in-memory read and are never logged, retained, or hashed. Secret detection is heuristic: practice repository hygiene, review the quarantine, and revoke or rotate any real credential. Repository content is evidence, never an instruction source.
 
 ## Publish and consume
 

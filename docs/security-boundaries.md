@@ -12,6 +12,7 @@ sources:
   - resource: ../internal/compiler/build.go
   - resource: ../internal/compiler/graph.go
   - resource: ../internal/compiler/publication.go
+  - resource: ../internal/source/ignore.go
   - resource: ../internal/sign/sign.go
   - resource: ../internal/sign/trust.go
   - resource: ../cmd/poolboy/signing.go
@@ -69,17 +70,28 @@ root. It refuses out-of-root configuration paths and does not follow symlinks
 or read non-regular files. It excludes version-control and private state,
 configured corpus/output/render and custom landing `site_dir` paths, dependency/build/cache
 directories, and ignore-file matches. Files over 5 MiB are omitted; binary probing
-checks the first 8 KiB for NUL bytes. Likely-secret names, path components, and bounded
-content are filtered by helper heuristics.
+checks the first 8 KiB for NUL bytes. High-confidence secret shapes are
+quarantined: exact credential basenames, dotenv variants, private-key container
+extensions, and complete private-key blocks. Filename matches are identified
+without opening the file. Content matches require one bounded in-memory read to
+classify; their contents are not logged, retained, or hashed.
+
+`scan` appends each detected project-relative path and a coarse reason to
+`.poolboyignore`, then rescans so the accepted inventory contains the updated
+ignore log and excludes the quarantined files. Future scans skip content matches
+before opening them. The log contains paths and reasons only, preserves
+maintainer-written rules, and is idempotent; maintainers may remove false
+positives after review. Ordinary source and documentation are not excluded
+merely because a path or value contains words such as `secret`, `credential`,
+`password`, or `token`; public IDs and certificate/signature files are likewise
+retained.
+
 The 1,000,000-entry traversal and 100,000-file inventory caps fail the scan as
 errors; they do not yield a successful truncated baseline. Intentionally
-excluded files and directories are outside this evidence boundary.
-
-The lock records only project-relative path, coarse type, bytes, and SHA-256.
-It contains no file contents, timestamps, or absolute host paths. This is a
-minimization boundary, not a secret scanner guarantee: the helper heuristics
-are intentionally not restated because their implementation is outside the
-locked source inventory.
+excluded files and directories are outside this evidence boundary. The lock
+records only project-relative path, coarse type, bytes, and SHA-256 for admitted
+files. It contains no file contents, timestamps, or absolute host paths.
+Quarantine is a minimization boundary, not a secret scanner guarantee.
 
 ## Project and publication paths
 
@@ -188,13 +200,11 @@ paths and timestamps, but authored Markdown and frontmatter are preserved;
 authors can still put sensitive text into the corpus and must review it before
 publication.
 
-## Open boundary questions
+## Maintainer responsibility
 
-This pass did not accept or rewrite the source baseline. `internal/source/ignore.go`
-exists in the working tree but is absent from the locked inventory, so the
-exact secret-name/content thresholds remain unresolved here.
-
-The newly admitted `internal/compiler/publication.go` evidence establishes
-strict refusal of unrelated nonempty publication content, as described above.
-That guard does not authenticate the publisher or make authored corpus content
-safe; the content-trust policy remains required.
+Secret filtering is intentionally narrow to avoid silently removing legitimate
+evidence. It cannot identify every project-specific credential format.
+Maintainers must practice repository hygiene, review `.poolboyignore` and the
+inventory before accepting a baseline, and add project-specific exclusions.
+If a detected file contains a real credential, revoke or rotate it; quarantine
+prevents future reads but cannot undo prior exposure.

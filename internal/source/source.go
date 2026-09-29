@@ -42,11 +42,13 @@ var ErrBaselineExists = errors.New("source: baseline already exists; review drif
 
 // Inventory is a bounded, deterministic snapshot of an application's source
 // files. Files is keyed by project-relative slash path; json.Marshal emits map
-// keys sorted, so the serialization is stable.
+// keys sorted, so the serialization is stable. Quarantined is an ephemeral scan
+// report and is never persisted in sources.lock.json.
 type Inventory struct {
-	Version  string           `json:"version"`
-	Revision string           `json:"revision,omitempty"`
-	Files    map[string]Entry `json:"files"`
+	Version     string           `json:"version"`
+	Revision    string           `json:"revision,omitempty"`
+	Files       map[string]Entry `json:"files"`
+	Quarantined []Exclusion      `json:"-"`
 }
 
 // Entry is one inventoried source file. It carries no path, timestamp or
@@ -55,6 +57,14 @@ type Entry struct {
 	Type   string `json:"type"`
 	Bytes  int64  `json:"bytes"`
 	SHA256 string `json:"sha256"`
+}
+
+// Exclusion is one likely-sensitive file quarantined into .poolboyignore.
+// Content is never retained or hashed.
+type Exclusion struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+	Read   bool   `json:"read"`
 }
 
 // ChangeKind classifies a drift observation. It is retained as a small
@@ -252,6 +262,7 @@ func marshalLock(inv *Inventory) ([]byte, error) {
 func validProjectPath(path string) bool {
 	if path == "" || filepath.IsAbs(filepath.FromSlash(path)) ||
 		strings.HasPrefix(path, "/") || strings.Contains(path, "\\") ||
+
 		strings.Contains(path, "//") {
 		return false
 	}
@@ -261,6 +272,91 @@ func validProjectPath(path string) bool {
 		}
 	}
 	return true
+}
+
+const quarantineHeader = "# Poolboy quarantine: likely-sensitive files detected during source scan."
+
+func writeQuarantine(b *bundle.Bundle, exclusions []Exclusion) (bool, error) {
+	if len(exclusions) == 0 {
+		return false, nil
+	}
+	root, err := projectRoot(b)
+	if err != nil {
+		return false, err
+	}
+	path := filepath.Join(root, ".poolboyignore")
+	mode := fs.FileMode(0o644)
+	info, statErr := os.Lstat(path)
+	switch {
+	case statErr == nil:
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return false, errors.New("source: .poolboyignore must be a regular file")
+		}
+		mode = info.Mode().Perm()
+	case !errors.Is(statErr, fs.ErrNotExist):
+		return false, fmt.Errorf("source: checking .poolboyignore: %w", statErr)
+	}
+	var data []byte
+	if statErr == nil {
+		// #nosec G304 -- path is a fixed filename under the validated project root.
+		data, err = os.ReadFile(path)
+		if err != nil {
+			return false, fmt.Errorf("source: reading .poolboyignore: %w", err)
+		}
+	}
+	existing := make(map[string]bool)
+	for _, line := range strings.Split(string(data), "\n") {
+		existing[line] = true
+	}
+	var additions []string
+	for _, exclusion := range exclusions {
+		pattern := quarantinePattern(exclusion.Path)
+		if existing[pattern] {
+			continue
+		}
+		additions = append(additions, "# poolboy: "+exclusion.Reason, pattern)
+		existing[pattern] = true
+	}
+	if len(additions) == 0 {
+		return false, nil
+	}
+	content := strings.TrimRight(string(data), "\r\n")
+	if content != "" {
+		content += "\n\n"
+	}
+	if !strings.Contains(content, quarantineHeader) {
+		content += quarantineHeader + "\n"
+	}
+	content += strings.Join(additions, "\n") + "\n"
+	tmp, err := os.CreateTemp(root, ".poolboyignore.tmp-*")
+	if err != nil {
+		return false, fmt.Errorf("source: creating temp .poolboyignore: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return false, fmt.Errorf("source: setting temp .poolboyignore permissions: %w", err)
+	}
+	if _, err := tmp.WriteString(content); err != nil {
+		_ = tmp.Close()
+		return false, fmt.Errorf("source: writing temp .poolboyignore: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return false, fmt.Errorf("source: closing temp .poolboyignore: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return false, fmt.Errorf("source: replacing .poolboyignore: %w", err)
+	}
+	return true, nil
+}
+
+func quarantinePattern(path string) string {
+	escaped := strings.NewReplacer(
+		"\\", "\\\\", " ", "\\ ", "#", "\\#", "!", "\\!",
+		"*", "\\*", "?", "\\?", "[", "\\[",
+	).Replace(path)
+	return "/" + escaped
 }
 
 // Scan computes a safe inventory and writes it as the accepted baseline.
@@ -303,6 +399,18 @@ func ScanEvidence(b *bundle.Bundle, accept bool) (*Inventory, *Inventory, error)
 	current, err := scanCurrent(b)
 	if err != nil {
 		return nil, nil, err
+	}
+	detected := current.Quarantined
+	changed, err := writeQuarantine(b, detected)
+	if err != nil {
+		return nil, nil, err
+	}
+	if changed {
+		current, err = scanCurrent(b)
+		if err != nil {
+			return nil, nil, err
+		}
+		current.Quarantined = detected
 	}
 	root, err := projectRoot(b)
 	if err != nil {

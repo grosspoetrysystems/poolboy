@@ -522,6 +522,25 @@ func TestBuildLandingAppliesConfiguredText(t *testing.T) {
 	}
 }
 
+func TestBuildLandingLinksPoolboyAttribution(t *testing.T) {
+	root, b := landingProject(t)
+	if err := Build(context.Background(), b, ""); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`skimmed by <a href="https://poolboy.sh" target="_blank" rel="external noopener noreferrer">Poolboy</a>.`,
+		`download="acme-docs-docs.zip"`,
+	} {
+		if !strings.Contains(string(data), want) {
+			t.Fatalf("landing page missing %q: %s", want, data)
+		}
+	}
+}
+
 func TestBuildLandingEmitsShareCardTags(t *testing.T) {
 	value := func(s string) *string { return &s }
 

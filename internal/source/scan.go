@@ -36,6 +36,7 @@ type scanner struct {
 	excludedDirs  map[string]bool
 	excludedFiles map[string]bool
 	entries       map[string]Entry
+	quarantined   map[string]Exclusion
 	traversed     int
 }
 
@@ -62,11 +63,17 @@ func scanCurrent(b *bundle.Bundle) (*Inventory, error) {
 		excludedDirs:  dirs,
 		excludedFiles: files,
 		entries:       make(map[string]Entry),
+		quarantined:   make(map[string]Exclusion),
 	}
 	if err := s.walk(root, nil, nil); err != nil {
 		return nil, err
 	}
-	return &Inventory{Version: Version, Files: s.entries}, nil
+	exclusions := make([]Exclusion, 0, len(s.quarantined))
+	for _, exclusion := range s.quarantined {
+		exclusions = append(exclusions, exclusion)
+	}
+	sort.Slice(exclusions, func(i, j int) bool { return exclusions[i].Path < exclusions[j].Path })
+	return &Inventory{Version: Version, Files: s.entries, Quarantined: exclusions}, nil
 }
 
 // walk descends only through safe, non-ignored directories. patterns are the
@@ -164,13 +171,12 @@ func (s *scanner) skipFile(rel []string, name string) bool {
 	path := strings.Join(rel, "/")
 	// A linked worktree represents .git as a regular pointer file, so it slips
 	// past the .git directory exclusion; refuse it as administrative at any depth.
-	if name == ".git" || s.excludedFiles[path] || likelySecretName(name) {
+	if name == ".git" || s.excludedFiles[path] {
 		return true
 	}
-	for _, component := range rel[:len(rel)-1] {
-		if likelySecretName(component) {
-			return true
-		}
+	if reason := secretNameReason(name); reason != "" {
+		s.quarantined[path] = Exclusion{Path: path, Reason: reason}
+		return true
 	}
 	return false
 }
@@ -202,7 +208,12 @@ func (s *scanner) addFile(path string, rel []string) error {
 	if int64(len(data)) > maxFileBytes {
 		return nil
 	}
-	if isBinary(data) || likelySecretContent(data) {
+	if isBinary(data) {
+		return nil
+	}
+	if reason := secretContentReason(data); reason != "" {
+		pathKey := strings.Join(rel, "/")
+		s.quarantined[pathKey] = Exclusion{Path: pathKey, Reason: reason, Read: true}
 		return nil
 	}
 	pathKey := strings.Join(rel, "/")

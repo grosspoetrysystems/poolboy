@@ -1119,21 +1119,28 @@ func TestScanDoesNotFailWhenHealthIsUnavailable(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "docs", "index.md"), []byte("# Home\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("TOKEN=actual\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Symlink("index.md", filepath.Join(root, "docs", "alias.md")); err != nil {
 		t.Fatal(err)
 	}
 	t.Chdir(root)
 
 	out, code := capture(t, func() int { return cmdScan(nil) })
-	if code != 0 || !strings.Contains(out, "Saved source baseline") || !strings.Contains(out, "smell test unavailable") {
-		t.Fatalf("scan advisory output=%q code=%d", out, code)
+	for _, want := range []string{"Saved source baseline", "smell test unavailable", "Filed 1 likely-sensitive path(s) in .poolboyignore", "environment_credentials\t.env", "Filename matches were not opened", "revoke or rotate it", "Practice repository hygiene"} {
+		if code != 0 || !strings.Contains(out, want) {
+			t.Fatalf("scan advisory missing %q: output=%q code=%d", want, out, code)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(root, ".poolboy", "sources.lock.json")); err != nil {
 		t.Fatalf("baseline not written: %v", err)
 	}
 	out, code = capture(t, func() int { return cmdScan([]string{"--accept", "--format", "json"}) })
-	if code != 0 || !strings.Contains(out, `"health_error":`) || !strings.Contains(out, `"health": null`) {
-		t.Fatalf("scan advisory json=%q code=%d", out, code)
+	for _, want := range []string{`"health_error":`, `"health": null`, `"quarantined":`, `"path": ".env"`, `"security_notice":`} {
+		if code != 0 || !strings.Contains(out, want) {
+			t.Fatalf("scan advisory json missing %q: output=%q code=%d", want, out, code)
+		}
 	}
 	out, code = capture(t, func() int { return cmdDrift([]string{"--format", "json"}) })
 	if code != 0 || !strings.Contains(out, `"health_error":`) || !strings.Contains(out, `"health": null`) {

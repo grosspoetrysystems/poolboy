@@ -50,9 +50,19 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 	writeTestFile(t, root, "custom/drop.go", "package custom\n")
 	writeTestFile(t, root, "custom/keep.go", "package custom\n")
 	writeTestFile(t, root, ".env", "TOKEN=secret\n")
+	writeTestFile(t, root, ".environment.md", "documented environment\n")
+	writeTestFile(t, root, ".envoy.yaml", "proxy configuration\n")
+	writeTestFile(t, root, ".env.local.example", "documented environment example\n")
 	writeTestFile(t, root, "tls/private.pem", "not a key\n")
 	awsKey := "AKIA" + "1234567890ABCDEF"
 	writeTestFile(t, root, "src/aws-real.go", "const key = \""+awsKey+"\"\n")
+	writeTestFile(t, root, "src/secret.go", "package src // secret handling is ordinary source evidence\n")
+	writeTestFile(t, root, "src/credentials/parser.ts", "export const token = 'example'\n")
+	writeTestFile(t, root, "notes/authentication.md", "token=example\nsecret: documented setting\n")
+	writeTestFile(t, root, "notes/private-key-format.md", "A key starts with -----BEGIN PRIVATE KEY-----.\n")
+	privateKey := "-----BEGIN " + "PRIVATE KEY-----\nactual-key-material\n-----END " + "PRIVATE KEY-----\n"
+	writeTestFile(t, root, "src/leaked.txt", privateKey)
+	writeTestFile(t, root, "src/credentials.json", `{"token":"actual"}`)
 	writeTestFile(t, root, "src/blob.dat", "prefix\x00suffix")
 	writeTestFile(t, root, "vendor/lib.go", "package vendor\n")
 	writeTestFile(t, root, "node_modules/lib.js", "module.exports = {}\n")
@@ -79,17 +89,82 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 	for _, excluded := range []string{
 		".git", "src/nested/.git",
 		"src/debug.log", "src/nested/drop.txt", "ignored/keep.go", "custom/drop.go",
-		".env", "tls/private.pem", "src/aws-real.go", "src/blob.dat", "src/oversized.txt",
-		"src/link.go", "vendor/lib.go", "node_modules/lib.js", ".substrate/audit.md",
+		".env", "src/leaked.txt", "src/credentials.json",
+		"src/blob.dat", "src/oversized.txt", "src/link.go",
+		"vendor/lib.go", "node_modules/lib.js", ".substrate/audit.md",
 		"bin/tool.go", "build/generated.go", "docs/index.md", "dist/generated.md", "templates/reference.md.knap", "data/reference.json",
 	} {
 		if _, ok := inv.Files[excluded]; ok {
 			t.Errorf("excluded path present in inventory: %s", excluded)
 		}
 	}
-	for _, included := range []string{".gitignore", "src/main.go", "src/bin/cli.ts", "src/internal/build/keep.ts", "src/nested/keep.txt", "custom/keep.go"} {
+	for _, included := range []string{
+		".gitignore", "src/main.go", "src/bin/cli.ts", "src/internal/build/keep.ts", "src/nested/keep.txt", "custom/keep.go",
+		".environment.md", ".envoy.yaml", ".env.local.example", "tls/private.pem", "src/aws-real.go", "src/secret.go", "src/credentials/parser.ts", "notes/authentication.md", "notes/private-key-format.md",
+	} {
 		if _, ok := inv.Files[included]; !ok {
 			t.Errorf("safe path missing from inventory: %s", included)
+		}
+	}
+	gotExclusions := make(map[string]Exclusion, len(inv.Quarantined))
+	for _, exclusion := range inv.Quarantined {
+		gotExclusions[exclusion.Path] = exclusion
+	}
+	for path, want := range map[string]Exclusion{
+		".env":                 {Path: ".env", Reason: "environment_credentials"},
+		"src/credentials.json": {Path: "src/credentials.json", Reason: "credential_filename"},
+		"src/leaked.txt":       {Path: "src/leaked.txt", Reason: "private_key_block", Read: true},
+	} {
+		if got := gotExclusions[path]; got != want {
+			t.Errorf("quarantine %s = %#v, want %#v", path, got, want)
+		}
+	}
+}
+
+func TestScanFilesLikelySecretsInPoolboyIgnore(t *testing.T) {
+	root := t.TempDir()
+	b := testBundle(root)
+	writeTestFile(t, root, ".poolboyignore", "manual/**\n")
+	writeTestFile(t, root, "src/main.go", "package main\n")
+	writeTestFile(t, root, ".env", "TOKEN=actual-secret\n")
+	privateKey := "-----BEGIN " + "PRIVATE KEY-----\nactual-key-material\n-----END " + "PRIVATE KEY-----\n"
+	writeTestFile(t, root, "src/leaked.txt", privateKey)
+
+	inv, err := Scan(b, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inv.Quarantined) != 2 {
+		t.Fatalf("quarantined = %#v", inv.Quarantined)
+	}
+	ignore, err := os.ReadFile(filepath.Join(root, ".poolboyignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(ignore)
+	for _, want := range []string{quarantineHeader, "# poolboy: environment_credentials\n/.env", "# poolboy: private_key_block\n/src/leaked.txt"} {
+		if !strings.Contains(text, want) {
+			t.Errorf(".poolboyignore missing %q:\n%s", want, text)
+		}
+	}
+	for _, secret := range []string{"actual-secret", "actual-key-material"} {
+		if strings.Contains(text, secret) {
+			t.Errorf(".poolboyignore retained secret content %q", secret)
+		}
+	}
+	if _, ok := inv.Files[".poolboyignore"]; !ok {
+		t.Fatal("final inventory does not include updated .poolboyignore")
+	}
+	if _, err := Scan(b, true); err != nil {
+		t.Fatal(err)
+	}
+	ignore, err = os.ReadFile(filepath.Join(root, ".poolboyignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pattern := range []string{"/.env", "/src/leaked.txt"} {
+		if got := strings.Count(string(ignore), pattern); got != 1 {
+			t.Errorf("%s occurrence count = %d", pattern, got)
 		}
 	}
 }

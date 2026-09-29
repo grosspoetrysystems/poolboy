@@ -102,16 +102,35 @@ func cmdScan(args []string) int {
 		lines = append(lines, "Documentation smell test unavailable: "+healthError)
 	} else {
 		lines = append(lines, healthSummary(items)...)
-		lines = append(lines, "", "Nothing was excluded or rewritten.")
 		if len(items) > 0 {
 			lines = append(lines, "Run `poolboy health` to inspect.")
 		}
 	}
+	lines = append(lines, "")
+	if len(inventory.Quarantined) > 0 {
+		lines = append(lines, fmt.Sprintf("Filed %d likely-sensitive path(s) in .poolboyignore:", len(inventory.Quarantined)))
+		for _, exclusion := range inventory.Quarantined {
+			lines = append(lines, fmt.Sprintf("%s\t%s", exclusion.Reason, exclusion.Path))
+		}
+		lines = append(lines,
+			"Filename matches were not opened. Content matches were read once in memory to classify, but were not logged, retained, or hashed.",
+			"If any filed path contains a real credential, revoke or rotate it.",
+		)
+	}
+	lines = append(lines, "Practice repository hygiene; Poolboy's secret check is only a narrow backstop.")
 	return productOutput(*format, lines, struct {
-		Inventory   *source.Inventory `json:"inventory"`
-		Health      []health.Item     `json:"health"`
-		HealthError string            `json:"health_error,omitempty"`
-	}{inventory, items, healthError})
+		Inventory      *source.Inventory  `json:"inventory"`
+		Health         []health.Item      `json:"health"`
+		HealthError    string             `json:"health_error,omitempty"`
+		Quarantined    []source.Exclusion `json:"quarantined,omitempty"`
+		SecurityNotice string             `json:"security_notice"`
+	}{
+		inventory,
+		items,
+		healthError,
+		inventory.Quarantined,
+		"Practice repository hygiene. Content matches are read once to classify; if a filed path contains a real credential, revoke or rotate it.",
+	})
 }
 
 func cmdDrift(args []string) int {
