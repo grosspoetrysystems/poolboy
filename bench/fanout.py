@@ -21,6 +21,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parent
 MANIFEST = ROOT / "cohort.json"
 COMMANDS = ("check", "status", "scan", "build")
 
@@ -117,7 +118,7 @@ def main() -> int:
         parser.error("pass --sandbox or set POOLBOY_BENCH_SANDBOX; "
                      "cohort clones and results must not land in the repository")
     sandbox = Path(args.sandbox).expanduser().resolve()
-    if sandbox == ROOT or ROOT in sandbox.parents or sandbox in ROOT.parents:
+    if sandbox == REPO or REPO in sandbox.parents:
         parser.error(f"sandbox must be outside the repository: {sandbox}")
     if not sandbox.is_dir():
         parser.error(f"sandbox not found: {sandbox}")
