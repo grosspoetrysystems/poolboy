@@ -58,10 +58,6 @@ Dependabot is authorized repository automation. Its generated pull requests are 
 
 Edit templates and metadata rather than generated output. Run `make site`, review changes to `.poolboy/generated.json` and generated documents, and include them in the same commit as their inputs. `make verify` fails when generated output is stale.
 
-## Benchmarks
-
-`DOGFOOD.md` is the index for both Poolboy benchmarks: the usefulness benchmark, which asks whether a published corpus answers maintainer questions without source access, and the compatibility fanout, which measures what converting a foreign repository would take. It records the protocols, the frozen questions, replay commands, and every prior result. Benchmarks are run by hand against an explicit released version, never against an unversioned executable found on `PATH`, and they are not part of `make verify`.
-
 ## Pull requests
 
 Keep changes focused. Include the command or scenario that proves the behavior. Do not commit build output, local signing keys, environment files, or generated `.site/` contents.
