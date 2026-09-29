@@ -70,7 +70,18 @@ func cmdBuild(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := compiler.Build(ctx, b, *renderer); err != nil {
-		return productError(err)
+		var validationErr *compiler.ValidationError
+		if !errors.As(err, &validationErr) {
+			return productError(err)
+		}
+		lines := make([]string, len(validationErr.Issues))
+		for i, issue := range validationErr.Issues {
+			lines[i] = fmt.Sprintf("%-7s %s: %s", issue.Level, issue.Entry, issue.Msg)
+		}
+		if code := productOutput(*format, lines, validationErr.Issues); code != 0 {
+			return code
+		}
+		return 1
 	}
 	return productOutput(*format, []string{"Built static corpus: " + b.Output}, struct {
 		Output string `json:"output"`

@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/grosspoetrysystems/poolboy/bundle"
+	"github.com/grosspoetrysystems/poolboy/index"
 	"github.com/grosspoetrysystems/poolboy/internal/renderer"
 	"github.com/grosspoetrysystems/poolboy/parse"
 )
@@ -23,6 +24,19 @@ type rendered struct {
 	templatePath string
 	dataPath     string
 	data         []byte
+}
+
+// ValidationError reports every canonical OKF error found before publication.
+type ValidationError struct {
+	Issues []index.Issue
+}
+
+func (e *ValidationError) Error() string {
+	lines := make([]string, len(e.Issues))
+	for i, issue := range e.Issues {
+		lines[i] = fmt.Sprintf("%s: %s", issue.Entry, issue.Msg)
+	}
+	return "invalid OKF:\n" + strings.Join(lines, "\n")
 }
 
 // Build validates and publishes b into its configured output directory. All
@@ -110,13 +124,8 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 	if err := checkCandidateCollisions(candidate); err != nil {
 		return err
 	}
-	for path, doc := range candidate {
-		if err := checkContext(ctx); err != nil {
-			return err
-		}
-		if err := validateOKF(path, doc.data); err != nil {
-			return err
-		}
+	if err := validateDocuments(ctx, candidate); err != nil {
+		return err
 	}
 
 	corpusStage, err := os.MkdirTemp(filepath.Dir(r.corpus), ".poolboy-corpus-build-*")
@@ -267,12 +276,44 @@ func renderDocuments(ctx context.Context, b *bundle.Bundle, companion string) ([
 }
 
 func validateOKF(path string, data []byte) error {
-	for _, issue := range parse.ValidateOKF(path, string(data)) {
-		if issue.Level == "error" {
-			return fmt.Errorf("invalid OKF at %s (%s): %s", path, issue.Field, issue.Message)
+	issues := validationIssues(path, data)
+	if len(issues) == 0 {
+		return nil
+	}
+	return &ValidationError{Issues: issues}
+}
+
+func validateDocuments(ctx context.Context, docs map[string]document) error {
+	paths := make([]string, 0, len(docs))
+	for path := range docs {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	var issues []index.Issue
+	for _, path := range paths {
+		if err := checkContext(ctx); err != nil {
+			return err
 		}
+		issues = append(issues, validationIssues(path, docs[path].data)...)
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+func validationIssues(path string, data []byte) []index.Issue {
+	var issues []index.Issue
+	for _, issue := range parse.ValidateOKF(path, string(data)) {
+		if issue.Level == "error" {
+			issues = append(issues, index.Issue{
+				Level: issue.Level,
+				Entry: path,
+				Msg:   issue.Field + ": " + issue.Message,
+			})
+		}
+	}
+	return issues
 }
 
 func utf16Length(s string) int {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -47,6 +48,53 @@ func capture(t *testing.T, f func() int) (string, int) {
 	os.Stdout = old
 	out, _ := io.ReadAll(r)
 	return string(out), code
+}
+
+func TestCheckAndBuildEmitStructuredDiagnosticsJSON(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, content string) {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec = \"0.2\"\ncorpus = \"docs\"\noutput = \"dist\"\n")
+	write("docs/index.md", "# Home\n")
+	write("docs/a.md", "---\ntype: \"\"\nstatus: unknown\n---\n")
+	write("docs/b.md", "No frontmatter\n")
+	t.Chdir(root)
+
+	out, code := capture(t, func() int { return cmdBuild([]string{"--format", "json"}) })
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1; output=%s", code, out)
+	}
+	var issues []index.Issue
+	if err := json.Unmarshal([]byte(out), &issues); err != nil {
+		t.Fatalf("decode output: %v\n%s", err, out)
+	}
+	if len(issues) != 3 {
+		t.Fatalf("issues = %+v, want three canonical validation errors", issues)
+	}
+	if issues[0].Entry != "/a.md" || issues[0].Msg != "type: ordinary documents require a nonempty type" ||
+		issues[1].Entry != "/a.md" || issues[1].Msg != "status: status must be draft, stable, or deprecated" ||
+		issues[2].Entry != "/b.md" {
+		t.Errorf("unexpected issues: %+v", issues)
+	}
+
+	checkOut, checkCode := capture(t, func() int { return cmdCheck([]string{"--format", "json"}) })
+	if checkCode != 1 {
+		t.Fatalf("check exit = %d, want 1; output=%s", checkCode, checkOut)
+	}
+	var checkIssues []index.Issue
+	if err := json.Unmarshal([]byte(checkOut), &checkIssues); err != nil {
+		t.Fatalf("decode check output: %v\n%s", err, checkOut)
+	}
+	if len(checkIssues) == 0 {
+		t.Fatal("check should report the malformed source documents")
+	}
 }
 
 func TestCmdRead(t *testing.T) {
