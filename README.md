@@ -163,9 +163,9 @@ SHA-256 `sha256`. The graph does not hash itself. External URLs are not graph
 nodes. Unsigned build output excludes wall-clock timestamps and host paths.
 Identical inputs produce identical output bytes.
 
-Generated documents are materialized in the working corpus so editors and maintenance commands can read them. Edit their template/data sources; the generated-file ledger rejects conflicting handwritten changes. Commit generated Markdown with `.poolboy/generated.json` so ownership survives a fresh checkout, and retain `.poolboy/sources.lock.json` so the evidence baseline survives too. The inventory contains paths and hashes, not source contents. Do not delete `.poolboy/` to force an overwrite or reset drift. Validation failures leave the previous publication intact.
+Generated documents are materialized in the working corpus so editors and maintenance commands can read them. Edit their template/data sources; the generated-file ledger rejects conflicting handwritten changes. Commit generated Markdown with `.poolboy/generated.json` so ownership survives a fresh Git checkout, and retain `.poolboy/sources.lock.json` so the evidence baseline survives too. The inventory contains paths and hashes, not source contents. Do not delete `.poolboy/` to force an overwrite or reset drift. Validation failures leave the previous publication intact.
 
-Open the corpus directory directly in Obsidian, VS Code or GitHub. There is no conversion or synchronization layer, and no requirement for wikilinks or plugins.
+For asynchronous editing, let the CLI create an ordinary Markdown checkout outside the project root. Open that directory in Obsidian, VS Code, or another editor; no plugin or conversion layer is required. `checkin` previews a file-level three-way comparison by default, and `checkin --apply` updates the canonical corpus only when the draft has no same-path or generated-file conflict. Direct canonical editing remains possible but cannot distinguish concurrent writers.
 
 ## Discover, then refresh
 
@@ -179,6 +179,18 @@ poolboy move /architecture.md /architecture/overview.md --dry-run
 poolboy check
 poolboy build
 ```
+
+For an editor or agent working asynchronously:
+
+```sh
+poolboy checkout ../docs-edit --format json
+# Edit ../docs-edit in Obsidian, VS Code, or another agent.
+poolboy checkin ../docs-edit --format json
+# Inspect can_apply, conflicts, and requires_source_review.
+poolboy checkin ../docs-edit --apply --format json
+```
+
+The checkout directory must not already exist and must be outside the project root. Check-in compares exact document revisions from checkout time with both the edited checkout and the current canonical corpus. It performs no textual auto-merge, never advances `.poolboy/sources.lock.json`, and refuses handwritten changes to generated documents. JSON exit status is `1` for a valid conflict plan and `2` for usage, discovery, configuration, state, or I/O errors.
 
 After source changes:
 

@@ -96,6 +96,31 @@ Find documents citing a source resource directly.
 
 - `SOURCE` — One project-relative source path.
 - `--format text|json|csv|tsv` — Choose result output format.
+## `checkout`
+
+Create an asynchronous ordinary-Markdown checkout outside the project root and record its exact private comparison base.
+
+- Mutation: `true`
+- Aliases: `none`
+- Source: `cmd/poolboy/product.go`
+
+### Flags and arguments
+
+- `DIR` — New checkout directory outside the project root; its parent must exist.
+- `--format text|json|csv|tsv` — Choose result output format; agents should use JSON.
+## `checkin`
+
+Compare checkout, base, and canonical corpus revisions; preview by default and apply only a conflict-free plan.
+
+- Mutation: `true`
+- Aliases: `none`
+- Source: `cmd/poolboy/product.go`
+
+### Flags and arguments
+
+- `DIR` — Checkout directory previously created for this project.
+- `--apply` — Apply a conflict-free file-level plan to the canonical corpus.
+- `--format text|json|csv|tsv` — Choose result output format; JSON exposes variance, conflicts, can_apply, and applied.
 ## `status`
 
 Report corpus counts for entries, links, tags, checkboxes, broken links, and orphans.

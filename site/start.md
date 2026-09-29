@@ -15,9 +15,11 @@ Use the agent's current working directory as the project root. The result is a l
 3. If `poolboy.toml` is absent, run `poolboy init`. Initialization adds missing starter files and Poolboy ignore rules while preserving existing files. Do not use `--force` unless the user explicitly requests overwrites.
    Review the selected corpus and any adoption report. Existing Markdown inside it may need reviewed OKF metadata; add a suitable `type` only where frontmatter is missing, and repair malformed YAML in place. Root-level Markdown outside the selected corpus is not adopted automatically; init does not enumerate every nested directory outside it. Record which existing documents remain outside scope and why—do not silently ignore useful docs to obtain a clean check.
 4. If `.poolboy/sources.lock.json` is absent, run `poolboy scan --format json` to establish the bounded source inventory. Otherwise run `poolboy drift --format json` and review the reported changes without replacing the baseline.
-5. Analyze the admitted sources progressively. Start with entry points, manifests, schemas, core types, and tests. Record actual architecture, domain concepts, interfaces, workflows, failure modes, and unresolved contradictions; do not generate one document per source file.
-6. Reconcile existing docs instead of replacing useful work. Write portable OKF Markdown with file-relative links and concrete `sources` references. Keep repeated reference material in Knap templates and structured data.
-7. Run `poolboy check`, resolve conformance errors, then run `poolboy build`.
-8. Re-run `poolboy drift --format json`. Advance an existing baseline with `poolboy scan --accept` only after every reported source change has been reviewed.
+5. When the corpus may change concurrently, run `poolboy checkout CHECKOUT_DIR --format json` with a new directory outside the project root and edit Markdown only in the returned path. Otherwise edit the canonical corpus directly.
+6. Analyze the admitted sources progressively. Start with entry points, manifests, schemas, core types, and tests. Record actual architecture, domain concepts, interfaces, workflows, failure modes, and unresolved contradictions; do not generate one document per source file.
+7. Reconcile existing docs instead of replacing useful work. Write portable OKF Markdown with file-relative links and concrete `sources` references. Keep repeated reference material in Knap templates and structured data.
+8. For a Poolboy checkout, run `poolboy checkin CHECKOUT_DIR --format json`. Read every variance and conflict field. Apply only an authorized plan with `poolboy checkin CHECKOUT_DIR --apply --format json` when `can_apply` is true. Check-in never accepts source evidence.
+9. Run `poolboy check`, resolve conformance errors, then run `poolboy build`.
+10. Re-run `poolboy drift --format json`. Advance an existing baseline with `poolboy scan --accept` only after every reported source change has been reviewed.
 
 Finish with a concise report of files changed, knowledge established, unresolved questions, and checks run. Leave the local diff for the user to review.

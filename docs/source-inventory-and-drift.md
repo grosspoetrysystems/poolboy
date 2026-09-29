@@ -120,6 +120,13 @@ working Markdown and its provenance, template/data inputs, and the last
 compiled graph's per-file byte hashes. The graph describes the last compiled
 artifact, not necessarily the current corpus or deployed version.
 
+For asynchronous editing, `checkout DIR` records the current document and
+source observations before an editor or agent changes the copied Markdown.
+`checkin DIR` reports draft, concurrent workspace, source, and generator
+variance; `checkin DIR --apply` transports only a conflict-free file-level
+result into the working corpus. Check-in is not the reconciliation defined
+here: it records no evidence judgment and never advances the source baseline.
+
 Only after every outstanding change has been reviewed and both `check` and
 `build` succeed may the workflow run `scan --accept`. Rerun `drift` before
 acceptance to catch source changes that occurred during review. There is no

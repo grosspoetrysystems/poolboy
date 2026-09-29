@@ -30,6 +30,8 @@ Commands:
   drift         compare the source inventory with current files
   health        inspect documentation provenance and graph evidence
   affected      find documents citing a source resource
+  checkout      create an asynchronous Markdown checkout in DIR
+  checkin       preview or apply a checkout to the canonical corpus (--apply)
   status        corpus counts: entries, links, tags, checkboxes, broken, orphans
   list, ls      list entries (--where key=value --prefix --sort=path|timestamp --reverse)
   read          print an entry's body (frontmatter stripped)
@@ -103,6 +105,10 @@ func run(args []string) int {
 		return cmdHealth(args[1:])
 	case "affected":
 		return cmdAffected(args[1:])
+	case "checkout":
+		return cmdCheckout(args[1:])
+	case "checkin":
+		return cmdCheckin(args[1:])
 	case "status":
 		return cmdStatus(args[1:])
 	case "list", "ls":

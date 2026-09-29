@@ -80,6 +80,29 @@
       ]
     },
     {
+      "name": "checkout",
+      "summary": "Create an asynchronous ordinary-Markdown checkout outside the project root and record its exact private comparison base.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/product.go",
+      "flags": [
+        {"name": "DIR", "description": "New checkout directory outside the project root; its parent must exist."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format; agents should use JSON."}
+      ]
+    },
+    {
+      "name": "checkin",
+      "summary": "Compare checkout, base, and canonical corpus revisions; preview by default and apply only a conflict-free plan.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/product.go",
+      "flags": [
+        {"name": "DIR", "description": "Checkout directory previously created for this project."},
+        {"name": "--apply", "description": "Apply a conflict-free file-level plan to the canonical corpus."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format; JSON exposes variance, conflicts, can_apply, and applied."}
+      ]
+    },
+    {
       "name": "status",
       "summary": "Report corpus counts for entries, links, tags, checkboxes, broken links, and orphans.",
       "mutates": false,

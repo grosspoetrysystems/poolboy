@@ -9,6 +9,7 @@ import (
 	"os/signal"
 
 	"github.com/grosspoetrysystems/poolboy/bundle"
+	"github.com/grosspoetrysystems/poolboy/internal/checkout"
 	"github.com/grosspoetrysystems/poolboy/internal/compiler"
 	"github.com/grosspoetrysystems/poolboy/internal/health"
 	"github.com/grosspoetrysystems/poolboy/internal/output"
@@ -254,4 +255,98 @@ func cmdAffected(args []string) int {
 		return productOutput(*format, paths, paths)
 	}
 	return productError(errors.New("usage: poolboy affected SOURCE [--format json]"))
+}
+
+func cmdCheckout(args []string) int {
+	fs := flag.NewFlagSet("checkout", flag.ContinueOnError)
+	format := fs.String("format", "text", "output format: text|json|csv|tsv")
+	if code := productFlags(fs, args); code >= 0 {
+		return code
+	}
+	if fs.NArg() < 1 {
+		return productError(errors.New("usage: poolboy checkout DIR [--format json]"))
+	}
+	path := fs.Arg(0)
+	if code := productFlags(fs, fs.Args()[1:]); code >= 0 {
+		return code
+	}
+	if fs.NArg() != 0 {
+		return productError(errors.New("checkout requires exactly one target directory"))
+	}
+	b, err := productBundle()
+	if err != nil {
+		return productError(err)
+	}
+	result, err := checkout.Create(b, path)
+	if err != nil {
+		return productError(err)
+	}
+	lines := []string{
+		"Created checkout: " + result.Path,
+		fmt.Sprintf("Base: %d Markdown documents", result.Documents),
+		"Edit the checkout, then preview check-in with: poolboy checkin " + result.Path,
+	}
+	if len(result.Quarantined) > 0 {
+		lines = append(lines, fmt.Sprintf("Security review required: %d likely-sensitive source path(s) were quarantined from the checkout observation.", len(result.Quarantined)))
+	}
+	return productOutput(*format, lines, result)
+}
+
+func cmdCheckin(args []string) int {
+	fs := flag.NewFlagSet("checkin", flag.ContinueOnError)
+	apply := fs.Bool("apply", false, "apply a conflict-free check-in plan to the canonical corpus")
+	format := fs.String("format", "text", "output format: text|json|csv|tsv")
+	if code := productFlags(fs, args); code >= 0 {
+		return code
+	}
+	if fs.NArg() < 1 {
+		return productError(errors.New("usage: poolboy checkin DIR [--apply] [--format json]"))
+	}
+	path := fs.Arg(0)
+	if code := productFlags(fs, fs.Args()[1:]); code >= 0 {
+		return code
+	}
+	if fs.NArg() != 0 {
+		return productError(errors.New("checkin requires exactly one checkout directory"))
+	}
+	b, err := productBundle()
+	if err != nil {
+		return productError(err)
+	}
+	plan, err := checkout.Checkin(b, path, *apply)
+	if err != nil {
+		return productError(err)
+	}
+	lines := []string{
+		fmt.Sprintf("Draft changes: %d", len(plan.DraftChanges)),
+		fmt.Sprintf("Concurrent workspace changes: %d", len(plan.WorkspaceChanges)),
+		fmt.Sprintf("Source changes since checkout: %d", len(plan.SourceChanges)),
+		fmt.Sprintf("Generator changes since checkout: %d", len(plan.GeneratorChanges)),
+		fmt.Sprintf("Likely-sensitive source paths: %d", len(plan.SourceQuarantined)),
+		fmt.Sprintf("Conflicts: %d", len(plan.Conflicts)),
+	}
+	for _, conflict := range plan.Conflicts {
+		lines = append(lines, "Conflict "+conflict.Path+": "+conflict.Reason)
+	}
+	for _, quarantined := range plan.SourceQuarantined {
+		lines = append(lines, "Quarantined "+quarantined.Path+": "+quarantined.Reason)
+	}
+	if plan.RequiresSourceReview {
+		lines = append(lines, "Source review remains required; check-in does not accept the source baseline.")
+	}
+	switch {
+	case plan.Applied:
+		lines = append(lines, "Applied check-in to the canonical corpus.")
+	case plan.CanApply:
+		lines = append(lines, "Preview only; rerun with --apply to update the canonical corpus.")
+	default:
+		lines = append(lines, "Not applicable until conflicts are resolved.")
+	}
+	if code := productOutput(*format, lines, plan); code != 0 {
+		return code
+	}
+	if !plan.CanApply {
+		return 1
+	}
+	return 0
 }

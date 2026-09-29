@@ -11,6 +11,7 @@ sources:
   - resource: ../index/index.go
   - resource: ../internal/compiler/build.go
   - resource: ../internal/source/source.go
+  - resource: ../internal/checkout/checkout.go
 ---
 # Architecture
 
@@ -57,6 +58,9 @@ Go/TypeScript components a maintainer actually edits or reasons about.
 - **`internal/source`** — the source inventory: `scan.go` builds the bounded,
   hashed baseline; `source.go` reads/writes it and computes `drift`;
   `affected.go` answers direct-provenance questions.
+- **`internal/checkout`** — creates private asynchronous Markdown checkouts,
+  records their exact document/source/generated base, computes file-level
+  three-way check-in plans, and applies only conflict-free corpus changes.
 - **`internal/output`** — renders command results as text, JSON, CSV or TSV.
 - **`internal/scaffold`** — the `init` starter project.
 - **`internal/wikilink`** — a quarantined compatibility layer that lets `tidy`
@@ -78,9 +82,11 @@ Go/TypeScript components a maintainer actually edits or reasons about.
    attempts for later I/O failures. See [Build and render](build-and-render.md).
 
 Queries and refactors (`status`, `links`, `backlinks`, `move`, `tidy`, `check`)
-operate on the index and never publish. `build` writes `dist/`; `preview` runs
-the same build and exposes that output through a temporary loopback-only HTTP
-server without signing or uploading it.
+operate on the index and never publish. `checkout` copies current Markdown and
+records a private comparison base; `checkin` previews or explicitly applies a
+file-level plan without accepting source evidence. `build` writes `dist/`;
+`preview` runs the same build and exposes that output through a temporary
+loopback-only HTTP server without signing or uploading it.
 
 ## What a consumer needs
 

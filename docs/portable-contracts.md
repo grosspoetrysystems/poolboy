@@ -27,6 +27,13 @@ or publisher trust as a review-decision store.
   approval, or stable document identity.
 - A **workspace** is the private mutable project containing authored Markdown,
   source evidence, and generated-file ownership.
+- A **checkout** is a private mutable Markdown copy plus an exact base manifest
+  created from one workspace. It records observed state; it is not a
+  publication, lock, review decision, or source baseline.
+- A **check-in plan** is a regenerable file-level comparison of a checkout base,
+  its edited draft, and the current workspace. Applying a conflict-free plan
+  transports corpus bytes into the workspace; it does not perform source
+  reconciliation.
 - A **publication** is an immutable set of static files described by one
   `graph.json`.
 - A **review plan** is a regenerable view of maintenance candidates derived
@@ -87,15 +94,17 @@ State has one job each:
 | `.poolboy/sources.lock.json` | accepted source evidence baseline | no |
 | `.poolboy/generated.json` | generated-file ownership | no |
 | computed review plan | current candidate view | yes |
+| `.poolboy/checkouts/*.json` | private checkout bases and locations | no |
 | `dist/` | static publication described by `graph.json` | yes |
 | publisher trust lock | approval of an exact graph digest and publisher | no |
 
 GPS-307 owns the schema and location for future durable review decisions and
-reconciliations. No current Poolboy operation creates or consumes such state.
-It must remain private and separate from the source baseline, generated ledger,
-and publisher trust. Changed or missing preconditions make a prior decision
-stale; unknown versions and private data presented as publication input must be
-rejected.
+reconciliations. Checkout state is not that schema: it records exact bytes for
+conflict detection but no review judgment. Durable review state must remain
+private and separate from checkout bases, the source baseline, generated
+ledger, and publisher trust. Changed or missing preconditions make a prior
+decision stale; unknown versions and private data presented as publication
+input must be rejected.
 
 ## Process boundary
 
@@ -110,10 +119,12 @@ exit classes are:
 - `2`: usage, discovery, configuration, I/O, or unsupported-contract error.
 
 Only commands listed by `poolboy help` and the generated command reference are
-implemented operations. In particular, `review`, `decide`, `apply`, and
+implemented operations. `checkout` and `checkin` transport asynchronously
+edited Markdown; `checkin --apply` is a flag-controlled mutation, not an
+`apply` command or a durable review decision. `review`, `decide`, `apply`, and
 `reconcile` are not operations yet. Clients may inspect current evidence with
 `drift`, `health`, and `affected`; they must not infer a durable decision from
-those regenerable results.
+those regenerable results or from a successful check-in.
 
 ## Contract fixture
 

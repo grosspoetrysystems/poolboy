@@ -1147,3 +1147,48 @@ func TestScanDoesNotFailWhenHealthIsUnavailable(t *testing.T) {
 		t.Fatalf("drift advisory json=%q code=%d", out, code)
 	}
 }
+
+func TestCheckoutCheckinAgentWorkflow(t *testing.T) {
+	root := writeBundle(t)
+	t.Chdir(root)
+	rootDir = ""
+	target := filepath.Join(t.TempDir(), "editing")
+
+	out, code := capture(t, func() int {
+		return cmdCheckout([]string{target, "--format", "json"})
+	})
+	if code != 0 || !strings.Contains(out, `"documents": 3`) || !strings.Contains(out, `"path": `) {
+		t.Fatalf("checkout json=%q code=%d", out, code)
+	}
+	if err := os.WriteFile(filepath.Join(target, "guide.md"), []byte("# Edited in checkout\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, code = capture(t, func() int {
+		return cmdCheckin([]string{"--format", "json", target})
+	})
+	if code != 0 || !strings.Contains(out, `"can_apply": true`) || !strings.Contains(out, `"applied": false`) {
+		t.Fatalf("checkin preview json=%q code=%d", out, code)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "guide.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "Edited in checkout") {
+		t.Fatal("checkin preview mutated the canonical corpus")
+	}
+
+	out, code = capture(t, func() int {
+		return cmdCheckin([]string{target, "--apply", "--format", "json"})
+	})
+	if code != 0 || !strings.Contains(out, `"applied": true`) {
+		t.Fatalf("checkin apply json=%q code=%d", out, code)
+	}
+	data, err = os.ReadFile(filepath.Join(root, "guide.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "# Edited in checkout\n" {
+		t.Fatalf("canonical guide=%q", data)
+	}
+}

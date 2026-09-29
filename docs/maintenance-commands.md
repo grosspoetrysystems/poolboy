@@ -42,6 +42,33 @@ outbound occurrences, `backlinks` reports incoming occurrences, and
 `unresolved` reports internal targets that do not exist. Orphan reporting
 excludes reserved navigation/log entries and configured exemptions.
 
+
+## Asynchronous checkout and check-in
+
+`checkout DIR` creates an ordinary Markdown editing directory outside the
+project root and records its exact document, source-observation, and generated
+ownership base in private `.poolboy/checkouts/` state. `DIR` must not already
+exist. The checkout contains no source files and requires no editor plugin.
+
+`checkin DIR` is read-only by default. It compares the checkout base with the
+edited draft and current canonical corpus at file granularity. Disjoint draft
+and workspace changes are applicable; divergent changes to the same path,
+delete/change pairs, and draft edits to generated documents are conflicts.
+Poolboy does not guess renames or perform a textual merge.
+
+Use `--format json` for automation. Inspect `draft_changes`,
+`workspace_changes`, `source_changes`, `source_quarantined`,
+`generator_changes`, `conflicts`, `requires_source_review`, `can_apply`, and
+`applied`. A conflict plan exits
+`1`; state, path, configuration, and I/O failures exit `2`. Only
+`checkin DIR --apply` mutates the canonical corpus, and it does so only when
+`can_apply` is true.
+
+Check-in is corpus transport, not source reconciliation. Applying a draft does
+not advance `.poolboy/sources.lock.json`, record a review decision, run
+`check`, build, approve, or publish. A reported source change remains evidence
+to review through the workflow below.
+
 ## Refactoring
 
 `move`/`mv SRC DEST` relocates an entry and rewrites inbound Markdown links to

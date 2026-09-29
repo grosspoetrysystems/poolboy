@@ -21,6 +21,40 @@ Do not publish, sign, commit, push, modify application source, install software 
 3. Check the inventory's limits before proceeding. Stop on a suspicious file or secret; report its path, not its contents. Ask for explicit authorization before widening the boundary.
 4. Prioritize entry points, manifests, schemas, types and tests. Follow concrete references progressively rather than reading the whole repository indiscriminately. Record uncertainty and conflicting behavior instead of inventing architecture.
 
+## Work asynchronously
+
+When the corpus may change while you work, create a Poolboy checkout outside
+the project root instead of editing the canonical corpus directly:
+
+```sh
+poolboy --root PROJECT checkout CHECKOUT_DIR --format json
+```
+
+Edit only Markdown under the returned `path`. Do not edit the hidden checkout
+marker. Before returning changes, preview:
+
+```sh
+poolboy --root PROJECT checkin CHECKOUT_DIR --format json
+```
+
+Read the complete JSON result. `draft_changes` are your edits;
+`workspace_changes` happened in the canonical corpus after checkout;
+`source_changes`, `source_quarantined`, and `generator_changes` happened in
+their independent state. Do not apply when `can_apply` is false; report every
+`conflicts` entry. When it
+is true and the user authorized mutation, apply the exact plan:
+
+```sh
+poolboy --root PROJECT checkin CHECKOUT_DIR --apply --format json
+```
+
+Exit `1` means a valid conflict plan, not an execution failure. Exit `2` means
+the command, project, checkout state, path, or I/O failed. A successful
+check-in transports Markdown only. It does not make source evidence reviewed,
+advance `.poolboy/sources.lock.json`, run checks, build, approve, publish, or
+commit. Draft changes to generated documents are conflicts; edit their
+template/data in the project instead.
+
 ## Reconcile before editing
 
 Every invocation starts from existing state; it is not a request to regenerate the corpus.
@@ -58,7 +92,7 @@ Repeated reference content belongs in `templates/*.md.knap` plus `data/*.json` w
 - Run `build`; resolve every publication error. Check that the final diff contains only intended corpus/template/data/config changes, without application changes or secrets.
 - Ask a separate reader to answer concrete architecture and behavior questions using only the published `llms.txt`, `graph.json` and Markdown. Missing evidence is a documentation gap, not a reason to guess.
 
-Humans can open the same corpus directory in Obsidian, GitHub or VS Code. No conversion step or synchronization copy is needed. End the workflow with a concise list of established knowledge, unresolved questions, changed source evidence and verification performed.
+Humans can read the canonical corpus directly in Obsidian, GitHub, or VS Code. For asynchronous edits, use the CLI checkout/check-in workflow above so concurrent corpus changes remain distinguishable. No editor plugin or conversion step is needed. End the workflow with a concise list of established knowledge, unresolved questions, changed source evidence and verification performed.
 
 ## Record acceptance evidence
 

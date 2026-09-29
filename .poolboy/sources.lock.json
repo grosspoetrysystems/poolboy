@@ -1,6 +1,6 @@
 {
   "version": "0",
-  "revision": "fa47ec4b27b37e5252857d66c36c553d9f83f809",
+  "revision": "7b6f58c5a66d5bea14457619849b50b1594b76c2",
   "files": {
     ".github/CODEOWNERS": {
       "type": "other",
@@ -84,8 +84,8 @@
     },
     "README.md": {
       "type": "markdown",
-      "bytes": 17411,
-      "sha256": "42e016931faa10b98fda42e3d0e363c96c482e829d12ecdae66bc0ac698b721e"
+      "bytes": 18773,
+      "sha256": "ce6013a65bd782d20d0432042b6976e3c391a831a4830ae6dc331941aa9114c6"
     },
     "SECURITY.md": {
       "type": "markdown",
@@ -109,8 +109,8 @@
     },
     "cmd/poolboy/commands_test.go": {
       "type": "go",
-      "bytes": 46021,
-      "sha256": "984b1aca131c1b5bb223dd6d5c09ab305b413edb997ce09539a8e8f6d57d158a"
+      "bytes": 47894,
+      "sha256": "04d210f84d869ff33449f88311e6e11c021c1c93c6d026b59ac348c8e3c4eba6"
     },
     "cmd/poolboy/helpers.go": {
       "type": "go",
@@ -119,8 +119,8 @@
     },
     "cmd/poolboy/main.go": {
       "type": "go",
-      "bytes": 5653,
-      "sha256": "f1d28e33c2ecb38c8dd19fc95ba89e39f96a28e39afc24baac1f7079eb33dfa8"
+      "bytes": 5891,
+      "sha256": "ef293caa0daa20834c3afccbff3d7a981b5585c114306ec3bad665a5915457f1"
     },
     "cmd/poolboy/preview.go": {
       "type": "go",
@@ -134,8 +134,8 @@
     },
     "cmd/poolboy/product.go": {
       "type": "go",
-      "bytes": 6960,
-      "sha256": "bc254aef8161ba85a925c1b9da2cc779c0f09d02e88c26c0dda2aa31ce203ded"
+      "bytes": 11197,
+      "sha256": "37dff6c08657519948ce5e4adda1629c02f904b5d1e308dee48703cdcf7e92db"
     },
     "cmd/poolboy/signing.go": {
       "type": "go",
@@ -282,6 +282,16 @@
       "bytes": 23895,
       "sha256": "8ad5c72a9b7f1c74ca13b6b25c4f6756f37b783057fbfb40efd9fa44afae6cb8"
     },
+    "internal/checkout/checkout.go": {
+      "type": "go",
+      "bytes": 19760,
+      "sha256": "df1908742a1e8d875394dfb8bc09c6e2849c4bd220eee34700174ea8a9d136c6"
+    },
+    "internal/checkout/checkout_test.go": {
+      "type": "go",
+      "bytes": 6275,
+      "sha256": "4d204ef36b70f6f56f5145a061f8a95518301a7f6acf2b2315589f9712f98a2b"
+    },
     "internal/compiler/build.go": {
       "type": "go",
       "bytes": 12502,
@@ -289,8 +299,8 @@
     },
     "internal/compiler/compiler_test.go": {
       "type": "go",
-      "bytes": 21582,
-      "sha256": "5930737b75fb8c91523f6f4dcfd95afb0ec71ab870760171d4e3ac683fe2db62"
+      "bytes": 22146,
+      "sha256": "3bf7fbec01e9e8597cc1d01258d0b02524682e989966d6bd0575c5dd1bf4a669"
     },
     "internal/compiler/graph.go": {
       "type": "go",
@@ -299,8 +309,8 @@
     },
     "internal/compiler/landing.go": {
       "type": "go",
-      "bytes": 22829,
-      "sha256": "bf09762c0a92984e678c02632c0271e197a6c87b82613d9c33668a79ae3d07a8"
+      "bytes": 23198,
+      "sha256": "b97805f577f42ed5e7219e8e1759bf188ff1d55b897c629f86d1b300ce32a908"
     },
     "internal/compiler/ledger.go": {
       "type": "go",
@@ -387,20 +397,25 @@
       "bytes": 586,
       "sha256": "9dc72b333bd5f0b3488e7852758dcb3924e8d6c33b204879a312e4dfcc7fe6d7"
     },
+    "internal/source/ignore.go": {
+      "type": "go",
+      "bytes": 2208,
+      "sha256": "33adcf5b35a2a709782b01987fa3a293fe225c67f04875da309ce9ce797ec811"
+    },
     "internal/source/scan.go": {
       "type": "go",
-      "bytes": 14406,
-      "sha256": "1c18902784482e16d075a9b1470a29325682321f94847e37a1beac27e3f47198"
+      "bytes": 14920,
+      "sha256": "9f1378235de43bc7be2d7c72f900e3d84291f01cac9e4448ac9de71eb92d78c8"
     },
     "internal/source/source.go": {
       "type": "go",
-      "bytes": 12581,
-      "sha256": "0c015dfebc949ed2805054a1e8910d97bb1f79765dbc6438c36fb7170d98bab6"
+      "bytes": 15830,
+      "sha256": "9a7667f9cd30a2c6e40e20230f6b029eb4e4d625189340e214deda3d9ab51ef4"
     },
     "internal/source/source_test.go": {
       "type": "go",
-      "bytes": 9459,
-      "sha256": "4a4fea079922bab2bc253cb60efad3a2f76084a3f590a2a8dbb0befe2d40945b"
+      "bytes": 12717,
+      "sha256": "a06ff3574f2d1a1b3cf86c6e07125f262244b6836971d5dcad187fbd4bfae622"
     },
     "internal/wikilink/wikilink.go": {
       "type": "go",
@@ -469,8 +484,8 @@
     },
     "site/start.md": {
       "type": "markdown",
-      "bytes": 2582,
-      "sha256": "1b1814d0524d795a234231979c1ad2a25a0dcc2dcd51d4b447fe84a717768d33"
+      "bytes": 3085,
+      "sha256": "5b10f9774ed8b9cadb3862c753d069ed3d569349a029b101e4c0039174f8e97b"
     },
     "site/try.md": {
       "type": "markdown",
@@ -479,8 +494,8 @@
     },
     "skills/poolboy-discovery/SKILL.md": {
       "type": "markdown",
-      "bytes": 9577,
-      "sha256": "48f82535106056476792ba2c715ca5686ca3049de0c4a51ecc9a169ddd853737"
+      "bytes": 10999,
+      "sha256": "d67522dbfaf5f101197d7e55ee5798af43bfaf4527e2815e3db210eb73fd7033"
     },
     "testdata/fixture/data/endpoints.json": {
       "type": "json",
