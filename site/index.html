@@ -54,7 +54,11 @@ Question: …</pre></div><div class="row"><button type="button" data-copy="docs-
 const base=new URL('.',location.href).href.replace(/\/$/,'');
 for(const id of ['start-prompt','docs-prompt']){const el=document.getElementById(id);el.textContent=el.textContent.replace('{{url}}',base);}
 const copyStatus=document.getElementById('status');
-let copyTimer;
-for(const button of document.querySelectorAll('[data-copy]'))button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(document.getElementById(button.dataset.copy).textContent);clearTimeout(copyTimer);copyStatus.textContent='Copied. Paste into your agent interface.';copyTimer=setTimeout(()=>{copyStatus.textContent=''},3000)}catch{clearTimeout(copyTimer);copyStatus.textContent='Select the prompt and copy it manually.'}});
+const copyButtons=document.querySelectorAll('[data-copy]');
+const copyIcon=copyButtons[0].querySelector('svg').innerHTML;
+const checkIcon='<path d="m5 12 4 4L19 6"/>';
+let copyTimer,copiedButton;
+function resetCopiedButton(){clearTimeout(copyTimer);if(!copiedButton)return;copiedButton.querySelector('svg').innerHTML=copyIcon;copiedButton=null;}
+for(const button of copyButtons)button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(document.getElementById(button.dataset.copy).textContent);resetCopiedButton();button.querySelector('svg').innerHTML=checkIcon;copiedButton=button;copyStatus.textContent='Copied. Paste into your agent interface.';copyTimer=setTimeout(()=>{resetCopiedButton();copyStatus.textContent=''},3000)}catch{resetCopiedButton();copyStatus.textContent='Select the prompt and copy it manually.'}});
 </script>
 </html>
