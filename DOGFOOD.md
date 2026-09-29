@@ -173,32 +173,35 @@ retroactively.
 
 ## External corpus fanout: 2026-09-29
 
-The separate harness at `~/Local/poolboy-test-fan` ran all ten pinned cases,
-including `mina-decentralised-treasury`, against released Poolboy `0.2.0`.
-The preserved result is `results/20260929T131951Z`.
+The disposable harness at `~/Local/poolboy-test-fan` ran all ten pinned cases,
+including `mina-decentralised-treasury`, against released Poolboy `0.2.1`. The
+preserved result is `results/20260929T212440028956Z-38983a8b`.
 
+- Cohort SHA-256:
+  `c5931ac3d422c018ca9327099102408b5c082d17be8949f259a6c4c6437f7e94`.
+- Released binary SHA-256:
+  `dea8479f57ac16a52958ab41aa89dea72fb0c0bd10b9452174af6defe70d3d74`.
 - All ten cases completed `status` and `scan`.
-- The nine nonempty foreign Markdown corpora failed canonical publication
-  validation because their documents do not declare Poolboy `type` metadata.
+- The nine nonempty foreign Markdown corpora failed canonical `check` and
+  `build` because their documents do not declare Poolboy `type` metadata.
 - The empty `kubernetes-source-docs` negative control passed `check` and failed
   `build` because it has no `/index.md`.
-- Mina contained 108 Markdown files, 516 links, 106 checkboxes, 63 broken links,
-  and 4 orphans. Its Docusaurus `page_kind` field is source evidence, not
-  Poolboy publication metadata.
+- Mina contained 108 Markdown files and 925,537 Markdown bytes. Its Docusaurus
+  `page_kind` field and routes remain source evidence, not Poolboy publication
+  metadata.
 
-These publication failures are expected and are not an ingest regression.
-Earlier green runs under `results/20260928T101330Z` and
-`results/20260928T101507Z` used an experimental binary that temporarily weakened
-the publication boundary; that change was explicitly reverted. The supported
-contract is permissive repository-evidence ingestion followed by generation and
-review of canonical Poolboy Markdown.
+This matches the released `0.2.0` publication boundary while exercising the
+`0.2.1` aggregate structured build diagnostics. Two earlier experimental green
+runs temporarily weakened that boundary and were reverted; their disposable
+result directories are not part of the retained evidence. The supported contract
+is permissive repository-evidence ingestion followed by generation and review of
+canonical Poolboy Markdown.
 
 Poolboy's boundary is repository source: it does not crawl deployed documentation,
 scrape rendered UIs, or reverse-engineer sites. The intended loop is source
 analysis, CLI/editor refinement, and human review, whether the starting repository
 has no docs, fragmented docs, or an already robust corpus.
 
-The harness now records the cohort and binary digests, invocation flags, effective
+The harness records the cohort and binary digests, invocation flags, effective
 commands, configured-corpus statistics, partial-run state, and collision-safe run
-IDs. Framework-specific route interpretation belongs to source ingestion; the
-released `0.2.0` measurements above remain the publication-validation baseline.
+IDs. Framework-specific route interpretation belongs to source ingestion.
