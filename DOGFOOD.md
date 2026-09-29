@@ -1,13 +1,68 @@
-# Poolboy self-dogfood benchmark
+# Poolboy benchmarks
 
-This benchmark tests whether a pinned Poolboy publication can answer maintainer
-questions without source access. It separates corpus usefulness from source
-correctness: source reviewers establish the expected answers, an export-only
-reader answers from `dist/`, and an independent grader compares the two.
+This file is the index for every Poolboy benchmark. Two exist, and they measure
+different things. Do not read a pass in one as evidence for the other.
+
+| Benchmark | Question it answers | Subject |
+| --- | --- | --- |
+| **Usefulness** | Can a publication answer maintainer questions without source access? | Poolboy's own corpus |
+| **Compatibility fanout** | What would it take to convert a foreign repository into a canonical corpus? | Ten pinned external repositories |
 
 Keep this file outside the configured `docs/` corpus and outside the export-only
-reader's scope. It contains the frozen questions and prior results; publishing it
-with the candidate corpus would leak the benchmark.
+reader's scope. It holds the frozen questions and prior grades; publishing it with
+the candidate corpus would leak the benchmark, and leaving it in the pinned
+worktree puts an answer key within a reader's reach.
+
+## Where things live
+
+| Artifact | Location | Retained |
+| --- | --- | --- |
+| Both protocols, frozen questions, and all results | This file | Yes, in the repository |
+| Compatibility fanout runner and cohort | `~/Local/poolboy-test-fan` | No; disposable sandbox |
+| Fanout result directories | `<sandbox>/results/<run-id>` | Only the latest, cited here |
+| Usefulness role reports and grades | Agent session scratch | No; findings are transcribed here |
+| Findings turned into work | Linear `GPS-296` and its children | Yes |
+
+The fanout sandbox is deliberately unversioned. It is a scratch harness, not a
+deliverable: recreate it, run the cohort, transcribe the numbers here, and discard
+it. Only the numbers quoted in this file are durable, which is why every result
+section states its digests inline rather than pointing at a directory that will be
+deleted.
+
+## Replay
+
+Both benchmarks pin a specimen and name an explicit released version. Never
+benchmark an unversioned executable found on `PATH`.
+
+Usefulness, against Poolboy's own corpus:
+
+```sh
+SOURCE_REV=$(git rev-parse HEAD)
+PROJECT=$(mktemp -d /tmp/poolboy-self-dogfood.XXXXXX)
+git worktree add --detach "$PROJECT" "$SOURCE_REV"
+rm -f "$PROJECT/DOGFOOD.md"   # remove the answer key before any reader runs
+```
+
+Then follow "Reproducible flow" below.
+
+Compatibility fanout, against the pinned external cohort:
+
+```sh
+gh release download "v<version>" --repo grosspoetrysystems/poolboy \
+  --pattern 'poolboy_<version>_<os>_<arch>.tar.gz' --dir /tmp/poolboy-<version>
+tar -xzf /tmp/poolboy-<version>/poolboy_<version>_*.tar.gz -C /tmp/poolboy-<version>
+python3 run.py --poolboy /tmp/poolboy-<version>/poolboy
+```
+
+The runner refuses dirty pinned checkouts and writes one collision-safe result
+directory carrying the cohort digest, the binary digest, and per-case command
+exits.
+
+## The usefulness benchmark
+
+It separates corpus usefulness from source correctness: source reviewers establish
+the expected answers, an export-only reader answers from `dist/`, and an
+independent grader compares the two.
 
 ## Acceptance rule
 
@@ -360,7 +415,7 @@ that verification never silently downgrades to key-continuity trust.
 bytes. That difference is reader variance, not corpus improvement, and is the
 reason grade movement on an unchanged corpus cannot be read as progress.
 
-## External corpus fanout: 2026-09-29
+## Compatibility fanout: 2026-09-29, Poolboy 0.2.1
 
 The disposable harness at `~/Local/poolboy-test-fan` ran all ten pinned cases,
 including `mina-decentralised-treasury`, against released Poolboy `0.2.1`. The
