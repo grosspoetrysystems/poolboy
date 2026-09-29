@@ -13,12 +13,24 @@ with the candidate corpus would leak the benchmark.
 
 Freeze the questions and grading rule before any reviewer starts.
 
-- Questions Q1–Q5 pass only when the export-only answer is correct, materially
-  complete, and supported by exported citations.
-- Q6 is a deliberate unsupported control. It passes only when the reader refuses
-  to guess.
-- The usefulness gate passes only when Q1–Q5 are all correct and Q6 is
-  unsupported.
+- Every graded question passes only when the export-only answer is correct,
+  materially complete, and supported by exported citations.
+- Refusal tiers test the opposite failure from the graded tiers. A corpus that
+  answers everything agreeably is not useful; it is dangerous.
+  - `U1` is an in-domain question the export genuinely cannot answer. It passes
+    only when the reader refuses to guess.
+  - `F` questions embed a false premise: they name a feature, flag, or setting
+    that does not exist. They pass only when the reader rejects the premise
+    rather than describing the invented feature. Confirm each premise is absent
+    from both source and export before freezing it.
+  - `X` questions are entirely outside the domain. They pass only when the
+    reader declines on scope grounds instead of answering from world knowledge.
+- Difficulty tiers are graded separately so partial usefulness is visible:
+  `E` is single-document lookup, `M` is cross-document synthesis, and `H` is
+  operational reasoning about contracts, failure, and enforcement.
+- The usefulness gate passes only when every `E`, `M`, and `H` question is
+  correct and every `U`, `F`, and `X` question is correctly refused. Report each
+  tier's pass rate even when the gate fails.
 - Grade each question `correct`, `partial`, `incorrect`, or `unsupported`.
 - A successful `check` or `build` is setup evidence, not a benchmark pass.
 
@@ -64,29 +76,66 @@ candidate publication.
 
 ### 3. Freeze the questions
 
-1. **Evidence lifecycle:** after drift, when may `scan --accept` run, and what do
-   `check` and `build` prove?
-2. **Publication failure and generated ownership:** what remains unchanged after
-   validation, render, or staging failure, and how are generated Markdown files
-   owned?
-3. **Move semantics:** what does `move` rewrite, and what additional step is
+**Easy — single-document lookup.**
+
+1. `E1` Which files does a successful `build` publish into `dist/`?
+2. `E2` What is the renderer companion's process and transport protocol?
+3. `E3` Which commands read or query a corpus without mutating it?
+4. `E4` What are the three separate states tracked by source inventory?
+
+**Medium — cross-document synthesis.**
+
+1. `M1` How do `scan`, `drift`, and `accept` relate to `check` and `build`?
+2. `M2` What distinguishes generated from authored Markdown across build,
+   maintenance, and ownership rules?
+3. `M3` Which boundaries constrain the renderer, and what happens when it fails?
+4. `M4` How does a consumer discover and verify a publication's identity?
+
+**Hard — operational reasoning.**
+
+1. `H1` **Evidence lifecycle:** after drift, when may `scan --accept` run, and
+   what do `check` and `build` prove?
+2. `H2` **Publication failure and generated ownership:** what remains unchanged
+   after validation, render, or staging failure, and how are generated Markdown
+   files owned?
+3. `H3` **Move semantics:** what does `move` rewrite, and what additional step is
    required when the moved file is generated?
-4. **Asynchronous checkout:** what state can conflict at check-in, and what does
-   applying a valid plan do and not do?
-5. **Versioned structured help:** how is help sourced, checked, snapshotted,
+4. `H4` **Asynchronous checkout:** what state can conflict at check-in, and what
+   does applying a valid plan do and not do?
+5. `H5` **Versioned structured help:** how is help sourced, checked, snapshotted,
    released, and deployed?
-6. **Unsupported control:** which GitHub branch-rule bypass actors are enabled on
-   `main`?
+
+**Control — in-domain but unsupported.**
+
+1. `U1` **Unsupported control:** which GitHub branch-rule bypass actors are
+   enabled on `main`?
+
+**False premise — invented features.**
+
+Each premise below is absent from both source and export; a reader that explains
+the feature is hallucinating rather than reading.
+
+1. `F1` How does the `[[publish]].cdn` setting in `poolboy.toml` configure asset
+   uploads?
+2. `F2` What exponential backoff does the renderer use when the Knap companion
+   times out?
+3. `F3` Which webhook does Poolboy POST to after a successful publication?
+
+**Out of scope — eagerness control.**
+
+1. `X1` What should I order from McDonald's?
+2. `X2` What is the capital of Australia?
+3. `X3` Summarize the plot of *Moby-Dick*.
 
 ### 4. Fan out independent roles
 
 Run these roles concurrently where dependencies permit:
 
-- one source reviewer for Q1;
-- one source reviewer for Q2;
-- one source reviewer for Q3;
-- one source reviewer for Q4 and Q5;
-- one reader restricted to `dist/`, answering Q1–Q6 from `llms.txt`,
+- one source reviewer for the easy tier `E1`–`E4`;
+- one source reviewer for the medium tier `M1`–`M4`;
+- one source reviewer for `H1`–`H3`;
+- one source reviewer for `H4` and `H5`;
+- one reader restricted to `dist/`, answering every question from `llms.txt`,
   `graph.json`, and exported Markdown.
 
 Source reviewers cite implementation, tests, and canonical documentation. The
@@ -104,6 +153,37 @@ Record every grade, material miss, elapsed time, reported model usage or cost,
 manual intervention, and harness limitation. Unknown usage is `unknown`, not
 zero. Preserve a failing baseline. Do not edit the corpus and rerun until the
 first result looks successful.
+
+## Reusable architecture
+
+This procedure is currently run by hand. The parts worth extracting, and the
+parts that must not be extracted, are recorded here so a later harness does not
+have to rediscover them. Tracked in `GPS-334` through `GPS-337`.
+
+**Reusable.** The question bank as data rather than prose, keyed by id and tier.
+The role fan-out shape: independent source reviewers per tier, one export-only
+reader, one grader that never repairs the reader's answer from repository
+knowledge. The result schema already used by the external fanout harness: run id,
+cohort digest, binary digest, invocation flags, effective commands, and partial-run
+state. Per-tier pass rates computed rather than tallied by hand.
+
+**Not reusable, and deliberately so.** The questions themselves. A bank authored
+by reading the export makes the lookup and synthesis tiers pass by construction.
+Questions come from maintainer tasks and source behavior with the export unseen,
+and false premises are verified absent from both source and export before they are
+frozen.
+
+**Two controls the current procedure lacks.**
+
+The export-only boundary is self-reported. The pinned worktree still contains this
+file, which is an answer key, and filesystem access lets a reader enumerate the
+whole export. A real consumer gets a base URL and must navigate from `llms.txt`
+and `graph.json` without a directory listing.
+
+A single reader run is one sample, not a measurement. Two runs against an
+identical publication digest have already produced materially different grades, so
+a grade shift is only corpus evidence when it exceeds observed variance on an
+unchanged corpus.
 
 ## Baseline: 2026-09-29
 
