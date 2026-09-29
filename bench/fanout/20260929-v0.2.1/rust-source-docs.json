@@ -1,0 +1,49 @@
+{
+  "id": "rust-source-docs",
+  "repo": "rust",
+  "revision": "28b6e691688c15cef4c60d9044274e7b84397870",
+  "corpus": "src/doc",
+  "tier": "monorepo-noise",
+  "role": "nested books, generated docs, and uninitialized documentation submodules",
+  "axes": {
+    "coupling": "implementation monorepo",
+    "authorship": "mixed and checkout-dependent",
+    "frontmatter": "mostly absent",
+    "i18n": "none",
+    "size": "large repository",
+    "doc_density": "low",
+    "links": "relative mdBook navigation",
+    "templating": "mdBook and Rust generators"
+  },
+  "commands": {
+    "check": {
+      "exit_code": 1,
+      "seconds": 0.101832
+    },
+    "status": {
+      "exit_code": 0,
+      "seconds": 0.06192
+    },
+    "scan": {
+      "exit_code": 0,
+      "seconds": 5.902541
+    },
+    "build": {
+      "exit_code": 1,
+      "seconds": 0.110037
+    }
+  },
+  "configured_corpus": "src/doc",
+  "corpus_stats": {
+    "markdown_files": 666,
+    "markdown_bytes": 3241559,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  },
+  "configured_corpus_stats": {
+    "markdown_files": 666,
+    "markdown_bytes": 3241559,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  }
+}

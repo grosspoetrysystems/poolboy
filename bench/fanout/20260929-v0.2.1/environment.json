@@ -1,0 +1,35 @@
+{
+  "schema": 2,
+  "run_id": "20260929T212440028956Z-38983a8b",
+  "cohort_sha256": "c5931ac3d422c018ca9327099102408b5c082d17be8949f259a6c4c6437f7e94",
+  "baseline": "raw-content-with-config-only",
+  "poolboy": "/private/tmp/poolboy-v0.2.1/poolboy",
+  "poolboy_sha256": "dea8479f57ac16a52958ab41aa89dea72fb0c0bd10b9452174af6defe70d3d74",
+  "poolboy_version": "0.2.1",
+  "arguments": {
+    "cases": [],
+    "skip_build": false,
+    "ingest_only": false
+  },
+  "started_at": "2026-09-29T21:24:40.081280+00:00",
+  "cases": [
+    "rust-book",
+    "uv-docs",
+    "kubernetes-website-en",
+    "kubernetes-api-generated",
+    "kubernetes-website-zh",
+    "aragon-app-docs",
+    "aragon-gov-ui-mdx",
+    "rust-source-docs",
+    "kubernetes-source-docs",
+    "mina-decentralised-treasury"
+  ],
+  "complete": false,
+  "results": [],
+  "effective_commands": [
+    "check",
+    "status",
+    "scan",
+    "build"
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "id": "kubernetes-website-zh",
+  "repo": "kubernetes-website",
+  "revision": "0dbea273dea04a241b6616534768a10e0ba14872",
+  "corpus": "content/zh-cn/docs",
+  "tier": "localization",
+  "role": "localized corpus with intentional duplication and embedded English comments",
+  "axes": {
+    "coupling": "separate website repository",
+    "authorship": "translated and mixed",
+    "frontmatter": "rich Hugo YAML",
+    "i18n": "zh-cn",
+    "size": "large",
+    "doc_density": "high",
+    "links": "relative, absolute, anchors, shortcodes",
+    "templating": "Hugo shortcodes"
+  },
+  "commands": {
+    "check": {
+      "exit_code": 1,
+      "seconds": 0.356613
+    },
+    "status": {
+      "exit_code": 0,
+      "seconds": 0.304511
+    },
+    "scan": {
+      "exit_code": 0,
+      "seconds": 2.557724
+    },
+    "build": {
+      "exit_code": 1,
+      "seconds": 0.460652
+    }
+  },
+  "configured_corpus": "content/zh-cn/docs",
+  "corpus_stats": {
+    "markdown_files": 1661,
+    "markdown_bytes": 18609154,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  },
+  "configured_corpus_stats": {
+    "markdown_files": 1661,
+    "markdown_bytes": 18609154,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  }
+}

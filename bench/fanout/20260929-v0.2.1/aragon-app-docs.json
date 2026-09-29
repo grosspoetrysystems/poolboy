@@ -1,0 +1,49 @@
+{
+  "id": "aragon-app-docs",
+  "repo": "aragon-app",
+  "revision": "0c3c946c0f3206ac1c224fed43e8a100540f7bf4",
+  "corpus": "apps/app/docs",
+  "tier": "private-production-docs",
+  "role": "real production architecture and workflow documentation",
+  "axes": {
+    "coupling": "same monorepo",
+    "authorship": "authored with legacy material",
+    "frontmatter": "mostly absent",
+    "i18n": "none",
+    "size": "small",
+    "doc_density": "low",
+    "links": "relative and external operational links",
+    "templating": "none"
+  },
+  "commands": {
+    "check": {
+      "exit_code": 1,
+      "seconds": 0.012329
+    },
+    "status": {
+      "exit_code": 0,
+      "seconds": 0.012671
+    },
+    "scan": {
+      "exit_code": 0,
+      "seconds": 0.541601
+    },
+    "build": {
+      "exit_code": 1,
+      "seconds": 0.012485
+    }
+  },
+  "configured_corpus": "apps/app/docs",
+  "corpus_stats": {
+    "markdown_files": 18,
+    "markdown_bytes": 108490,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  },
+  "configured_corpus_stats": {
+    "markdown_files": 18,
+    "markdown_bytes": 108490,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  }
+}

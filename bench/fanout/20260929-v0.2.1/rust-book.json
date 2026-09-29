@@ -1,0 +1,49 @@
+{
+  "id": "rust-book",
+  "repo": "rust-book",
+  "revision": "1500248d8f230566e4ec9f27fcbb8fe9e2898ab1",
+  "corpus": "src",
+  "tier": "clean-control",
+  "role": "authored hierarchical Markdown baseline",
+  "axes": {
+    "coupling": "docs-only",
+    "authorship": "authored",
+    "frontmatter": "mostly absent",
+    "i18n": "none",
+    "size": "medium",
+    "doc_density": "high",
+    "links": "relative and mdBook navigation",
+    "templating": "mdBook preprocessors"
+  },
+  "commands": {
+    "check": {
+      "exit_code": 1,
+      "seconds": 0.020723
+    },
+    "status": {
+      "exit_code": 0,
+      "seconds": 0.020244
+    },
+    "scan": {
+      "exit_code": 0,
+      "seconds": 0.111224
+    },
+    "build": {
+      "exit_code": 1,
+      "seconds": 0.022486
+    }
+  },
+  "configured_corpus": "src",
+  "corpus_stats": {
+    "markdown_files": 112,
+    "markdown_bytes": 1221077,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  },
+  "configured_corpus_stats": {
+    "markdown_files": 112,
+    "markdown_bytes": 1221077,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  }
+}

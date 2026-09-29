@@ -1,0 +1,49 @@
+{
+  "id": "kubernetes-api-generated",
+  "repo": "kubernetes-website",
+  "revision": "0dbea273dea04a241b6616534768a10e0ba14872",
+  "corpus": "content/en/docs/reference/kubernetes-api",
+  "tier": "generated-docs",
+  "role": "large generated API pages and generated frontmatter",
+  "axes": {
+    "coupling": "generated in website repository",
+    "authorship": "generated",
+    "frontmatter": "generated Hugo YAML",
+    "i18n": "English",
+    "size": "large pages",
+    "doc_density": "high",
+    "links": "relative and anchors",
+    "templating": "generator templates"
+  },
+  "commands": {
+    "check": {
+      "exit_code": 1,
+      "seconds": 0.068057
+    },
+    "status": {
+      "exit_code": 0,
+      "seconds": 0.064086
+    },
+    "scan": {
+      "exit_code": 0,
+      "seconds": 2.118831
+    },
+    "build": {
+      "exit_code": 1,
+      "seconds": 0.030288
+    }
+  },
+  "configured_corpus": "content/en/docs/reference/kubernetes-api",
+  "corpus_stats": {
+    "markdown_files": 162,
+    "markdown_bytes": 6283682,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  },
+  "configured_corpus_stats": {
+    "markdown_files": 162,
+    "markdown_bytes": 6283682,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  }
+}

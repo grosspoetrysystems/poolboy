@@ -1,0 +1,49 @@
+{
+  "id": "kubernetes-source-docs",
+  "repo": "kubernetes",
+  "revision": "26a0b28c58c704baf4e4e7acc5443a99445615bb",
+  "corpus": "docs",
+  "tier": "sparse-negative-control",
+  "role": "sparse generated-doc boundary inside a huge noisy implementation repository",
+  "axes": {
+    "coupling": "implementation monorepo with external website",
+    "authorship": "sparse and generated",
+    "frontmatter": "not representative",
+    "i18n": "code translations only",
+    "size": "very large repository",
+    "doc_density": "very low",
+    "links": "mixed root and release-history links",
+    "templating": "generated command and API docs"
+  },
+  "commands": {
+    "check": {
+      "exit_code": 0,
+      "seconds": 0.008955
+    },
+    "status": {
+      "exit_code": 0,
+      "seconds": 0.01031
+    },
+    "scan": {
+      "exit_code": 0,
+      "seconds": 3.06503
+    },
+    "build": {
+      "exit_code": 2,
+      "seconds": 0.009774
+    }
+  },
+  "configured_corpus": "docs",
+  "corpus_stats": {
+    "markdown_files": 0,
+    "markdown_bytes": 0,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  },
+  "configured_corpus_stats": {
+    "markdown_files": 0,
+    "markdown_bytes": 0,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  }
+}

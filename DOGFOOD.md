@@ -17,17 +17,27 @@ worktree puts an answer key within a reader's reach.
 
 | Artifact | Location | Retained |
 | --- | --- | --- |
-| Both protocols, frozen questions, and all results | This file | Yes, in the repository |
-| Compatibility fanout runner and cohort | `~/Local/poolboy-test-fan` | No; disposable sandbox |
-| Fanout result directories | `<sandbox>/results/<run-id>` | Only the latest, cited here |
-| Usefulness role reports and grades | Agent session scratch | No; findings are transcribed here |
+| Both protocols, frozen questions, and all results | This file | Yes |
+| Cohort manifest and fanout runner | `bench/cohort.json`, `bench/fanout.py` | Yes |
+| Per-run role reports and grades | `bench/usefulness/<date>-v<version>/` | Yes |
+| Per-run fanout summaries | `bench/fanout/<date>-v<version>/` | Yes |
+| Cohort clones, worktrees, and raw command output | Sandbox outside the repository | No |
 | Findings turned into work | Linear `GPS-296` and its children | Yes |
 
-The fanout sandbox is deliberately unversioned. It is a scratch harness, not a
-deliverable: recreate it, run the cohort, transcribe the numbers here, and discard
-it. Only the numbers quoted in this file are durable, which is why every result
-section states its digests inline rather than pointing at a directory that will be
-deleted.
+Everything needed to replay is versioned. The sandbox holds only bulk scratch:
+the ten upstream clones and the multi-megabyte raw `scan` and `check` output. The
+runner refuses to run with a sandbox inside the repository, so a replay cannot
+accidentally commit vendored upstream source.
+
+Two cohort repositories are access-restricted, `aragon-app` and
+`decentralised-treasury`. The manifest marks them, so a replayer without access
+gets an explicit gap rather than an opaque clone failure on two of ten cases.
+
+The `cohort_sha256` digest covers the case definitions only — id, repo, revision,
+and corpus path — not the whole manifest file. Editing a clone URL or prose must
+not look like a cohort change. The `c5931ac3…` digest recorded for the 0.2.1
+fanout below predates this change and was computed over the entire file; the same
+cases now digest to `cde9cbbe…`.
 
 ## Replay
 
@@ -45,18 +55,29 @@ rm -f "$PROJECT/DOGFOOD.md"   # remove the answer key before any reader runs
 
 Then follow "Reproducible flow" below.
 
-Compatibility fanout, against the pinned external cohort:
+Compatibility fanout, against the pinned external cohort. Recreate the sandbox
+from the manifest, then run:
 
 ```sh
+SANDBOX=~/Local/poolboy-test-fan
+mkdir -p "$SANDBOX"
+jq -r '.repos | to_entries[] | "\(.key)\t\(.value.url)"' bench/cohort.json |
+  while IFS=$'\t' read -r name url; do
+    [ -d "$SANDBOX/$name" ] || git clone "$url" "$SANDBOX/$name"
+  done
+
 gh release download "v<version>" --repo grosspoetrysystems/poolboy \
   --pattern 'poolboy_<version>_<os>_<arch>.tar.gz' --dir /tmp/poolboy-<version>
 tar -xzf /tmp/poolboy-<version>/poolboy_<version>_*.tar.gz -C /tmp/poolboy-<version>
-python3 run.py --poolboy /tmp/poolboy-<version>/poolboy
+
+python3 bench/fanout.py --sandbox "$SANDBOX" --poolboy /tmp/poolboy-<version>/poolboy
 ```
 
-The runner refuses dirty pinned checkouts and writes one collision-safe result
-directory carrying the cohort digest, the binary digest, and per-case command
-exits.
+Each clone must sit at its pinned revision and be clean; the runner refuses
+otherwise. It writes one collision-safe result directory into the sandbox
+carrying the cohort digest, the binary digest, and per-case command exits. Copy
+the top-level and per-case `summary.json` files into `bench/fanout/` and discard
+the rest.
 
 ## The usefulness benchmark
 

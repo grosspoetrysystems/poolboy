@@ -1,0 +1,49 @@
+{
+  "id": "mina-decentralised-treasury",
+  "repo": "decentralised-treasury",
+  "revision": "f399bb347c32aecaac13e2b8721df1b36e9ac9d9",
+  "corpus": "apps/docs/docs",
+  "tier": "product-monorepo",
+  "role": "user, operator, developer, and protocol documentation beside implementation",
+  "axes": {
+    "coupling": "TypeScript implementation monorepo",
+    "authorship": "mixed authored and generated guides",
+    "frontmatter": "Docusaurus metadata",
+    "i18n": "none",
+    "size": "medium repository",
+    "doc_density": "medium",
+    "links": "Docusaurus routes and relative Markdown",
+    "templating": "Docusaurus and generated reference guides"
+  },
+  "commands": {
+    "check": {
+      "exit_code": 1,
+      "seconds": 0.029975
+    },
+    "status": {
+      "exit_code": 0,
+      "seconds": 0.041721
+    },
+    "scan": {
+      "exit_code": 0,
+      "seconds": 0.288875
+    },
+    "build": {
+      "exit_code": 1,
+      "seconds": 0.032525
+    }
+  },
+  "configured_corpus": "apps/docs/docs",
+  "corpus_stats": {
+    "markdown_files": 108,
+    "markdown_bytes": 925537,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  },
+  "configured_corpus_stats": {
+    "markdown_files": 108,
+    "markdown_bytes": 925537,
+    "mdx_files": 0,
+    "mdx_bytes": 0
+  }
+}

@@ -1,0 +1,215 @@
+{
+  "baseline": "raw-content-with-config-only",
+  "repos": {
+    "rust-book": {
+      "url": "https://github.com/rust-lang/book.git",
+      "access": "public"
+    },
+    "uv": {
+      "url": "https://github.com/astral-sh/uv.git",
+      "access": "public"
+    },
+    "kubernetes-website": {
+      "url": "https://github.com/kubernetes/website.git",
+      "access": "public"
+    },
+    "kubernetes": {
+      "url": "https://github.com/kubernetes/kubernetes.git",
+      "access": "public"
+    },
+    "rust": {
+      "url": "https://github.com/rust-lang/rust.git",
+      "access": "public"
+    },
+    "aragon-app": {
+      "url": "https://github.com/aragon/app.git",
+      "access": "restricted"
+    },
+    "decentralised-treasury": {
+      "url": "https://github.com/MinaFoundation/decentralised-treasury.git",
+      "access": "restricted"
+    }
+  },
+  "cases": [
+    {
+      "id": "rust-book",
+      "repo": "rust-book",
+      "revision": "1500248d8f230566e4ec9f27fcbb8fe9e2898ab1",
+      "corpus": "src",
+      "tier": "clean-control",
+      "role": "authored hierarchical Markdown baseline",
+      "axes": {
+        "coupling": "docs-only",
+        "authorship": "authored",
+        "frontmatter": "mostly absent",
+        "i18n": "none",
+        "size": "medium",
+        "doc_density": "high",
+        "links": "relative and mdBook navigation",
+        "templating": "mdBook preprocessors"
+      }
+    },
+    {
+      "id": "uv-docs",
+      "repo": "uv",
+      "revision": "a5eb2a60213f9c85d375374e2010c2c68df0ab5e",
+      "corpus": "docs",
+      "tier": "embedded-docs",
+      "role": "structured docs inside an implementation repository",
+      "axes": {
+        "coupling": "same repository",
+        "authorship": "authored with generated gaps",
+        "frontmatter": "mixed",
+        "i18n": "none",
+        "size": "medium",
+        "doc_density": "medium",
+        "links": "relative, absolute, redirects",
+        "templating": "MkDocs extensions"
+      }
+    },
+    {
+      "id": "kubernetes-website-en",
+      "repo": "kubernetes-website",
+      "revision": "0dbea273dea04a241b6616534768a10e0ba14872",
+      "corpus": "content/en/docs",
+      "tier": "large-mixed-docs",
+      "role": "large English Hugo corpus containing authored and generated documentation",
+      "axes": {
+        "coupling": "separate website repository",
+        "authorship": "mixed authored and generated",
+        "frontmatter": "rich Hugo YAML",
+        "i18n": "English side of multilingual site",
+        "size": "large",
+        "doc_density": "high",
+        "links": "relative, absolute, anchors, shortcodes",
+        "templating": "Hugo shortcodes"
+      }
+    },
+    {
+      "id": "kubernetes-api-generated",
+      "repo": "kubernetes-website",
+      "revision": "0dbea273dea04a241b6616534768a10e0ba14872",
+      "corpus": "content/en/docs/reference/kubernetes-api",
+      "tier": "generated-docs",
+      "role": "large generated API pages and generated frontmatter",
+      "axes": {
+        "coupling": "generated in website repository",
+        "authorship": "generated",
+        "frontmatter": "generated Hugo YAML",
+        "i18n": "English",
+        "size": "large pages",
+        "doc_density": "high",
+        "links": "relative and anchors",
+        "templating": "generator templates"
+      }
+    },
+    {
+      "id": "kubernetes-website-zh",
+      "repo": "kubernetes-website",
+      "revision": "0dbea273dea04a241b6616534768a10e0ba14872",
+      "corpus": "content/zh-cn/docs",
+      "tier": "localization",
+      "role": "localized corpus with intentional duplication and embedded English comments",
+      "axes": {
+        "coupling": "separate website repository",
+        "authorship": "translated and mixed",
+        "frontmatter": "rich Hugo YAML",
+        "i18n": "zh-cn",
+        "size": "large",
+        "doc_density": "high",
+        "links": "relative, absolute, anchors, shortcodes",
+        "templating": "Hugo shortcodes"
+      }
+    },
+    {
+      "id": "aragon-app-docs",
+      "repo": "aragon-app",
+      "revision": "0c3c946c0f3206ac1c224fed43e8a100540f7bf4",
+      "corpus": "apps/app/docs",
+      "tier": "private-production-docs",
+      "role": "real production architecture and workflow documentation",
+      "axes": {
+        "coupling": "same monorepo",
+        "authorship": "authored with legacy material",
+        "frontmatter": "mostly absent",
+        "i18n": "none",
+        "size": "small",
+        "doc_density": "low",
+        "links": "relative and external operational links",
+        "templating": "none"
+      }
+    },
+    {
+      "id": "aragon-gov-ui-mdx",
+      "repo": "aragon-app",
+      "revision": "0c3c946c0f3206ac1c224fed43e8a100540f7bf4",
+      "corpus": "packages/gov-ui-kit",
+      "tier": "mdx-negative-control",
+      "role": "MDX and Storybook material that Poolboy must not silently count as Markdown",
+      "axes": {
+        "coupling": "co-located with components",
+        "authorship": "authored and executable MDX",
+        "frontmatter": "Storybook Meta and imports",
+        "i18n": "none",
+        "size": "medium",
+        "doc_density": "low",
+        "links": "imports, relative links, raw-loader references",
+        "templating": "MDX JSX"
+      }
+    },
+    {
+      "id": "rust-source-docs",
+      "repo": "rust",
+      "revision": "28b6e691688c15cef4c60d9044274e7b84397870",
+      "corpus": "src/doc",
+      "tier": "monorepo-noise",
+      "role": "nested books, generated docs, and uninitialized documentation submodules",
+      "axes": {
+        "coupling": "implementation monorepo",
+        "authorship": "mixed and checkout-dependent",
+        "frontmatter": "mostly absent",
+        "i18n": "none",
+        "size": "large repository",
+        "doc_density": "low",
+        "links": "relative mdBook navigation",
+        "templating": "mdBook and Rust generators"
+      }
+    },
+    {
+      "id": "kubernetes-source-docs",
+      "repo": "kubernetes",
+      "revision": "26a0b28c58c704baf4e4e7acc5443a99445615bb",
+      "corpus": "docs",
+      "tier": "sparse-negative-control",
+      "role": "sparse generated-doc boundary inside a huge noisy implementation repository",
+      "axes": {
+        "coupling": "implementation monorepo with external website",
+        "authorship": "sparse and generated",
+        "frontmatter": "not representative",
+        "i18n": "code translations only",
+        "size": "very large repository",
+        "doc_density": "very low",
+        "links": "mixed root and release-history links",
+        "templating": "generated command and API docs"
+      }
+    },
+    {
+      "id": "mina-decentralised-treasury",
+      "repo": "decentralised-treasury",
+      "revision": "f399bb347c32aecaac13e2b8721df1b36e9ac9d9",
+      "corpus": "apps/docs/docs",
+      "tier": "product-monorepo",
+      "role": "user, operator, developer, and protocol documentation beside implementation",
+      "axes": {
+        "coupling": "TypeScript implementation monorepo",
+        "authorship": "mixed authored and generated guides",
+        "frontmatter": "Docusaurus metadata",
+        "i18n": "none",
+        "size": "medium repository",
+        "doc_density": "medium",
+        "links": "Docusaurus routes and relative Markdown",
+        "templating": "Docusaurus and generated reference guides"
+      }
+    }
+  ]
+}
