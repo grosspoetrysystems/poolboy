@@ -10,6 +10,7 @@ node_modules/
 coverage.out
 *.test
 *.tsbuildinfo
+__pycache__/
 **/.poolboy/*
 !**/.poolboy/generated.json
 !**/.poolboy/sources.lock.json
