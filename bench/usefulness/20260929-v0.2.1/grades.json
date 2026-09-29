@@ -1,0 +1,22 @@
+{
+  "E1": "correct",
+  "E2": "correct",
+  "E3": "correct",
+  "E4": "correct",
+  "M1": "correct",
+  "M2": "correct",
+  "M3": "correct",
+  "M4": "partial",
+  "H1": "correct",
+  "H2": "correct",
+  "H3": "partial",
+  "H4": "partial",
+  "H5": "incorrect",
+  "U1": "unsupported",
+  "F1": "false-premise",
+  "F2": "false-premise",
+  "F3": "false-premise",
+  "X1": "out-of-scope",
+  "X2": "out-of-scope",
+  "X3": "out-of-scope"
+}

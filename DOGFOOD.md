@@ -17,7 +17,8 @@ worktree puts an answer key within a reader's reach.
 
 | Artifact | Location | Retained |
 | --- | --- | --- |
-| Both protocols, frozen questions, and all results | This file | Yes |
+| Both protocols and all recorded results | This file | Yes |
+| Question bank and scorer | `bench/questions.json`, `bench/usefulness.py` | Yes |
 | Cohort manifest and fanout runner | `bench/cohort.json`, `bench/fanout.py` | Yes |
 | Per-run role reports and grades | `bench/usefulness/<date>-v<version>/` | Yes |
 | Per-run fanout summaries | `bench/fanout/<date>-v<version>/` | Yes |
@@ -162,56 +163,18 @@ candidate publication.
 
 ### 3. Freeze the questions
 
-**Easy — single-document lookup.**
+The question bank is `bench/questions.json`, not prose. Read it there; it carries
+each question's id, tier, text, and any note that affects grading. Freeze it
+before a reviewer starts, and change it in its own commit so a run always cites a
+committed bank.
 
-1. `E1` Which files does a successful `build` publish into `dist/`?
-2. `E2` What is the renderer companion's process and transport protocol?
-3. `E3` Which commands read or query a corpus without mutating it?
-4. `E4` What are the three separate states tracked by source inventory?
+Six tiers, in two groups. `E` lookup, `M` synthesis, and `H` operational
+reasoning are graded on being right. `U` in-domain-unsupported, `F` false
+premise, and `X` out of scope are graded on refusing — a confident answer there
+is the failure, not the success.
 
-**Medium — cross-document synthesis.**
-
-1. `M1` How do `scan`, `drift`, and `accept` relate to `check` and `build`?
-2. `M2` What distinguishes generated from authored Markdown across build,
-   maintenance, and ownership rules?
-3. `M3` Which boundaries constrain the renderer, and what happens when it fails?
-4. `M4` How does a consumer discover and verify a publication's identity?
-
-**Hard — operational reasoning.**
-
-1. `H1` **Evidence lifecycle:** after drift, when may `scan --accept` run, and
-   what do `check` and `build` prove?
-2. `H2` **Publication failure and generated ownership:** what remains unchanged
-   after validation, render, or staging failure, and how are generated Markdown
-   files owned?
-3. `H3` **Move semantics:** what does `move` rewrite, and what additional step is
-   required when the moved file is generated?
-4. `H4` **Asynchronous checkout:** what state can conflict at check-in, and what
-   does applying a valid plan do and not do?
-5. `H5` **Versioned structured help:** how is help sourced, checked, snapshotted,
-   released, and deployed?
-
-**Control — in-domain but unsupported.**
-
-1. `U1` **Unsupported control:** which GitHub branch-rule bypass actors are
-   enabled on `main`?
-
-**False premise — invented features.**
-
-Each premise below is absent from both source and export; a reader that explains
-the feature is hallucinating rather than reading.
-
-1. `F1` How does the `[[publish]].cdn` setting in `poolboy.toml` configure asset
-   uploads?
-2. `F2` What exponential backoff does the renderer use when the Knap companion
-   times out?
-3. `F3` Which webhook does Poolboy POST to after a successful publication?
-
-**Out of scope — eagerness control.**
-
-1. `X1` What should I order from McDonald's?
-2. `X2` What is the capital of Australia?
-3. `X3` Summarize the plot of *Moby-Dick*.
+`F` premises name features that do not exist. Verify each `absent_term` is absent
+from both source and export before freezing, or the question tests nothing.
 
 ### 4. Fan out independent roles
 
@@ -233,7 +196,21 @@ After those roles finish, give their reports to a separate grader. The grader
 compares answers against source expectations without repairing the consumer
 answers from repository knowledge.
 
-### 5. Record the run without laundering failures
+### 5. Score the run
+
+Write the grader's verdicts to `bench/usefulness/<date>-v<version>/grades.json`
+as a flat map of question id to grade, then compute the result rather than
+tallying it:
+
+```sh
+python3 bench/usefulness.py bench/usefulness/<date>-v<version>/grades.json
+```
+
+It prints the per-tier table and the gate verdict, and exits non-zero when the
+gate fails. An ungraded or unknown question id fails the gate too; a gate that
+ignores gaps is not a gate.
+
+### 6. Record the run without laundering failures
 
 Record every grade, material miss, elapsed time, reported model usage or cost,
 manual intervention, and harness limitation. Unknown usage is `unknown`, not
@@ -242,16 +219,20 @@ first result looks successful.
 
 ## Reusable architecture
 
-This procedure is currently run by hand. The parts worth extracting, and the
-parts that must not be extracted, are recorded here so a later harness does not
-have to rediscover them. Tracked in `GPS-334` through `GPS-337`.
+The reusable parts, and the parts that must not be reused, are recorded here.
+Tracked in `GPS-334` through `GPS-337`.
 
-**Reusable.** The question bank as data rather than prose, keyed by id and tier.
-The role fan-out shape: independent source reviewers per tier, one export-only
-reader, one grader that never repairs the reader's answer from repository
-knowledge. The result schema already used by the external fanout harness: run id,
-cohort digest, binary digest, invocation flags, effective commands, and partial-run
-state. Per-tier pass rates computed rather than tallied by hand.
+**Extracted and versioned.** The question bank is data (`bench/questions.json`),
+keyed by id and tier. Scoring is computed (`bench/usefulness.py`), including the
+refusal-tier inversion, and carries its own self-test. The cohort manifest and
+fanout runner are versioned, and the fanout result schema already records run id,
+cohort digest, binary digest, invocation flags, effective commands, and
+partial-run state.
+
+**Still manual.** The role fan-out and the grading pass. Their shape is stable —
+independent source reviewers per tier, one export-only reader, one grader that
+never repairs the reader's answer from repository knowledge — but nothing drives
+them yet.
 
 **Not reusable, and deliberately so.** The questions themselves. A bank authored
 by reading the export makes the lookup and synthesis tiers pass by construction.
@@ -259,12 +240,12 @@ Questions come from maintainer tasks and source behavior with the export unseen,
 and false premises are verified absent from both source and export before they are
 frozen.
 
-**Two controls the current procedure lacks.**
+**Two controls the procedure still lacks.**
 
-The export-only boundary is self-reported. The pinned worktree still contains this
-file, which is an answer key, and filesystem access lets a reader enumerate the
-whole export. A real consumer gets a base URL and must navigate from `llms.txt`
-and `graph.json` without a directory listing.
+The export-only boundary is self-reported. The pinned worktree contains two answer
+keys — this file and `bench/usefulness/` — and filesystem access lets a reader
+enumerate the whole export. A real consumer gets a base URL and must navigate from
+`llms.txt` and `graph.json` without a directory listing.
 
 A single reader run is one sample, not a measurement. Two runs against an
 identical publication digest have already produced materially different grades, so

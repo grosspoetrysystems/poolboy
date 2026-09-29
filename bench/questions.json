@@ -1,0 +1,120 @@
+{
+  "frozen": "2026-09-29",
+  "tiers": {
+    "E": "single-document lookup",
+    "M": "cross-document synthesis",
+    "H": "operational reasoning",
+    "U": "in-domain but unsupported",
+    "F": "false premise",
+    "X": "out of scope"
+  },
+  "graded_tiers": ["E", "M", "H"],
+  "refusal_tiers": ["U", "F", "X"],
+  "questions": [
+    {
+      "id": "E1",
+      "tier": "E",
+      "question": "Which files does a successful `build` publish into `dist/`?",
+      "note": "Non-discriminating while the reader has filesystem access; it can list the tree instead of reading a document. Grade against the documented set plus the exclusion of the signing and release sidecars."
+    },
+    {
+      "id": "E2",
+      "tier": "E",
+      "question": "What is the renderer companion's process and transport protocol?"
+    },
+    {
+      "id": "E3",
+      "tier": "E",
+      "question": "Which commands read or query a corpus without mutating it?"
+    },
+    {
+      "id": "E4",
+      "tier": "E",
+      "question": "What are the three separate states tracked by source inventory?"
+    },
+    {
+      "id": "M1",
+      "tier": "M",
+      "question": "How do `scan`, `drift`, and `accept` relate to `check` and `build`?"
+    },
+    {
+      "id": "M2",
+      "tier": "M",
+      "question": "What distinguishes generated from authored Markdown across build, maintenance, and ownership rules?"
+    },
+    {
+      "id": "M3",
+      "tier": "M",
+      "question": "Which boundaries constrain the renderer, and what happens when it fails?"
+    },
+    {
+      "id": "M4",
+      "tier": "M",
+      "question": "How does a consumer discover and verify a publication's identity?"
+    },
+    {
+      "id": "H1",
+      "tier": "H",
+      "question": "After drift, when may `scan --accept` run, and what do `check` and `build` prove?"
+    },
+    {
+      "id": "H2",
+      "tier": "H",
+      "question": "What remains unchanged after validation, render, or staging failure, and how are generated Markdown files owned?"
+    },
+    {
+      "id": "H3",
+      "tier": "H",
+      "question": "What does `move` rewrite, and what additional step is required when the moved file is generated?"
+    },
+    {
+      "id": "H4",
+      "tier": "H",
+      "question": "What state can conflict at check-in, and what does applying a valid plan do and not do?"
+    },
+    {
+      "id": "H5",
+      "tier": "H",
+      "question": "How is versioned structured help sourced, checked, snapshotted, released, and deployed?"
+    },
+    {
+      "id": "U1",
+      "tier": "U",
+      "question": "Which GitHub branch-rule bypass actors are enabled on `main`?",
+      "note": "In-domain and genuinely absent from the export. Passes only when the reader refuses to guess."
+    },
+    {
+      "id": "F1",
+      "tier": "F",
+      "question": "How does the `[[publish]].cdn` setting in `poolboy.toml` configure asset uploads?",
+      "absent_term": "cdn"
+    },
+    {
+      "id": "F2",
+      "tier": "F",
+      "question": "What exponential backoff does the renderer use when the Knap companion times out?",
+      "absent_term": "backoff"
+    },
+    {
+      "id": "F3",
+      "tier": "F",
+      "question": "Which webhook does Poolboy POST to after a successful publication?",
+      "absent_term": "webhook"
+    },
+    {
+      "id": "X1",
+      "tier": "X",
+      "question": "What should I order from McDonald's?"
+    },
+    {
+      "id": "X2",
+      "tier": "X",
+      "question": "What is the capital of Australia?"
+    },
+    {
+      "id": "X3",
+      "tier": "X",
+      "question": "Summarize the plot of Moby-Dick."
+    }
+  ]
+}
