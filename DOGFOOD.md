@@ -251,6 +251,79 @@ interruption/resumption, deployment, or a second corrected-reader pass. Add thos
 only as separately measured benchmark phases; do not fold them into this baseline
 retroactively.
 
+## Tiered re-baseline: 2026-09-29, Poolboy 0.2.1
+
+This run measured the tiered question set against released `0.2.1`. It is a
+re-baseline and a refusal-tier characterization, **not** new evidence of corpus
+improvement.
+
+### Identity
+
+| Field | Value |
+| --- | --- |
+| Source commit | `66aafd9e87a882a55c2654aea7b681ad106a7a07` |
+| Released Poolboy | `0.2.1`, released Darwin arm64 artifact |
+| Binary SHA-256 | `dea8479f57ac16a52958ab41aa89dea72fb0c0bd10b9452174af6defe70d3d74` |
+| `poolboy.toml` SHA-256 | `411fbb200fd38017a2a529fbfbd76851fc378a2492500c0febcd0b1e7eca6205` |
+| Source lock SHA-256 | `beb893b4879f3b082c9e6fbad571fb4a4309f8b9ca971cc2121770ce4800543c` |
+| Built `graph.json` SHA-256 | `933d61faf1fdb34e1ab1f7eadc03662832836983a1e19aa71ce51218c4b11395` |
+| Export-only isolation | Self-reported; reader disclosed a `dist/`-only read |
+
+**The publication digest is byte-identical to the `0.2.0` baseline.** The corpus
+did not change. `0.2.1` altered validation and diagnostics, not rendering.
+
+### Mechanical baseline
+
+- `check`, `status`, `list`, `unresolved`, `orphans`, `drift`, and `build` all
+  exited `0`.
+- `check --format json`: `[]`. `unresolved` and `orphans`: both `[]`.
+- `status`: 9 entries, 15 links, 0 orphans.
+- Publication payload: 122,123 bytes, unchanged from the baseline.
+- Drift: 16 changed paths and 10 health findings against the accepted lock. The
+  baseline was not accepted.
+
+### Grades by tier
+
+| Tier | Questions | Pass | Rate |
+| --- | --- | --- | --- |
+| Easy | `E1`–`E4` | 4/4 | 100% |
+| Medium | `M1`–`M4` | 3/4 | 75% |
+| Hard | `H1`–`H5` | 2/5 | 40% |
+| Control | `U1` | 1/1 | 100% |
+| False premise | `F1`–`F3` | 3/3 | 100% |
+| Out of scope | `X1`–`X3` | 3/3 | 100% |
+
+Substantive: 9 of 13 correct. Refusal: 7 of 7 correctly refused.
+
+**Usefulness gate: fail.** `M4` and `H3` and `H4` were partial; `H5` was
+incorrect.
+
+### What is new here
+
+The refusal tiers had never been measured. All seven passed. The reader rejected
+three invented features — a `[[publish]].cdn` setting, renderer exponential
+backoff, and a post-publication webhook — rather than describing them, and
+declined all three out-of-domain questions on scope grounds instead of answering
+from world knowledge. On this corpus the export-only reader does not confabulate
+and is not merely agreeable.
+
+The difficulty gradient is also new information. Lookup is solved, synthesis is
+nearly solved, and every remaining failure is operational reasoning: exactly the
+questions an agent must answer correctly before deciding whether a mutation is
+safe.
+
+### What is not new
+
+`H3`, `H4`, and `H5` reproduce the `0.2.0` misses against an identical corpus, and
+they map to the gaps already filed as `GPS-330`, `GPS-331`, and `GPS-332`. `M4`
+adds one more: the export omits `verify` and `approve` operational mechanics,
+including the approved-digest behavior, the release-age gate, and the guarantee
+that verification never silently downgrades to key-continuity trust.
+
+`H1` and `H2` graded correct here after grading partial at `0.2.0` on the same
+bytes. That difference is reader variance, not corpus improvement, and is the
+reason grade movement on an unchanged corpus cannot be read as progress.
+
 ## External corpus fanout: 2026-09-29
 
 The disposable harness at `~/Local/poolboy-test-fan` ran all ten pinned cases,
