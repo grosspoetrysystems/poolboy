@@ -41,16 +41,18 @@ cases now digest to `cde9cbbe…`.
 
 ## Replay
 
-Both benchmarks pin a specimen and name an explicit released version. Never
-benchmark an unversioned executable found on `PATH`.
+Both benchmarks pin a specimen and name an explicit released version. Neither
+accepts an unversioned executable found on `PATH`.
 
-Usefulness, against Poolboy's own corpus:
+Usefulness, against Poolboy's own corpus. The repository contains two answer
+keys — this file, and the retained role reports and grades under
+`bench/usefulness/` — and both must leave the specimen before a reader runs:
 
 ```sh
 SOURCE_REV=$(git rev-parse HEAD)
 PROJECT=$(mktemp -d /tmp/poolboy-self-dogfood.XXXXXX)
 git worktree add --detach "$PROJECT" "$SOURCE_REV"
-rm -f "$PROJECT/DOGFOOD.md"   # remove the answer key before any reader runs
+rm -rf "$PROJECT/DOGFOOD.md" "$PROJECT/bench"   # remove both answer keys
 ```
 
 Then follow "Reproducible flow" below.
@@ -64,6 +66,12 @@ mkdir -p "$SANDBOX"
 jq -r '.repos | to_entries[] | "\(.key)\t\(.value.url)"' bench/cohort.json |
   while IFS=$'\t' read -r name url; do
     [ -d "$SANDBOX/$name" ] || git clone "$url" "$SANDBOX/$name"
+  done
+
+# Detach each clone at its pinned revision; the runner refuses anything else.
+jq -r '[.cases[] | "\(.repo)\t\(.revision)"] | unique[]' bench/cohort.json |
+  while IFS=$'\t' read -r name revision; do
+    git -C "$SANDBOX/$name" checkout --quiet --detach "$revision"
   done
 
 gh release download "v<version>" --repo grosspoetrysystems/poolboy \
@@ -83,7 +91,9 @@ the rest.
 
 It separates corpus usefulness from source correctness: source reviewers establish
 the expected answers, an export-only reader answers from `dist/`, and an
-independent grader compares the two.
+independent grader compares the two. Retained role reports and grades for each run
+live under `bench/usefulness/`, which is also why that directory is an answer key
+and must be stripped from the pinned specimen.
 
 ## Acceptance rule
 
