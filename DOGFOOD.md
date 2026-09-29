@@ -298,6 +298,42 @@ Substantive: 9 of 13 correct. Refusal: 7 of 7 correctly refused.
 **Usefulness gate: fail.** `M4` and `H3` and `H4` were partial; `H5` was
 incorrect.
 
+`E1` is non-discriminating under filesystem access. A reader with the directory
+in reach can list `dist/` and read the answer off the tree without comprehending
+a document. It was graded against the reviewer's stated minimum — the documented
+set plus the exclusion of the signing and release sidecars — but it should not be
+counted as evidence of corpus usefulness until the reader is behind HTTP.
+
+### Run conditions
+
+Recorded because this section is written by the agent that ran the benchmark, and
+this is the rule most easily broken quietly.
+
+| Measurement | Result |
+| --- | --- |
+| Concurrent roles | 4 source reviewers + 1 export-only reader, then 1 grader |
+| Reviewer and reader fan-out | 5m 40s to last completion |
+| Independent grading | 2m 48s |
+| Model requests, tokens, cache usage, and monetary cost | Unknown; the harness did not expose them |
+| Export-only isolation | Self-reported, not sandbox-enforced |
+
+Manual intervention and harness limitations, in full:
+
+- The first fan-out batch died immediately on a provider rate limit and was
+  respawned on a different agent type. No answers from that batch were used.
+- The false-premise and out-of-scope tiers were added after the first batch
+  launched, so the question set was frozen before the *second* batch started, not
+  before the first.
+- A mid-run message steered the reader away from `DOGFOOD.md`, which sits in the
+  pinned worktree and contains prior grades. The reader disclosed a `dist/`-only
+  read. The boundary was enforced by instruction, not by the harness.
+- Every subagent exited non-zero while still writing its artifact. The reports
+  were complete and were used; the exit status is a harness artifact, not a
+  content failure.
+- Questions for the easy and medium tiers were drafted with exported headings
+  visible. That weakens both tiers as evidence; the hard tier carried over from
+  the `0.2.0` set and is unaffected.
+
 ### What is new here
 
 The refusal tiers had never been measured. All seven passed. The reader rejected
