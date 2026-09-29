@@ -2,8 +2,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -67,6 +69,72 @@ func main() {
 	os.Exit(run(os.Args[1:]))
 }
 
+type cliCommand struct {
+	name    string
+	aliases []string
+	run     func([]string) int
+}
+
+var commandRegistry = []cliCommand{
+	{"init", nil, cmdInit},
+	{"build", nil, cmdBuild},
+	{"preview", nil, cmdPreview},
+	{"scan", nil, cmdScan},
+	{"drift", nil, cmdDrift},
+	{"health", nil, cmdHealth},
+	{"affected", nil, cmdAffected},
+	{"checkout", nil, cmdCheckout},
+	{"checkin", nil, cmdCheckin},
+	{"status", nil, cmdStatus},
+	{"list", []string{"ls"}, cmdList},
+	{"read", nil, cmdRead},
+	{"outline", nil, cmdOutline},
+	{"table", nil, cmdTable},
+	{"search", nil, cmdSearch},
+	{"checkboxes", nil, cmdCheckboxes},
+	{"tags", nil, cmdTags},
+	{"properties", nil, cmdProperties},
+	{"property", nil, cmdProperty},
+	{"unresolved", nil, cmdUnresolved},
+	{"orphans", nil, cmdOrphans},
+	{"links", nil, cmdLinks},
+	{"backlinks", nil, cmdBacklinks},
+	{"move", []string{"mv"}, cmdMove},
+	{"tidy", nil, cmdTidy},
+	{"check", nil, cmdCheck},
+	{"keygen", nil, cmdKeygen},
+	{"sign", nil, cmdSign},
+	{"verify", nil, cmdVerify},
+	{"approve", nil, cmdApprove},
+	{"version", []string{"--version", "-v"}, cmdVersion},
+	{"help", []string{"-h", "--help"}, cmdHelpEntry},
+}
+
+func commandNamed(name string) *cliCommand {
+	for i := range commandRegistry {
+		command := &commandRegistry[i]
+		if command.name == name || slices.Contains(command.aliases, name) {
+			return command
+		}
+	}
+	return nil
+}
+
+func cmdVersion([]string) int {
+	fmt.Println(Version)
+	return 0
+}
+
+func cmdHelpEntry(args []string) int {
+	if len(args) == 0 {
+		return cmdHelp("")
+	}
+	if len(args) == 1 {
+		return cmdHelp(args[0])
+	}
+	return productError(errors.New("usage: poolboy help [command]"))
+}
+
 func run(args []string) int {
 	args, code := applyRoot(args)
 	if code != 0 {
@@ -76,77 +144,15 @@ func run(args []string) int {
 		fmt.Fprint(os.Stderr, usage)
 		return 2
 	}
-	switch cmd := args[0]; cmd {
-	case "help", "-h", "--help":
-		fmt.Print(usage)
-		return 0
-	case "init":
-		return cmdInit(args[1:])
-	case "version", "--version", "-v":
-		fmt.Println(Version)
-		return 0
-	case "build":
-		return cmdBuild(args[1:])
-	case "preview":
-		return cmdPreview(args[1:])
-	case "keygen":
-		return cmdKeygen(args[1:])
-	case "sign":
-		return cmdSign(args[1:])
-	case "verify":
-		return cmdVerify(args[1:])
-	case "approve":
-		return cmdApprove(args[1:])
-	case "scan":
-		return cmdScan(args[1:])
-	case "drift":
-		return cmdDrift(args[1:])
-	case "health":
-		return cmdHealth(args[1:])
-	case "affected":
-		return cmdAffected(args[1:])
-	case "checkout":
-		return cmdCheckout(args[1:])
-	case "checkin":
-		return cmdCheckin(args[1:])
-	case "status":
-		return cmdStatus(args[1:])
-	case "list", "ls":
-		return cmdList(args[1:])
-	case "read":
-		return cmdRead(args[1:])
-	case "outline":
-		return cmdOutline(args[1:])
-	case "search":
-		return cmdSearch(args[1:])
-	case "checkboxes":
-		return cmdCheckboxes(args[1:])
-	case "table":
-		return cmdTable(args[1:])
-	case "tags":
-		return cmdTags(args[1:])
-	case "properties":
-		return cmdProperties(args[1:])
-	case "property":
-		return cmdProperty(args[1:])
-	case "unresolved":
-		return cmdUnresolved(args[1:])
-	case "orphans":
-		return cmdOrphans(args[1:])
-	case "links":
-		return cmdLinks(args[1:])
-	case "backlinks":
-		return cmdBacklinks(args[1:])
-	case "move", "mv":
-		return cmdMove(args[1:])
-	case "tidy":
-		return cmdTidy(args[1:])
-	case "check":
-		return cmdCheck(args[1:])
-	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s", cmd, usage)
+	if len(args) > 1 && commandHelpRequested(args[1:]) {
+		return cmdHelp(args[0])
+	}
+	command := commandNamed(args[0])
+	if command == nil {
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s", args[0], usage)
 		return 2
 	}
+	return command.run(args[1:])
 }
 
 // applyRoot consumes a leading --root <dir> option, recording the bundle to

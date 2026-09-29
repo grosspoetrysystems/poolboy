@@ -39,12 +39,12 @@ jobs:
           fi
           echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
 
-      - name: Checkout
+      - name: Checkout tagged tree
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
+          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: false
-
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
@@ -90,6 +90,21 @@ jobs:
             echo "Built CLI reports ${ACTUAL}; expected ${{ steps.version.outputs.version }}." >&2
             exit 1
           fi
+      - name: Create immutable CLI help snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          SNAPSHOT_ROOT="$(mktemp -d)"
+          ASSET="poolboy-help-v${VERSION}.tar.gz"
+          trap 'rm -rf "${SNAPSHOT_ROOT}" "${ASSET}"' EXIT
+          node scripts/generate-help-snapshot.mjs snapshot "${VERSION}" "${SNAPSHOT_ROOT}"
+          tar -czf "${ASSET}" -C "${SNAPSHOT_ROOT}" "v${VERSION}"
+          test -s "${ASSET}"
+          gh release upload "${TAG}" "${ASSET}" --repo "${GITHUB_REPOSITORY}"
 
       - name: Pack npm distributions
         run: node scripts/package-npm.mjs "${{ steps.version.outputs.version }}"

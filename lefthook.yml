@@ -19,6 +19,8 @@ pre-commit:
       root: companion/
       glob: "*.{ts,js,mjs,json,jsonc}"
       run: pnpm knip
+    command-docs:
+      run: node scripts/check-command-docs.mjs
 
 commit-msg:
   commands:

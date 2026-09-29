@@ -1,4 +1,5 @@
 {
+  "schema": 1,
   "title": "Poolboy command reference",
   "description": "Generated reference for Poolboy's CLI commands and flags.",
   "intro": "Use a leading --root DIR or --root=DIR to select a project. Result commands accept --format text|json|csv|tsv; exit status is 0 for success, 1 for no match or check failures, and 2 for errors.",
@@ -13,7 +14,12 @@
         {"name": "[dir]", "description": "Target directory; defaults to the current directory."},
         {"name": "--force", "description": "Overwrite existing starter files."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy init [dir] [--force] [--format text|json|csv|tsv]",
+      "effects": "Writes starter project files into the target directory and reports Markdown adoption issues; existing files are preserved unless --force is given.",
+      "does_not": "Does not build, publish, or sign anything, and without --force does not overwrite existing files.",
+      "verify_with": [["status"]],
+      "related": ["build", "scan", "status"]
     },
     {
       "name": "build",
@@ -24,7 +30,12 @@
       "flags": [
         {"name": "--renderer PATH", "description": "Use a trusted Knap companion path."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy build [--renderer PATH] [--format text|json|csv|tsv]",
+      "effects": "Renders the configured corpus and writes the published output.",
+      "does_not": "Does not sign, approve, or verify the output; building does not imply review or established trust.",
+      "verify_with": [],
+      "related": ["preview", "sign", "scan", "drift"]
     },
     {
       "name": "preview",
@@ -35,7 +46,12 @@
       "flags": [
         {"name": "--port N", "description": "Use a loopback port; 0 chooses an available port."},
         {"name": "--renderer PATH", "description": "Use a trusted Knap companion path."}
-      ]
+      ],
+      "usage": "poolboy preview [--port N] [--renderer PATH]",
+      "effects": "Builds the corpus and serves it at a private loopback URL until the process is stopped.",
+      "does_not": "Does not publish the corpus or expose it beyond loopback.",
+      "verify_with": [],
+      "related": ["build"]
     },
     {
       "name": "scan",
@@ -46,7 +62,12 @@
       "flags": [
         {"name": "--accept", "description": "Replace an existing baseline after review."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy scan [--accept] [--format text|json|csv|tsv]",
+      "effects": "Records a bounded source inventory baseline and summarizes documentation health.",
+      "does_not": "Does not build, publish, or review documentation.",
+      "verify_with": [["drift"]],
+      "related": ["drift", "health", "check"]
     },
     {
       "name": "drift",
@@ -56,7 +77,12 @@
       "source": "cmd/poolboy/product.go",
       "flags": [
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy drift [--format text|json|csv|tsv]",
+      "effects": "Compares current sources against the recorded baseline and summarizes affected documentation; read-only.",
+      "does_not": "Does not record or update the baseline.",
+      "verify_with": [],
+      "related": ["scan", "affected", "health"]
     },
     {
       "name": "health",
@@ -66,7 +92,12 @@
       "source": "cmd/poolboy/product.go",
       "flags": [
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy health [--format text|json|csv|tsv]",
+      "effects": "Reports documentation provenance and graph evidence; read-only.",
+      "does_not": "Does not change provenance, graph evidence, or corpus files.",
+      "verify_with": [],
+      "related": ["scan", "drift", "status"]
     },
     {
       "name": "affected",
@@ -77,7 +108,12 @@
       "flags": [
         {"name": "SOURCE", "description": "One project-relative source path."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy affected SOURCE [--format text|json|csv|tsv]",
+      "effects": "Lists documents that cite the given source resource directly; read-only.",
+      "does_not": "Does not modify entries or the source inventory.",
+      "verify_with": [],
+      "related": ["drift", "backlinks", "links"]
     },
     {
       "name": "checkout",
@@ -88,7 +124,12 @@
       "flags": [
         {"name": "DIR", "description": "New checkout directory outside the project root; its parent must exist."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format; agents should use JSON."}
-      ]
+      ],
+      "usage": "poolboy checkout DIR [--format text|json|csv|tsv]",
+      "effects": "Creates an ordinary-Markdown checkout at DIR outside the project root and records its private comparison base.",
+      "does_not": "Does not modify the canonical corpus.",
+      "verify_with": [["checkin", "DIR"]],
+      "related": ["checkin"]
     },
     {
       "name": "checkin",
@@ -100,7 +141,12 @@
         {"name": "DIR", "description": "Checkout directory previously created for this project."},
         {"name": "--apply", "description": "Apply a conflict-free file-level plan to the canonical corpus."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format; JSON exposes variance, conflicts, can_apply, and applied."}
-      ]
+      ],
+      "usage": "poolboy checkin DIR [--apply] [--format text|json|csv|tsv]",
+      "effects": "Compares checkout, base, and canonical revisions; previews the plan by default and applies a conflict-free plan only with --apply.",
+      "does_not": "Without --apply, does not modify the canonical corpus, and never applies a plan with conflicts.",
+      "verify_with": [["status"]],
+      "related": ["checkout", "status"]
     },
     {
       "name": "status",
@@ -110,7 +156,12 @@
       "source": "cmd/poolboy/commands.go",
       "flags": [
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy status [--format text|json|csv|tsv]",
+      "effects": "Reports corpus counts for entries, links, tags, checkboxes, broken links, and orphans; read-only.",
+      "does_not": "Does not modify the corpus or its index.",
+      "verify_with": [],
+      "related": ["list", "unresolved", "orphans"]
     },
     {
       "name": "list",
@@ -124,7 +175,12 @@
         {"name": "--sort path|timestamp", "description": "Sort by path or newest-first timestamp."},
         {"name": "--reverse", "description": "Reverse the selected ordering."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy list [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--sort path|timestamp] [--reverse] [--format text|json|csv|tsv]",
+      "effects": "Lists indexed entries, filtered and ordered by the given options; read-only.",
+      "does_not": "Does not modify indexed entries.",
+      "verify_with": [],
+      "related": ["search", "read", "tags"]
     },
     {
       "name": "read",
@@ -135,7 +191,12 @@
       "flags": [
         {"name": "FILE", "description": "One corpus entry."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy read FILE [--format text|json|csv|tsv]",
+      "effects": "Prints one entry body with frontmatter stripped; read-only.",
+      "does_not": "Does not modify the entry.",
+      "verify_with": [],
+      "related": ["outline", "list", "links"]
     },
     {
       "name": "outline",
@@ -146,7 +207,12 @@
       "flags": [
         {"name": "FILE", "description": "One corpus entry."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy outline FILE [--format text|json|csv|tsv]",
+      "effects": "Prints one entry's heading hierarchy; read-only.",
+      "does_not": "Does not modify the entry.",
+      "verify_with": [],
+      "related": ["read", "table"]
     },
     {
       "name": "table",
@@ -158,7 +224,12 @@
         {"name": "FILE", "description": "One corpus entry."},
         {"name": "--n N", "description": "Select a table by one-based index when there are several."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy table FILE [--n N] [--format text|json|csv|tsv]",
+      "effects": "Extracts one Markdown table from an entry; read-only.",
+      "does_not": "Does not modify the entry.",
+      "verify_with": [],
+      "related": ["read", "outline"]
     },
     {
       "name": "search",
@@ -174,7 +245,12 @@
         {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
         {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy search QUERY [--any] [--exact] [--lines] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]",
+      "effects": "Searches entry text, requiring every query word to match by default; read-only.",
+      "does_not": "Does not modify entries or search state.",
+      "verify_with": [],
+      "related": ["list", "read"]
     },
     {
       "name": "checkboxes",
@@ -189,7 +265,12 @@
         {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
         {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy checkboxes [FILE] [--all] [--done] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]",
+      "effects": "Lists GFM checklist items across selected entries; read-only.",
+      "does_not": "Does not modify checklist items.",
+      "verify_with": [],
+      "related": ["list", "status"]
     },
     {
       "name": "tags",
@@ -203,7 +284,12 @@
         {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
         {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy tags [--counts] [--sort name|count] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]",
+      "effects": "Lists tags in use across selected entries; read-only.",
+      "does_not": "Does not modify entries or tags.",
+      "verify_with": [],
+      "related": ["properties", "property", "list"]
     },
     {
       "name": "properties",
@@ -217,7 +303,12 @@
         {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
         {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy properties [--counts] [--sort name|count] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]",
+      "effects": "Lists frontmatter property keys in use across selected entries; read-only.",
+      "does_not": "Does not modify entries or property keys.",
+      "verify_with": [],
+      "related": ["property", "tags"]
     },
     {
       "name": "property",
@@ -232,7 +323,12 @@
         {"name": "--prefix PATH", "description": "Limit entries by path prefix."},
         {"name": "--where KEY=VALUE|KEY!=VALUE", "description": "Repeatable frontmatter filter."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy property NAME [--counts] [--sort name|count] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]",
+      "effects": "Lists the values in use for one frontmatter property; read-only.",
+      "does_not": "Does not modify entries or property values.",
+      "verify_with": [],
+      "related": ["properties", "tags"]
     },
     {
       "name": "unresolved",
@@ -242,7 +338,12 @@
       "source": "cmd/poolboy/commands.go",
       "flags": [
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy unresolved [--format text|json|csv|tsv]",
+      "effects": "Lists broken internal links across the corpus; read-only.",
+      "does_not": "Does not repair broken links.",
+      "verify_with": [],
+      "related": ["orphans", "links", "check"]
     },
     {
       "name": "orphans",
@@ -252,7 +353,12 @@
       "source": "cmd/poolboy/commands.go",
       "flags": [
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy orphans [--format text|json|csv|tsv]",
+      "effects": "Lists entries with no incoming links; read-only.",
+      "does_not": "Does not modify entries or links.",
+      "verify_with": [],
+      "related": ["unresolved", "backlinks"]
     },
     {
       "name": "links",
@@ -263,7 +369,12 @@
       "flags": [
         {"name": "FILE", "description": "One corpus entry."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy links FILE [--format text|json|csv|tsv]",
+      "effects": "Lists unique outgoing link targets from one entry; read-only.",
+      "does_not": "Does not modify links.",
+      "verify_with": [],
+      "related": ["backlinks", "unresolved", "read"]
     },
     {
       "name": "backlinks",
@@ -274,7 +385,12 @@
       "flags": [
         {"name": "FILE", "description": "One corpus entry."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy backlinks FILE [--format text|json|csv|tsv]",
+      "effects": "Lists every incoming link reference to one entry; read-only.",
+      "does_not": "Does not modify links.",
+      "verify_with": [],
+      "related": ["links", "orphans", "affected"]
     },
     {
       "name": "move",
@@ -287,7 +403,12 @@
         {"name": "--dry-run", "description": "Preview the rewrite plan without writing."},
         {"name": "--include-frontmatter", "description": "Also rewrite Markdown-valued frontmatter references."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy move SRC DEST [--dry-run] [--include-frontmatter] [--format text|json|csv|tsv]",
+      "effects": "Relocates an entry from SRC to DEST and rewrites Markdown links pointing at it.",
+      "does_not": "With --dry-run, previews the plan and does not write any files.",
+      "verify_with": [["read", "DEST"]],
+      "related": ["tidy", "links", "backlinks"]
     },
     {
       "name": "tidy",
@@ -301,7 +422,12 @@
         {"name": "--wikilinks", "description": "Convert wikilinks to Markdown links."},
         {"name": "--all", "description": "Apply every category; bare tidy is preview-only."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy tidy [--links] [--slug] [--wikilinks] [--all] [--format text|json|csv|tsv]",
+      "effects": "Applies the selected link, filename, and wikilink cleanup category, or every category with --all.",
+      "does_not": "Bare tidy is preview-only and does not modify any files.",
+      "verify_with": [["check"]],
+      "related": ["check", "move", "unresolved"]
     },
     {
       "name": "check",
@@ -312,7 +438,12 @@
       "flags": [
         {"name": "--fix", "description": "Apply safe repairs, such as syncing okf_version."},
         {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
-      ]
+      ],
+      "usage": "poolboy check [--fix] [--format text|json|csv|tsv]",
+      "effects": "Reports conformance and corpus health issues; with --fix applies safe repairs such as syncing okf_version.",
+      "does_not": "Does not publish, review, or approve; without --fix it does not modify any files.",
+      "verify_with": [["status"]],
+      "related": ["tidy", "unresolved", "scan"]
     },
     {
       "name": "keygen",
@@ -323,7 +454,12 @@
       "flags": [
         {"name": "--out PATH", "description": "Private key destination; defaults to poolboy.key."},
         {"name": "--force", "description": "Overwrite an existing key file."}
-      ]
+      ],
+      "usage": "poolboy keygen [--out PATH] [--force]",
+      "effects": "Writes a private Ed25519 key file, defaulting to poolboy.key.",
+      "does_not": "Does not sign or publish anything, and without --force does not overwrite an existing key file.",
+      "verify_with": [],
+      "related": ["sign", "verify"]
     },
     {
       "name": "sign",
@@ -332,8 +468,14 @@
       "aliases": "none",
       "source": "cmd/poolboy/signing.go",
       "flags": [
-        {"name": "--key PATH", "description": "Private key file; alternatively set POOLBOY_SIGNING_KEY."}
-      ]
+        {"name": "--key PATH", "description": "Private key file; alternatively set POOLBOY_SIGNING_KEY."},
+        {"name": "--root PATH", "description": "Project root or directory containing poolboy.toml."}
+      ],
+      "usage": "poolboy sign [--key PATH] [--root PATH]",
+      "effects": "Signs the built graph for explicit Ed25519 TOFU verification.",
+      "does_not": "Asserts authorship only; does not approve the release or establish trust for consumers.",
+      "verify_with": [["verify", "DIR-OR-URL", "--tofu"]],
+      "related": ["keygen", "verify", "build"]
     },
     {
       "name": "verify",
@@ -347,7 +489,12 @@
         {"name": "--identity URI", "description": "Require an exact Sigstore workflow identity on first contact."},
         {"name": "--tofu", "description": "Explicitly use weaker Ed25519 trust on first use."},
         {"name": "--channel NAME", "description": "Trust channel; defaults to stable."}
-      ]
+      ],
+      "usage": "poolboy verify DIR-OR-URL [--lock PATH] [--identity URI] [--tofu] [--channel NAME]",
+      "effects": "Verifies an approved exact corpus release or reports a pending update; read-only.",
+      "does_not": "Does not approve or record trust; verification alone does not grant approval.",
+      "verify_with": [],
+      "related": ["approve", "sign"]
     },
     {
       "name": "approve",
@@ -364,7 +511,12 @@
         {"name": "--minimum-release-age DURATION", "description": "Minimum trusted release age; stable Sigstore defaults to 72h."},
         {"name": "--override-age", "description": "Record a human emergency override for this exact digest."},
         {"name": "--migrate-identity", "description": "Explicitly replace an existing publisher identity or TOFU key."}
-      ]
+      ],
+      "usage": "poolboy approve DIR-OR-URL [--lock PATH] [--identity URI] [--tofu] [--channel NAME] [--minimum-release-age DURATION] [--override-age] [--migrate-identity]",
+      "effects": "Fully verifies and interactively records approval of one exact corpus digest in the selected trust store.",
+      "does_not": "Does not modify the corpus; approves only the exact digest presented.",
+      "verify_with": [["verify", "DIR-OR-URL"]],
+      "related": ["verify", "sign"]
     },
     {
       "name": "version",
@@ -372,15 +524,25 @@
       "mutates": false,
       "aliases": "--version, -v",
       "source": "cmd/poolboy/main.go",
-      "flags": []
+      "flags": [],
+      "usage": "poolboy version",
+      "effects": "Prints the Poolboy version as a bare string; read-only.",
+      "does_not": "Does not inspect or modify the corpus.",
+      "verify_with": [],
+      "related": ["help"]
     },
     {
       "name": "help",
       "summary": "Print the top-level usage and command list.",
       "mutates": false,
       "aliases": "-h, --help",
-      "source": "cmd/poolboy/main.go",
-      "flags": []
+      "source": "cmd/poolboy/help.go",
+      "flags": [],
+      "usage": "poolboy help",
+      "effects": "Prints the top-level usage and command list; read-only.",
+      "does_not": "Does not run a command or modify the corpus.",
+      "verify_with": [],
+      "related": ["version"]
     }
   ]
 }

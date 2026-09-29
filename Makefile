@@ -19,6 +19,8 @@ check:
 	$(GOLANGCI_LINT) run ./...
 	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 	node .github/scripts/check-pr-contract.mjs --self-test
+	node scripts/check-command-docs.mjs
+	node scripts/generate-help-snapshot.mjs --self-test
 	pnpm --dir companion typecheck
 	pnpm --dir companion lint
 	pnpm --dir companion coverage
@@ -41,6 +43,7 @@ site: build
 	cp README.md .site/install.md
 	cp site/start.md site/try.md site/llms.txt .site/
 	cp -R dist/. .site/docs/
+	node scripts/generate-help-snapshot.mjs snapshot "$(SITE_VERSION)" .site/cli/help
 
 verify:
 	$(MAKE) check

@@ -70,6 +70,64 @@ jobs:
         env:
           SITE_URL: ${{ vars.SITE_URL }}
           SITE_VERSION: ${{ steps.version.outputs.version }}
+      - name: Rebuild hosted CLI help from release snapshots
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          HELP_ROOT=".site/cli/help"
+          rm -rf "${HELP_ROOT}"
+          mkdir -p "${HELP_ROOT}"
+          DOWNLOADS="$(mktemp -d)"
+          trap 'rm -rf "${DOWNLOADS}"' EXIT
+
+          mapfile -t RELEASES < <(
+            gh release list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --limit 1000 \
+              --json tagName,isDraft,isPrerelease,publishedAt \
+              --jq 'map(select(.isDraft == false and .isPrerelease == false)) | sort_by(.publishedAt) | reverse | .[].tagName'
+          )
+          retained=0
+          for tag in "${RELEASES[@]}"; do
+            if [[ "${tag}" != v* ]]; then
+              echo "Skipping stable release with unsupported tag: ${tag}" >&2
+              continue
+            fi
+            version="${tag#v}"
+            asset="poolboy-help-v${version}.tar.gz"
+            if ! gh release view "${tag}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --json assets \
+              --jq '.assets[].name' | grep -Fxq "${asset}"; then
+              continue
+            fi
+            gh release download "${tag}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern "${asset}" \
+              --dir "${DOWNLOADS}"
+            if [[ ! -s "${DOWNLOADS}/${asset}" ]]; then
+              echo "${tag} is missing ${asset}" >&2
+              exit 1
+            fi
+            tar -tzf "${DOWNLOADS}/${asset}" >/dev/null
+            tar -xzf "${DOWNLOADS}/${asset}" -C "${HELP_ROOT}"
+            if [[ ! -f "${HELP_ROOT}/v${version}/index.json" ]]; then
+              echo "${asset} does not contain v${version}/index.json" >&2
+              exit 1
+            fi
+            retained=$((retained + 1))
+            if (( retained == 12 )); then
+              break
+            fi
+          done
+          if (( retained == 0 )); then
+            echo "No published stable release has a CLI help snapshot." >&2
+            exit 1
+          fi
+
+          node scripts/generate-help-snapshot.mjs manifest "${HELP_ROOT}"
       - name: Sign corpus manifest
         run: cosign sign-blob --new-bundle-format --bundle .site/docs/graph.json.sigstore.json --yes .site/docs/graph.json
       - name: Deploy

@@ -21,10 +21,33 @@ sources:
 - Mutation: `{{ command.mutates }}`
 - Aliases: `{{ command.aliases }}`
 - Source: `{{ command.source }}`
+- Usage: `{{ command.usage }}`
+- Effects: {{ command.effects }}
+{% if command.does_not %}
+- Does not: {{ command.does_not }}
+{% endif %}
 
+{% if command.verify_with %}
+### Verify
+
+{% for argv in command.verify_with %}
+- `{{ argv | join:" " }}`
+{% endfor %}
+{% endif %}
+
+{% if command.related %}
+### Related commands
+
+{% for related in command.related %}
+- `{{ related }}`
+{% endfor %}
+{% endif %}
+
+{% if command.flags %}
 ### Flags and arguments
 
 {% for flag in command.flags %}
 - `{{ flag.name }}` — {{ flag.description }}
 {% endfor %}
+{% endif %}
 {% endfor %}

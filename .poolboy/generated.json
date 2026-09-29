@@ -3,7 +3,7 @@
   "files": {
     "reference/commands.md": {
       "data": "data/commands.json",
-      "sha256": "250f04d79b4b4ffa96470440ae6e5a2af9a6fefc3b57706f2a025757a0449ce0",
+      "sha256": "a947784dd04a24acfb1805695b3bb4db524111e51dfa4f5f9deb7fd4fcfe02da",
       "template": "templates/commands.md.knap"
     }
   }
