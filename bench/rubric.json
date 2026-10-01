@@ -5,33 +5,39 @@
     "method": "Two independent measurements on the 0.2.1 run. Question-level: classify the kind of fact each graded question was missing, against its continuous score. Document-level: score every published document on the same five axes.",
     "convergence": "Both rank guarantee and consequence weakest and mechanism and boundary strongest, measured in different units over different objects.",
     "correlation_score_vs_needed_before_acting": -0.59,
-    "reading": "The facts a maintainer needs before performing a mutating action are the ones the corpus documents worst. Describing how something works is the easy half and the half already done."
+    "reading": "The facts a maintainer needs before performing a mutating action are the ones the corpus documents worst. Describing how something works is the easy half and the half already done.",
+    "baseline_note": "Document-level means are over the nine substantive documents. index.md is a navigation page and including it biases every axis low by about 0.25; both figures are kept so the earlier contaminated numbers remain traceable."
   },
   "axes": {
     "mechanism": {
       "asks": "How does it work, step by step?",
       "question_level_mean": 0.65,
-      "document_level_mean": 2.91
+      "document_level_mean_substantive": 3.15,
+      "document_level_mean_including_index": 2.91
     },
     "boundary": {
       "asks": "What does it explicitly NOT do, and where does its responsibility stop?",
       "question_level_mean": 0.61,
-      "document_level_mean": 2.95
+      "document_level_mean_substantive": 3.21,
+      "document_level_mean_including_index": 2.95
     },
     "enforcement": {
       "asks": "Is this enforced by the tool, or is it a convention the tool will not check?",
       "question_level_mean": 0.53,
-      "document_level_mean": 2.85
+      "document_level_mean_substantive": 3.12,
+      "document_level_mean_including_index": 2.85
     },
     "guarantee": {
       "asks": "What is promised to hold: an invariant, atomicity, what survives failure?",
       "question_level_mean": 0.52,
-      "document_level_mean": 2.71
+      "document_level_mean_substantive": 2.93,
+      "document_level_mean_including_index": 2.71
     },
     "consequence": {
       "asks": "What else must the reader do, and what does this change elsewhere?",
       "question_level_mean": 0.17,
-      "document_level_mean": 2.73
+      "document_level_mean_substantive": 2.96,
+      "document_level_mean_including_index": 2.73
     }
   },
   "exempt": {
