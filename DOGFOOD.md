@@ -134,11 +134,12 @@ PROJECT=$(mktemp -d /tmp/poolboy-self-dogfood.XXXXXX)
 git worktree add --detach "$PROJECT" "$SOURCE_REV"
 ```
 
-Record the exact Poolboy version. Use an explicit released package rather than an
-unversioned executable found on `PATH`.
+Record the exact Poolboy version. Pin it once as a variable and use that
+everywhere; never benchmark an unversioned executable found on `PATH`.
 
 ```sh
-npx -y @grosspoetrysystems/poolboy@0.2.0 version
+POOLBOY="npx -y @grosspoetrysystems/poolboy@<version>"
+$POOLBOY version
 ```
 
 ### 2. Capture the mechanical baseline
@@ -147,13 +148,9 @@ Run these commands from the detached worktree. Do not accept source drift during
 the benchmark.
 
 ```sh
-npx -y @grosspoetrysystems/poolboy@0.2.0 drift --format json
-npx -y @grosspoetrysystems/poolboy@0.2.0 status --format json
-npx -y @grosspoetrysystems/poolboy@0.2.0 check --format json
-npx -y @grosspoetrysystems/poolboy@0.2.0 build --format json
-npx -y @grosspoetrysystems/poolboy@0.2.0 list --format json
-npx -y @grosspoetrysystems/poolboy@0.2.0 unresolved --format json
-npx -y @grosspoetrysystems/poolboy@0.2.0 orphans --format json
+for command in drift status check build list unresolved orphans; do
+  $POOLBOY "$command" --format json
+done
 ```
 
 Record the source pin, tool version, configuration and source-lock hashes, build
