@@ -412,6 +412,48 @@ nearly solved, and every remaining failure is operational reasoning: exactly the
 questions an agent must answer correctly before deciding whether a mutation is
 safe.
 
+### Second grader: what is objectively gradable
+
+The same artifacts were regraded independently by a calibrated structured-decision
+model (`jev-1.13`), one decision per question, scored against the same stated
+minimum facts. Verdicts are retained as `grades-jev.json` beside the hand grades.
+
+Both graders return the same gate: **fail**. They agree on 12 of 20 questions, and
+the split is not random.
+
+| Tier group | Agreement | Mean grader confidence |
+| --- | --- | --- |
+| Refusal (`U`, `F`, `X`) | 7/7 | 1.00 |
+| Graded (`E`, `M`, `H`) | 5/13 | 0.74 |
+
+The refusal tiers are objectively gradable. Both graders agree unanimously and at
+full confidence that the reader refused every invented feature and every
+out-of-domain question. Whether a reader confabulates is a fact about the answer.
+
+The graded tiers are not. The second grader is systematically stricter, reading
+`M1`, `M2`, `M3`, `H1`, and `H2` as partial where the hand grader read them as
+correct. Neither verdict is obviously right: "materially complete against the
+minimum facts" is a judgment call, and two careful graders land differently on it.
+
+Calibration separates the two cases cleanly. Where the graders agreed, mean
+confidence was `0.96` and the mean margin over the runner-up grade was `0.94`.
+Where they disagreed, confidence fell to `0.64` and the margin to `0.51`. The
+contested questions were flagged as contested without being told which ones they
+were.
+
+What this changes:
+
+- The **headline is robust**. The gate fails under both graders, and the tier
+  ordering — lookup strongest, operational reasoning weakest — survives.
+- A **single per-question grade is not evidence**. Reporting `M1` as correct was
+  one grader's reading, not a measured property of the corpus.
+- The **refusal tiers are the reliable instrument**. They are cheap, unanimous,
+  and measure the failure mode that actually endangers an agent: a corpus that
+  answers confidently when it should decline.
+
+Cost of the second opinion: 7.1 seconds for the graded tier and 0.3 for the
+refusal tier. The hand grader took 2m 48s and died before writing its report.
+
 ### What is not new
 
 `H3`, `H4`, and `H5` reproduce the `0.2.0` misses against an identical corpus, and

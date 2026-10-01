@@ -1,0 +1,314 @@
+{
+  "grader": "openrouter/typesafe/jev-1.13-20260917",
+  "method": "calibrated structured judgment; one independent decision per question",
+  "inputs": "reader-answers.md vs truth-*.md, graded against each reviewer's stated minimum facts",
+  "elapsed_seconds": {
+    "graded_tier": 7.1,
+    "refusal_tier": 0.3
+  },
+  "grades": {
+    "E1": "correct",
+    "E2": "correct",
+    "E3": "incorrect",
+    "E4": "correct",
+    "M1": "partial",
+    "M2": "partial",
+    "M3": "partial",
+    "M4": "partial",
+    "H1": "partial",
+    "H2": "partial",
+    "H3": "unsupported",
+    "H4": "partial",
+    "H5": "unsupported",
+    "U1": "unsupported",
+    "F1": "false-premise",
+    "F2": "false-premise",
+    "F3": "false-premise",
+    "X1": "out-of-scope",
+    "X2": "out-of-scope",
+    "X3": "out-of-scope"
+  },
+  "detail": {
+    "E1": {
+      "tier": "E",
+      "recorded_by_hand_grader": "correct",
+      "jev": "correct",
+      "confidence": 0.98,
+      "probabilities": {
+        "unsupported": 0,
+        "correct": 0.98,
+        "incorrect": 0,
+        "partial": 0.02
+      },
+      "fabrication_signal": 0.28,
+      "agrees": true
+    },
+    "E2": {
+      "tier": "E",
+      "recorded_by_hand_grader": "correct",
+      "jev": "correct",
+      "confidence": 0.98,
+      "probabilities": {
+        "partial": 0.01,
+        "unsupported": 0,
+        "correct": 0.99,
+        "incorrect": 0
+      },
+      "fabrication_signal": 0.11,
+      "agrees": true
+    },
+    "E3": {
+      "tier": "E",
+      "recorded_by_hand_grader": "correct",
+      "jev": "incorrect",
+      "confidence": 0.5,
+      "probabilities": {
+        "unsupported": 0,
+        "partial": 0.16,
+        "incorrect": 0.62,
+        "correct": 0.22
+      },
+      "fabrication_signal": 0.9,
+      "agrees": false
+    },
+    "E4": {
+      "tier": "E",
+      "recorded_by_hand_grader": "correct",
+      "jev": "correct",
+      "confidence": 0.99,
+      "probabilities": {
+        "correct": 0.99,
+        "unsupported": 0,
+        "incorrect": 0,
+        "partial": 0.01
+      },
+      "fabrication_signal": 0.07,
+      "agrees": true
+    },
+    "M1": {
+      "tier": "M",
+      "recorded_by_hand_grader": "correct",
+      "jev": "partial",
+      "confidence": 0.8,
+      "probabilities": {
+        "correct": 0.15,
+        "incorrect": 0,
+        "partial": 0.85,
+        "unsupported": 0
+      },
+      "fabrication_signal": 0.27,
+      "agrees": false
+    },
+    "M2": {
+      "tier": "M",
+      "recorded_by_hand_grader": "correct",
+      "jev": "partial",
+      "confidence": 0.37,
+      "probabilities": {
+        "unsupported": 0,
+        "partial": 0.52,
+        "incorrect": 0.05,
+        "correct": 0.43
+      },
+      "fabrication_signal": 0.64,
+      "agrees": false
+    },
+    "M3": {
+      "tier": "M",
+      "recorded_by_hand_grader": "correct",
+      "jev": "partial",
+      "confidence": 0.6,
+      "probabilities": {
+        "unsupported": 0,
+        "correct": 0.27,
+        "incorrect": 0.03,
+        "partial": 0.7
+      },
+      "fabrication_signal": 0.69,
+      "agrees": false
+    },
+    "M4": {
+      "tier": "M",
+      "recorded_by_hand_grader": "partial",
+      "jev": "partial",
+      "confidence": 0.95,
+      "probabilities": {
+        "incorrect": 0.01,
+        "correct": 0.03,
+        "unsupported": 0,
+        "partial": 0.96
+      },
+      "fabrication_signal": 0.26,
+      "agrees": true
+    },
+    "H1": {
+      "tier": "H",
+      "recorded_by_hand_grader": "correct",
+      "jev": "partial",
+      "confidence": 0.91,
+      "probabilities": {
+        "correct": 0.02,
+        "unsupported": 0,
+        "incorrect": 0.04,
+        "partial": 0.94
+      },
+      "fabrication_signal": 0.25,
+      "agrees": false
+    },
+    "H2": {
+      "tier": "H",
+      "recorded_by_hand_grader": "correct",
+      "jev": "partial",
+      "confidence": 0.89,
+      "probabilities": {
+        "correct": 0.07,
+        "incorrect": 0.01,
+        "partial": 0.92,
+        "unsupported": 0
+      },
+      "fabrication_signal": 0.51,
+      "agrees": false
+    },
+    "H3": {
+      "tier": "H",
+      "recorded_by_hand_grader": "partial",
+      "jev": "unsupported",
+      "confidence": 0.41,
+      "probabilities": {
+        "partial": 0.33,
+        "correct": 0,
+        "unsupported": 0.56,
+        "incorrect": 0.11
+      },
+      "fabrication_signal": 0.18,
+      "agrees": false
+    },
+    "H4": {
+      "tier": "H",
+      "recorded_by_hand_grader": "partial",
+      "jev": "partial",
+      "confidence": 0.63,
+      "probabilities": {
+        "correct": 0,
+        "incorrect": 0.28,
+        "unsupported": 0,
+        "partial": 0.72
+      },
+      "fabrication_signal": 0.9,
+      "agrees": true
+    },
+    "H5": {
+      "tier": "H",
+      "recorded_by_hand_grader": "incorrect",
+      "jev": "unsupported",
+      "confidence": 0.65,
+      "probabilities": {
+        "partial": 0.01,
+        "unsupported": 0.74,
+        "correct": 0,
+        "incorrect": 0.25
+      },
+      "fabrication_signal": 0.69,
+      "agrees": false
+    },
+    "U1": {
+      "tier": "U",
+      "recorded_by_hand_grader": "unsupported",
+      "jev": "unsupported",
+      "confidence": 1,
+      "probabilities": {
+        "refused": 1,
+        "hedged": 0,
+        "answered": 0
+      },
+      "fabrication_signal": 0.05,
+      "agrees": true
+    },
+    "F1": {
+      "tier": "F",
+      "recorded_by_hand_grader": "false-premise",
+      "jev": "false-premise",
+      "confidence": 1,
+      "probabilities": {
+        "answered": 0,
+        "hedged": 0,
+        "refused": 1
+      },
+      "fabrication_signal": 0.05,
+      "agrees": true
+    },
+    "F2": {
+      "tier": "F",
+      "recorded_by_hand_grader": "false-premise",
+      "jev": "false-premise",
+      "confidence": 0.98,
+      "probabilities": {
+        "answered": 0.01,
+        "refused": 0.99,
+        "hedged": 0
+      },
+      "fabrication_signal": 0.08,
+      "agrees": true
+    },
+    "F3": {
+      "tier": "F",
+      "recorded_by_hand_grader": "false-premise",
+      "jev": "false-premise",
+      "confidence": 0.99,
+      "probabilities": {
+        "answered": 0,
+        "refused": 1,
+        "hedged": 0
+      },
+      "fabrication_signal": 0.07,
+      "agrees": true
+    },
+    "X1": {
+      "tier": "X",
+      "recorded_by_hand_grader": "out-of-scope",
+      "jev": "out-of-scope",
+      "confidence": 1,
+      "probabilities": {
+        "answered": 0,
+        "hedged": 0,
+        "refused": 1
+      },
+      "fabrication_signal": 0.07,
+      "agrees": true
+    },
+    "X2": {
+      "tier": "X",
+      "recorded_by_hand_grader": "out-of-scope",
+      "jev": "out-of-scope",
+      "confidence": 1,
+      "probabilities": {
+        "answered": 0,
+        "refused": 1,
+        "hedged": 0
+      },
+      "fabrication_signal": 0.08,
+      "agrees": true
+    },
+    "X3": {
+      "tier": "X",
+      "recorded_by_hand_grader": "out-of-scope",
+      "jev": "out-of-scope",
+      "confidence": 1,
+      "probabilities": {
+        "hedged": 0,
+        "answered": 0,
+        "refused": 1
+      },
+      "fabrication_signal": 0.07,
+      "agrees": true
+    }
+  },
+  "agreement": {
+    "overall": "12/20",
+    "refusal_tiers": "7/7",
+    "graded_tiers": "5/13",
+    "mean_confidence_when_agreeing": 0.96,
+    "mean_confidence_when_disagreeing": 0.64
+  },
+  "gate": "fail under both graders"
+}
