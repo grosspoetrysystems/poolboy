@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "axes": {
+    "rubric": "document-level rubric mean, 0-4, scaled to 0-1",
+    "questions": "graded-tier continuous mean, 0-1"
+  },
+  "runs": [
+    {
+      "run": "2026-09-29",
+      "commit": "79881e0",
+      "poolboy": "0.2.1",
+      "publication_sha256": "933d61fa",
+      "rubric": 0.768,
+      "questions": 0.556,
+      "refusal": 0.999,
+      "readers": 1,
+      "note": "mechanical baseline; rubric computed retrospectively over substantive documents"
+    },
+    {
+      "run": "2026-10-01",
+      "commit": "6dc18ed",
+      "poolboy": "0.2.1+repairs",
+      "publication_sha256": "0a450237",
+      "rubric": 0.826,
+      "questions": 0.666,
+      "refusal": 0.998,
+      "readers": 2,
+      "note": "after four rubric iterations; first two-reader run, spread 0.048"
+    }
+  ],
+  "trajectory": {
+    "runs": 2,
+    "points": [
+      [
+        0.768,
+        0.556
+      ],
+      [
+        0.826,
+        0.666
+      ]
+    ],
+    "legs": [
+      {
+        "d_rubric": 0.058,
+        "d_questions": 0.11,
+        "distance": 0.124,
+        "bearing": 62.2
+      }
+    ],
+    "slope": null,
+    "note": "fewer than three runs; rubric-to-reader coupling is not yet measurable"
+  }
+}

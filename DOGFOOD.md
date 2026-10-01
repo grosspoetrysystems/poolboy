@@ -533,6 +533,76 @@ demonstrated power is finding absence. Its power to improve presentation of fact
 already present is, so far, unproven — and will stay labelled unproven until a
 structural repair clears the reader spread on its own.
 
+### Reporting all three safely
+
+Per-axis numbers answer "where is the corpus weak". A headline answers "may this
+ship". Both are wanted, so three numbers are reported — but the headline is the
+**minimum** of the two axes, never their mean, and it is never quoted without its
+span.
+
+```
+score = min(rubric / 4, graded)      span = |rubric / 4 - graded|
+```
+
+A mean lets the cheap axis carry the expensive one. The minimum cannot be raised
+by moving one axis, so a repair only scores when the weaker axis moves — which,
+on the evidence so far, is the only kind of repair that is real. The span is the
+confidence qualifier: a widening span is the signature of optimising the cheaper
+measurement, which is exactly what three iterations of structural work did.
+
+Checked against both runs and against two synthetic gaming attempts
+(`bench/usefulness.py`, `combine`, covered by the self-test):
+
+| Run | Rubric | Questions | Score | Span |
+| --- | --- | --- | --- | --- |
+| `0.2.1` baseline | `0.768` | `0.556` | `0.556` | `0.212` |
+| after repairs | `0.826` | `0.666` | **`0.666`** | **`0.159`** |
+| if structural-only work had continued | `0.950` | `0.666` | `0.666` | `0.283` |
+
+The third row is the one that matters: a large rubric gain with flat readers
+produces no headline movement and a visibly widening span. Under a mean it would
+have read as the best run of the three.
+
+The real run moved the headline `+0.110` and narrowed the span `0.053`. Axes
+converging while the score rises is the healthy signature; the score rising while
+they diverge is the failure the shape exists to catch.
+
+`limiter` names whichever axis is currently holding the score down, so routing the
+next repair is free. It has read `questions` for every run so far.
+
+### The coordinate, and what the history buys
+
+The projections above are convenient, not fundamental. A run is a **point**
+`(rubric, questions)`, and the whole target is to travel up and to the right. The
+scalars are shadows of that point: `score` is its lower coordinate, `span` its
+distance from the diagonal.
+
+Keeping the point means each run has a **bearing** — the direction it travelled
+from the last one:
+
+| Bearing | Meaning |
+| --- | --- |
+| `90` | pure reader gain; the rubric did not even see it |
+| `45` | balanced |
+| `0` | pure rubric gain, readers unmoved — the gaming signature |
+| negative | something regressed |
+
+This run: `d_rubric +0.058`, `d_questions +0.110`, bearing **`62.2`**. Leaning
+reader-ward, which is the healthy direction, and a fact rather than a reassurance.
+
+The accruing payoff is the slope. Across enough logged points, regressing
+questions on rubric measures the thing the whole rubric rests on — how many reader
+points a rubric point actually buys. Right now that claim is an assumption; after
+a few more runs it is a number, and if the slope comes out near zero the rubric is
+retired rather than defended.
+
+`trajectory()` refuses to report a slope below three runs. Two points define a
+line by construction, so a two-point correlation would manufacture exactly the
+coupling it claims to measure. The log carries `"slope": null` today and says why.
+
+Every point is stored in `bench/usefulness/trajectory.json` with its commit and
+publication digest, so the history is replayable rather than remembered.
+
 ### Premium
 
 The thresholds that define done, rather than merely better. Three columns, read

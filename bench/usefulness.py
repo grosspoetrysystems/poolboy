@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import statistics
 import sys
 from pathlib import Path
 
@@ -75,6 +77,76 @@ def score(bank: dict, grades: dict[str, str | dict[str, float]]) -> dict:
     }
 
 
+def combine(rubric_mean: float, graded_mean: float, rubric_scale: float = 4.0) -> dict:
+    """Combine the two axes without letting either hide the other.
+
+    The headline is the **minimum**, not the mean. A mean lets a cheap axis carry
+    an expensive one: three iterations of document-structure work raised the
+    rubric while readers gained nothing, and an average would have reported that
+    as progress. Taking the minimum means a gain counts only when the weaker axis
+    moves, which is the only kind of gain observed to be real.
+
+    The **span** between the axes is reported alongside, because a widening span
+    is the signature of optimising the cheaper measurement. A headline without
+    its span is not interpretable.
+
+    `limiter` names the axis currently holding the score down, which is where the
+    next repair belongs.
+    """
+    r = rubric_mean / rubric_scale
+    q = graded_mean
+    return {
+        "rubric": round(r, 3),
+        "questions": round(q, 3),
+        "score": round(min(r, q), 3),
+        "span": round(abs(r - q), 3),
+        "limiter": "questions" if q <= r else "rubric",
+    }
+
+
+def direction(before: tuple[float, float], after: tuple[float, float]) -> dict:
+    """The movement between two runs as a vector, not two unrelated deltas.
+
+    Each run is a point `(rubric, questions)`. What a run is worth is where it
+    travelled, and the bearing says which kind of work it was: `90` is pure
+    reader gain, `0` is pure rubric gain with readers unmoved, and `45` is
+    balanced. A bearing near `0` is the gaming signature.
+    """
+    dr, dq = after[0] - before[0], after[1] - before[1]
+    return {
+        "d_rubric": round(dr, 3),
+        "d_questions": round(dq, 3),
+        "distance": round(math.hypot(dr, dq), 3),
+        "bearing": round(math.degrees(math.atan2(dq, dr)), 1),
+    }
+
+
+def trajectory(runs: list[dict]) -> dict:
+    """Correlation between the two axes across the logged run history.
+
+    This is the claim the rubric rests on — that stating something makes it
+    usable — expressed as a number that accrues instead of an assertion. It is
+    deliberately refused below three runs: a slope through two points is a line
+    by construction and carries no evidence.
+    """
+    pts = [(r["rubric"], r["questions"]) for r in runs]
+    out = {"runs": len(pts), "points": pts}
+    out["legs"] = [direction(a, b) for a, b in zip(pts, pts[1:])]
+    if len(pts) < 3:
+        out["slope"] = None
+        out["note"] = "fewer than three runs; rubric-to-reader coupling is not yet measurable"
+        return out
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    if len(set(xs)) < 2:
+        out["slope"] = None
+        out["note"] = "rubric did not vary; coupling undefined"
+        return out
+    out["slope"] = round(statistics.linear_regression(xs, ys).slope, 3)
+    out["correlation"] = round(statistics.correlation(xs, ys), 3)
+    out["note"] = "reader points gained per rubric point, measured over logged runs"
+    return out
+
+
 def render(bank: dict, result: dict) -> str:
     names = bank["tiers"]
     lines = ["| Tier | Questions | Pass | Rate | Score |", "| --- | --- | --- | --- | --- |"]
@@ -139,6 +211,39 @@ def demo() -> None:
         [q for q in bank["questions"] if q["tier"] == "F"]
     ) - 1 + 0.4
     assert not hedged["gate"], "an argmax of correct on a false premise must fail"
+
+    # The headline cannot be raised by the cheap axis alone. This is the whole
+    # point: structural work that readers do not benefit from must not score.
+    before = combine(3.30, 0.666)
+    structural_only = combine(3.80, 0.666)
+    assert structural_only["score"] == before["score"], "one axis must not move the headline"
+    assert structural_only["span"] > before["span"], "a one-sided gain must widen the span"
+
+    # A gain on the limiting axis does move it, and narrows the span.
+    real = combine(3.30, 0.766)
+    assert real["score"] > before["score"]
+    assert real["span"] < before["span"]
+
+    # The limiter names where the next repair belongs.
+    assert combine(3.30, 0.666)["limiter"] == "questions"
+    assert combine(2.00, 0.900)["limiter"] == "rubric"
+
+    # Movement is a bearing, and the gaming signature has a distinct one.
+    assert direction((0.77, 0.56), (0.83, 0.67))["bearing"] > 45, "balanced gain leans to readers"
+    assert direction((0.77, 0.56), (0.95, 0.56))["bearing"] == 0, "rubric-only gain bears 0"
+
+    # Coupling is refused until three runs exist; two points are a line by
+    # construction and would manufacture the correlation they claim to measure.
+    two = trajectory([{"rubric": 0.77, "questions": 0.56}, {"rubric": 0.83, "questions": 0.67}])
+    assert two["slope"] is None and len(two["legs"]) == 1
+    three = trajectory(
+        [
+            {"rubric": 0.70, "questions": 0.50},
+            {"rubric": 0.80, "questions": 0.60},
+            {"rubric": 0.90, "questions": 0.70},
+        ]
+    )
+    assert three["slope"] == 1.0, "one reader point per rubric point"
     print("usefulness self-test passed")
 
 
