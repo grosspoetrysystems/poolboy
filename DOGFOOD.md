@@ -435,6 +435,54 @@ Experiments are retained under `bench/usefulness/` with their replicate counts,
 noise floor, and margin in standard deviations. An experiment reported without its
 noise floor is an anecdote.
 
+### The coupling check, and what it indicted
+
+Three rubric-driven iterations ran before any question-level validation. That was
+too many: the A/B result showed placement alone moves the rubric, so the proxy
+could have been rewarding structure rather than usefulness. Two readers were run
+against the repaired publication (`0a450237…`) and graded against the same bank.
+
+Graded mean rose `0.556` → `0.666`. Reader spread between the two readers was
+`0.048` on the graded tiers and `0.001` on the refusal tiers, so roughly `0.10`
+is the smallest movement worth believing.
+
+**Validated.** Two repairs moved far beyond that floor:
+
+| Question | Before | After | Repair |
+| --- | --- | --- | --- |
+| `H5` versioned help | `0.01` | `0.96` | the missing document, written from source |
+| `H3` move semantics | `0.17` | `0.49` | the `[[render]]` consequence of moving a generated file |
+
+`H5` moved twenty times the reader spread. A fact that was absent became
+available, and the reader used it.
+
+**Not validated, and this is the important half.** The iteration-3 repairs raised
+the enforcement axis `3.12` → `3.49` and guarantee `2.93` → `3.22`, yet the
+questions that probe those properties did not move: `M1` `-0.06`, `H1` `-0.01`,
+`H2` `+0.01`, `H4` `+0.03`, and `M2` fell `-0.13`. The rubric moved; the reader
+did not benefit.
+
+That is the divergence the design predicted and said would mean the proxy is
+wrong rather than the repair being good. The honest reading: adding a section
+headed `Guarantees` reliably raises an axis named guarantee, and for facts the
+reader could already infer, it adds nothing it can use.
+
+So the rubric earns a narrower claim than three iterations of rising numbers
+suggested. It is a reliable detector of **absence** — `H5` and `H3` were genuinely
+missing facts and fixing them moved everything. It is not yet evidence that
+restating an existing fact more prominently helps anyone, and it should not be
+treated as a quality score on its own.
+
+What changes as a result:
+
+- A rubric gain counts as an improvement only once a question-level run confirms
+  it. Rubric-only iterations stop at one before validating.
+- The axis means stay as a repair-targeting signal, not as a premium gate. The
+  premium table's rubric column is provisional until more repairs are validated
+  against readers.
+- `M2` regressing while its documents' rubric scores rose is the sharpest single
+  warning in this run and needs its own investigation.
+
 ### Premium
 
 The thresholds that define done, rather than merely better:

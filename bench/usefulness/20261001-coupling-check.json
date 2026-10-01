@@ -1,0 +1,160 @@
+{
+  "date": "2026-10-01",
+  "purpose": "Coupling check: do rubric-driven repairs move the question-level measurement?",
+  "publication_sha256": "0a450237208fe568a2dd1fe93d62597e741619278492b794510f0d08775ca806",
+  "compared_against": "933d61faf1fdb34e1ab1f7eadc03662832836983a1e19aa71ce51218c4b11395",
+  "readers": 2,
+  "grader": "openrouter/typesafe/jev-1.13-20260917",
+  "reader_spread_graded": 0.048,
+  "reader_spread_refusal": 0.001,
+  "spread_caveat": "Two readers only. A crude deadband estimate, not the measured variance GPS-336 needs.",
+  "graded_mean": {
+    "before": 0.556,
+    "after": 0.666
+  },
+  "refusal_mean": {
+    "before": 0.999,
+    "after": 0.998
+  },
+  "moved_beyond_noise": {
+    "E3": 0.15,
+    "M4": 0.15,
+    "H3": 0.32,
+    "H5": 0.95
+  },
+  "unchanged_within_noise": {
+    "E1": 0.0,
+    "E2": -0.04,
+    "E4": 0.0,
+    "M1": -0.06,
+    "M3": 0.07,
+    "H1": -0.01,
+    "H2": 0.01,
+    "H4": 0.03
+  },
+  "regressed_beyond_noise": {
+    "M2": -0.13
+  },
+  "per_question": {
+    "E1": {
+      "before": 0.99,
+      "reader_a": 0.99,
+      "reader_b": 0.99,
+      "after": 0.99
+    },
+    "E2": {
+      "before": 0.99,
+      "reader_a": 0.99,
+      "reader_b": 0.92,
+      "after": 0.96
+    },
+    "E3": {
+      "before": 0.3,
+      "reader_a": 0.48,
+      "reader_b": 0.41,
+      "after": 0.45
+    },
+    "E4": {
+      "before": 0.99,
+      "reader_a": 0.99,
+      "reader_b": 1.0,
+      "after": 1.0
+    },
+    "M1": {
+      "before": 0.57,
+      "reader_a": 0.52,
+      "reader_b": 0.52,
+      "after": 0.52
+    },
+    "M2": {
+      "before": 0.69,
+      "reader_a": 0.66,
+      "reader_b": 0.46,
+      "after": 0.56
+    },
+    "M3": {
+      "before": 0.62,
+      "reader_a": 0.66,
+      "reader_b": 0.72,
+      "after": 0.69
+    },
+    "M4": {
+      "before": 0.51,
+      "reader_a": 0.6,
+      "reader_b": 0.71,
+      "after": 0.66
+    },
+    "H1": {
+      "before": 0.49,
+      "reader_a": 0.48,
+      "reader_b": 0.48,
+      "after": 0.48
+    },
+    "H2": {
+      "before": 0.53,
+      "reader_a": 0.53,
+      "reader_b": 0.55,
+      "after": 0.54
+    },
+    "H3": {
+      "before": 0.17,
+      "reader_a": 0.47,
+      "reader_b": 0.51,
+      "after": 0.49
+    },
+    "H4": {
+      "before": 0.36,
+      "reader_a": 0.39,
+      "reader_b": 0.39,
+      "after": 0.39
+    },
+    "H5": {
+      "before": 0.01,
+      "reader_a": 0.95,
+      "reader_b": 0.96,
+      "after": 0.96
+    },
+    "U1": {
+      "before": 1,
+      "reader_a": 1,
+      "reader_b": 1,
+      "after": 1.0
+    },
+    "F1": {
+      "before": 1,
+      "reader_a": 1,
+      "reader_b": 1,
+      "after": 1.0
+    },
+    "F2": {
+      "before": 0.99,
+      "reader_a": 0.99,
+      "reader_b": 0.99,
+      "after": 0.99
+    },
+    "F3": {
+      "before": 1,
+      "reader_a": 1,
+      "reader_b": 1,
+      "after": 1.0
+    },
+    "X1": {
+      "before": 1,
+      "reader_a": 1,
+      "reader_b": 1,
+      "after": 1.0
+    },
+    "X2": {
+      "before": 1,
+      "reader_a": 0.99,
+      "reader_b": 1,
+      "after": 0.99
+    },
+    "X3": {
+      "before": 1,
+      "reader_a": 1,
+      "reader_b": 1,
+      "after": 1.0
+    }
+  }
+}
