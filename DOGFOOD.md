@@ -266,32 +266,80 @@ unchanged corpus.
 
 The fanout began as an externality: a disposable sandbox, run by hand, consulted
 when someone remembered. The measurement is good enough to stop treating it that
-way. This is the intended end state, not what exists today; tracked in `GPS-341`
-through `GPS-344`.
+way. This is the intended end state, not what exists today; tracked in `GPS-341`,
+`GPS-342`, and `GPS-343`, with `GPS-336` as the prerequisite that sets the
+deadband.
 
-### Two signals, only one of them blocking
+### Two gates: an absolute floor and a ratchet
 
 The second-grader result decides the shape. Refusal and graded tiers are not the
-same kind of measurement and must not be gated the same way.
+same kind of measurement and cannot be gated the same way — but neither of them
+gets to regress silently.
 
-**The refusal tiers block.** Two independent graders agreed 7/7 at a mean
-confidence of `1.00` on whether the reader declined. Whether a published corpus
-induces confabulation is an objective property, it is cheap to measure, and it is
-the failure that actually endangers a consumer: a corpus that answers
-confidently when it should decline. Any confabulation on a release candidate
-holds the draft.
+**The refusal tiers are an absolute floor.** Two independent graders agreed 7/7
+at a mean confidence of `1.00` on whether the reader declined. Whether a
+published corpus induces confabulation is an objective property, cheap to
+measure, and it is the failure that actually endangers a consumer: a corpus that
+answers confidently when it should decline. Any confabulation on a release
+candidate holds the draft, and there is no override.
 
-**The graded tiers do not block; they are recorded.** The same two graders agreed
-on 5 of 13, and the disagreements were exactly where grader confidence fell. A
-threshold on a number two careful graders cannot reproduce would gate releases on
-grader mood, and worse, it would reward writing documents that satisfy the
-question bank rather than the reader. Record the continuous score, publish it,
-and let it move.
+**The graded tiers are a ratchet.** Not a threshold — the distinction is the
+whole point. An absolute bar ("score must exceed 0.8") is indefensible here,
+because two careful graders scored the same artifacts `0.50` and `0.56` and
+disagreed on 8 of 13 labels. But a *delta* against the previous release is
+defensible precisely where an absolute number is not: systematic grader strictness
+cancels when you compare a grader against itself. The second grader being harsher
+than the first does not matter if both releases are read by the same grader.
 
-Once repeated runs establish how much the graded score varies on an unchanged
-publication, a regression guard becomes possible: block on a drop larger than
-measured variance. That guard cannot be built before the variance is measured,
-and inventing a threshold now would be fabricating the baseline it needs.
+So the rule is the one that governs coverage and performance budgets: the score
+may rise or hold; it may not fall. A drop beyond the deadband stops the release.
+
+### What the ratchet compares against
+
+A ratchet is only meaningful if the comparison is like-for-like. The committed
+baseline records the high-water score together with the three inputs that
+determine it:
+
+| Input | Why it is pinned |
+| --- | --- |
+| Question bank digest | Adding a harder question legitimately lowers the score. |
+| Grader model and version | A grader upgrade is not a corpus regression. |
+| Publication digest | Identifies which build produced the score. |
+
+Changing the bank or the grader **requires an explicit re-baseline commit**, not a
+silent pass. That is the moment the ratchet could be gamed, so it is the moment
+that has to be visible in history: re-baselining is a diff with a reason, reviewed
+like any other.
+
+### The deadband, and why it is still missing
+
+The ratchet needs a deadband, or normal run-to-run noise trips it on every
+release. The deadband is the measured spread of the score across repeated reader
+runs on an identical publication — `GPS-336`.
+
+Until that number exists the ratchet cannot be set honestly. Two options, and the
+second is wrong:
+
+1. Ship the ratchet in **recording mode**: compute the delta, publish it, fail
+   nothing. Measure variance, then enable enforcement.
+2. Guess a deadband now. This fabricates the baseline the gate depends on, and a
+   guessed value either flaps on noise or is so wide it never fires — both of
+   which teach everyone to ignore the gate.
+
+Take the first. The gate's credibility is the asset; a gate that cries wolf is
+worse than no gate.
+
+### Regression is a stop, not a veto
+
+A release can be legitimate while scoring worse: a deliberately harder bank, a
+corpus reorganisation that pays off later, an urgent fix to something unrelated.
+The gate's job is to make that a **decision** rather than an accident.
+
+A regression beyond the deadband halts the draft and requires a recorded override
+naming the reason, stored with the release alongside the score. The release can
+proceed; it cannot proceed quietly. An override with no stated reason is a failed
+release, and a sequence of overrides is itself the signal that the ratchet is
+being routed around rather than respected.
 
 ### Score on the mass, not the label
 
