@@ -483,22 +483,78 @@ What changes as a result:
 - `M2` regressing while its documents' rubric scores rose is the sharpest single
   warning in this run and needs its own investigation.
 
+### Two axes, deliberately not combined
+
+Both measurements run from here on, at every iteration. They are reported as a
+pair and never averaged into one number.
+
+The temptation is obvious: one score is easier to track and easier to gate on.
+But this run is the argument against it. A composite would have read "rubric up
+`0.21`, questions up `0.11`, steady progress" and buried the only finding worth
+having — that the structural repairs moved one axis and not the other. The
+disagreement is the diagnostic. Averaging deletes it.
+
+They answer different questions and have different costs, so they get different
+jobs:
+
+| | Rubric | Question bank |
+| --- | --- | --- |
+| Asks | does the document *state* it? | can a reader *use* it? |
+| Cost | sub-second, no reader | minutes, model calls |
+| Role | leading indicator: finds and ranks candidate gaps | lagging indicator: decides whether anything improved |
+| Authority | targeting only | the measurement of record |
+
+The pair has four outcomes, and three of them are informative:
+
+| Rubric | Questions | Reading | Action |
+| --- | --- | --- | --- |
+| up | up | a real gap was closed | keep; this is the only state that counts as improvement |
+| up | flat | restating, not adding | do not count it; ask what fact is still missing |
+| flat | up | the rubric missed an axis that mattered | extend the rubric, not the corpus |
+| flat | flat | no effect | revert the change rather than leave it |
+
+The second row is where this run landed for five of thirteen questions, and it is
+the row a single composite score cannot express.
+
+### Attribution, so the gain is not oversold
+
+The `+0.11` graded gain is not spread across the repairs. It decomposes almost
+entirely into two content additions:
+
+| Source | Contribution to graded mean |
+| --- | --- |
+| `H5`, a missing document written from source | `+0.073` |
+| `H3`, a missing consequence stated | `+0.025` |
+| every structural repair combined | `+0.013`, inside reader spread |
+
+Three iterations of rubric work produced a change indistinguishable from noise at
+the question level, except where a fact was genuinely absent. The rubric's
+demonstrated power is finding absence. Its power to improve presentation of facts
+already present is, so far, unproven — and will stay labelled unproven until a
+structural repair clears the reader spread on its own.
+
 ### Premium
 
-The thresholds that define done, rather than merely better:
+The thresholds that define done, rather than merely better. Three columns, read
+together and never summed:
 
-| Gate | Refusal | Graded score | Rubric | Stability |
-| --- | --- | --- | --- | --- |
-| **Floor** | `1.00`, no override | — | — | — |
-| **Working** | `1.00` | ≥ `0.75` | no axis mean < `3.0` | — |
-| **Premium** | `1.00` | ≥ `0.90`, every tier ≥ `0.85`, no question < `0.60` | every non-index document ≥ `3.0` on every axis | held across 3 consecutive runs |
+| Gate | Refusal | Graded score | Rubric |
+| --- | --- | --- | --- |
+| **Floor** | `1.00`, no override | — | — |
+| **Working** | `1.00` | ≥ `0.75` | no axis mean < `3.0` |
+| **Premium** | `1.00` | ≥ `0.90`, every tier ≥ `0.85`, no question < `0.60` | every non-index document ≥ `3.0` on every axis |
 
-Measured at `0.2.1`: refusal `1.00`, graded `0.556`, weakest axis mean `2.71`.
-Working on two of three, premium on none.
+Premium additionally requires the graded score to hold across three consecutive
+runs. A single run clearing `0.90` is a sample, not a property, and the reason
+this section exists is that a single run already fooled us once.
 
-The stability clause carries the weight. A single run clearing `0.90` is a sample,
-not a property, and the whole reason this section exists is that a single run
-already fooled us once.
+The rubric column is **advisory**. It is listed because a corpus that cannot state
+its own guarantees is not premium whatever it scores, but it does not gate on its
+own and a rubric gain is not progress until a reader run confirms it. Only the
+refusal and graded columns can hold a release.
+
+Measured now: refusal `1.00` (floor met), graded `0.666` (working not yet met),
+rubric 44 of 45 axes at or above `3.0` with one generated-document gap open.
 
 `index.md` is exempt from the rubric. A navigation page describes no behavior of
 its own, so its low axis scores are correct rather than a defect.
