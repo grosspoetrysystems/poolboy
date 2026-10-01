@@ -341,6 +341,120 @@ proceed; it cannot proceed quietly. An override with no stated reason is a faile
 release, and a sequence of overrides is itself the signal that the ratchet is
 being routed around rather than respected.
 
+### What good looks like, derived rather than asserted
+
+Patching the documents a question bank happens to fail produces a corpus tuned to
+that bank. The loop only improves the product if each iteration yields a property
+that generalises to documents nobody asked about — and to corpora generated from
+foreign repositories, where no bank exists at all.
+
+Classifying the 0.2.1 misses by the *kind* of fact that was missing, rather than
+by subject, produced one. Mean continuous score by fact kind:
+
+| Fact kind | The question it answers | Mean score |
+| --- | --- | --- |
+| mechanism | How does it work, step by step? | `0.65` |
+| boundary | What does it explicitly NOT do? | `0.61` |
+| enforcement | Enforced by the tool, or only a convention? | `0.53` |
+| guarantee | What is promised to hold, and what survives failure? | `0.52` |
+| consequence | What else must I do, and what does this change? | `0.17` |
+
+The correlation between a question's score and whether a maintainer needs that
+fact *before performing a mutating action* is **`-0.59`**. The corpus is weakest
+exactly where it is load-bearing. Describing how something works is the easy half,
+and it is the half already done.
+
+Auditing the published documents directly on the same five axes — different unit,
+different objects, no questions involved — ranks them the same way: `guarantee`
+`2.71` and `consequence` `2.73` weakest, `boundary` `2.95` and `mechanism` `2.91`
+strongest, on a 0–4 scale. Two independent measurements agreeing is the reason to
+treat this as a property of the corpus rather than an artifact of the bank.
+
+The rubric is `bench/rubric.json`. It is deliberately not tied to the questions.
+
+### The loop
+
+1. **Audit** every document on the five axes. Cheap, no reader required.
+2. **Repair** the weakest axis of the weakest document, from source evidence.
+3. **Re-audit** to confirm the axis moved.
+4. **Re-measure** with the question bank at release, where the reader runs.
+5. **Keep** the repair when movement exceeds variance; otherwise it was noise.
+
+The two measurements check each other, and that coupling is the point:
+
+- Rubric rises, questions do not → the rubric is wrong, or the repair was cosmetic.
+- Questions rise, rubric does not → the bank is being fitted. Treat as a defect.
+- Both rise → a real property improved, and it improved for documents the bank
+  never probed.
+
+The first target the rubric found is one no question pointed at: `architecture.md`
+scores `1.58` on guarantee against a corpus mean of `2.71`.
+
+### The flywheel: A/B where the answer is unknown
+
+Most repairs are obvious once the rubric names the gap — the fact is missing, add
+it. Some are not. When the uncertainty is *how* to state something rather than
+*what* to state, guessing and shipping teaches nothing, and the next person
+guesses again.
+
+Those cases get an experiment. Both arms carry identical facts, verified by
+substring rather than by eye, and differ in exactly one dimension. Each arm is
+audited `k` times so the comparison has a noise floor, and the winner ships only
+when the gap exceeds that floor.
+
+This is cheap enough to be routine: a document audit is sub-second, so a
+three-arm experiment with five replicates costs about as much as reading the file.
+
+**First experiment — `architecture.md` guarantees.** The rubric scored it `1.58`,
+the weakest axis of any document and one no question in the bank probed. The open
+question was placement: one named section, or each guarantee attached to the
+mechanism it constrains?
+
+| Arm | Placement | guarantee | all-axis mean |
+| --- | --- | --- | --- |
+| base | — | `1.66` | `2.48` |
+| **A** | one named `Guarantees` section | **`3.22`** | **`3.07`** |
+| B | inline beside each mechanism | `2.75` | `2.93` |
+
+Within-arm noise was `0.019` standard deviations. A beat B by `0.47` on the target
+axis — **24 standard deviations** — and also won boundary, consequence and
+enforcement. Identical facts. Only placement differed.
+
+**Rule learned:** a named, discoverable section outperforms contextual embedding
+for guarantees. That is a property of documents, not of this document, so it
+applies to every corpus Poolboy generates, including from repositories that have
+no documentation to convert.
+
+**The caveat that keeps this honest.** The audit measures what a grader can
+*locate* in a document. Whether it helps a reader *answer* is the separate, slower
+measurement at release. The cheap proxy chooses between variants; the expensive
+test validates the proxy. If question scores ever rise while the rubric does not —
+or the reverse — the proxy is wrong and gets rebuilt, not explained away.
+
+Experiments are retained under `bench/usefulness/` with their replicate counts,
+noise floor, and margin in standard deviations. An experiment reported without its
+noise floor is an anecdote.
+
+### Premium
+
+The thresholds that define done, rather than merely better:
+
+| Gate | Refusal | Graded score | Rubric | Stability |
+| --- | --- | --- | --- | --- |
+| **Floor** | `1.00`, no override | — | — | — |
+| **Working** | `1.00` | ≥ `0.75` | no axis mean < `3.0` | — |
+| **Premium** | `1.00` | ≥ `0.90`, every tier ≥ `0.85`, no question < `0.60` | every non-index document ≥ `3.0` on every axis | held across 3 consecutive runs |
+
+Measured at `0.2.1`: refusal `1.00`, graded `0.556`, weakest axis mean `2.71`.
+Working on two of three, premium on none.
+
+The stability clause carries the weight. A single run clearing `0.90` is a sample,
+not a property, and the whole reason this section exists is that a single run
+already fooled us once.
+
+`index.md` is exempt from the rubric. A navigation page describes no behavior of
+its own, so its low axis scores are correct rather than a defect.
+
 ### Score on the mass, not the label
 
 Four grade labels across thirteen questions produced three distinct values. The

@@ -88,6 +88,20 @@ file-level plan without accepting source evidence. `build` writes `dist/`;
 `preview` runs the same build and exposes that output through a temporary
 loopback-only HTTP server without signing or uploading it.
 
+## Guarantees
+
+These hold for every build and are the properties a maintainer can rely on before
+mutating anything.
+
+- **Reads never write.** Query and refactor commands operate on the in-memory index and never write to the publication.
+- **Failure before mutation changes nothing.** Validation, rendering and staging happen in a temporary sibling, so a failure before mutation leaves the live publication, the corpus and the generated ledger untouched.
+- **Replacement is staged, not transactional.** Once replacement begins, failures trigger rollback attempts rather than a transaction: the sequence is not atomic and is not safe against crash or power loss.
+- **Authored files are never clobbered.** A current file with no prior ledger entry is treated as handwritten and is never overwritten by a render.
+- **Check-in does not close source review.** Applying a check-in plan never accepts the source baseline; source review remains outstanding afterwards.
+- **Preview is local and unsigned.** `preview` binds a loopback-only server and never signs or uploads what it serves.
+- **Publication is keyless.** `build` is keyless and produces an unsigned publication; signing is a separate explicit step.
+- **The graph is Markdown-link only.** The document graph is Markdown-link only; wikilinks are a quarantined compatibility layer and are never graph edges.
+
 ## What a consumer needs
 
 A published corpus is plain files behind HTTP: `GET /index.html`,

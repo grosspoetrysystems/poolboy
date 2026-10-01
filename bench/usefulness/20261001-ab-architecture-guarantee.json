@@ -1,0 +1,53 @@
+{
+  "experiment": "architecture.md guarantee repair",
+  "date": "2026-10-01",
+  "grader": "openrouter/typesafe/jev-1.13-20260917",
+  "uncertainty": "Whether guarantees are better collected in one named section or attached to each mechanism they constrain.",
+  "design": "Both arms state the same eight guarantees, verified identical by substring. Only placement differs.",
+  "replicates_per_arm": 5,
+  "within_arm_noise_sd": 0.019,
+  "arms": {
+    "base": {
+      "description": "unchanged document"
+    },
+    "A": {
+      "description": "one named Guarantees section"
+    },
+    "B": {
+      "description": "same facts inline beside each mechanism"
+    }
+  },
+  "results": {
+    "base": {
+      "mechanism": 2.99,
+      "guarantee": 1.66,
+      "boundary": 2.44,
+      "consequence": 2.63,
+      "enforcement": 2.69
+    },
+    "A": {
+      "mechanism": 3.03,
+      "guarantee": 3.22,
+      "boundary": 3.16,
+      "consequence": 2.89,
+      "enforcement": 3.05
+    },
+    "B": {
+      "mechanism": 3.04,
+      "guarantee": 2.75,
+      "boundary": 3.02,
+      "consequence": 2.84,
+      "enforcement": 3.0
+    }
+  },
+  "all_axis_mean": {
+    "base": 2.482,
+    "A": 3.07,
+    "B": 2.93
+  },
+  "decision": "A",
+  "margin_over_b_on_guarantee": 0.47,
+  "margin_in_noise_sds": 24.4,
+  "rule_learned": "A named, discoverable section outperforms contextual embedding for guarantees. Same facts, different placement, 0.47 apart at 24 standard deviations.",
+  "caveat": "This measures what a grader can locate in a document. Whether it helps a reader answer a question is the separate, slower measurement at release. The cheap proxy chooses between variants; the expensive test validates the proxy."
+}

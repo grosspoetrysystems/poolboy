@@ -1,0 +1,45 @@
+{
+  "derived": "2026-10-01",
+  "purpose": "What a document must state to be answerable. Applies to any corpus, including corpora generated from foreign repositories, and is not tied to a question bank.",
+  "evidence": {
+    "method": "Two independent measurements on the 0.2.1 run. Question-level: classify the kind of fact each graded question was missing, against its continuous score. Document-level: score every published document on the same five axes.",
+    "convergence": "Both rank guarantee and consequence weakest and mechanism and boundary strongest, measured in different units over different objects.",
+    "correlation_score_vs_needed_before_acting": -0.59,
+    "reading": "The facts a maintainer needs before performing a mutating action are the ones the corpus documents worst. Describing how something works is the easy half and the half already done."
+  },
+  "axes": {
+    "mechanism": {
+      "asks": "How does it work, step by step?",
+      "question_level_mean": 0.65,
+      "document_level_mean": 2.91
+    },
+    "boundary": {
+      "asks": "What does it explicitly NOT do, and where does its responsibility stop?",
+      "question_level_mean": 0.61,
+      "document_level_mean": 2.95
+    },
+    "enforcement": {
+      "asks": "Is this enforced by the tool, or is it a convention the tool will not check?",
+      "question_level_mean": 0.53,
+      "document_level_mean": 2.85
+    },
+    "guarantee": {
+      "asks": "What is promised to hold: an invariant, atomicity, what survives failure?",
+      "question_level_mean": 0.52,
+      "document_level_mean": 2.71
+    },
+    "consequence": {
+      "asks": "What else must the reader do, and what does this change elsewhere?",
+      "question_level_mean": 0.17,
+      "document_level_mean": 2.73
+    }
+  },
+  "exempt": {
+    "index.md": "A navigation page describes no behavior of its own. Its low axis scores are correct, not a defect. Audit it on whether it routes, not on whether it explains."
+  },
+  "how_to_use": [
+    "Audit a corpus document by document, not question by question. Questions find the gaps a bank happens to probe; the rubric finds the gaps nobody asked about.",
+    "Repair the weakest axis of the weakest document first, then re-measure.",
+    "A repair driven by this rubric is legitimate because it adds a fact class a maintainer needs. A repair driven only by a failing question risks adding text shaped like the question."
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "publication_sha256": "3afe77865542d2ee8503f72da0d8a3317c84f0e9b831cf4fe35be160aa2c1842",
+  "source_commit": "a9ff5e174b7655e55bbdb7ae493cd0a075e64352",
+  "grader": "openrouter/typesafe/jev-1.13-20260917",
+  "scale": "0..4, probability-weighted",
+  "axis_means": {
+    "mechanism": 2.91,
+    "guarantee": 2.71,
+    "boundary": 2.95,
+    "consequence": 2.73,
+    "enforcement": 2.85
+  },
+  "documents": {
+    "architecture.md": {
+      "mechanism": 2.99,
+      "guarantee": 1.58,
+      "boundary": 2.33,
+      "consequence": 2.64,
+      "enforcement": 2.71,
+      "weakest_axis": "guarantee"
+    },
+    "security-boundaries.md": {
+      "mechanism": 3.16,
+      "guarantee": 3.2,
+      "boundary": 3.55,
+      "consequence": 3.05,
+      "enforcement": 3.44,
+      "weakest_axis": "consequence"
+    },
+    "source-inventory-and-drift.md": {
+      "mechanism": 3.29,
+      "guarantee": 3.07,
+      "boundary": 3.46,
+      "consequence": 3.17,
+      "enforcement": 3.44,
+      "weakest_axis": "guarantee"
+    },
+    "versioned-help.md": {
+      "mechanism": 3.71,
+      "guarantee": 3.17,
+      "boundary": 2.62,
+      "consequence": 2.94,
+      "enforcement": 3,
+      "weakest_axis": "boundary"
+    },
+    "maintenance-commands.md": {
+      "mechanism": 3.08,
+      "guarantee": 2.94,
+      "boundary": 3.03,
+      "consequence": 3.03,
+      "enforcement": 3.12,
+      "weakest_axis": "guarantee"
+    },
+    "index.md": {
+      "mechanism": 0.81,
+      "guarantee": 0.74,
+      "boundary": 0.64,
+      "consequence": 0.68,
+      "enforcement": 0.44,
+      "weakest_axis": "enforcement"
+    },
+    "build-and-render.md": {
+      "mechanism": 3.45,
+      "guarantee": 3.06,
+      "boundary": 3.17,
+      "consequence": 3.08,
+      "enforcement": 3.28,
+      "weakest_axis": "guarantee"
+    },
+    "commands.md": {
+      "mechanism": 2.56,
+      "guarantee": 3.25,
+      "boundary": 3.88,
+      "consequence": 3.13,
+      "enforcement": 2.98,
+      "weakest_axis": "mechanism"
+    },
+    "portable-contracts.md": {
+      "mechanism": 2.93,
+      "guarantee": 3.04,
+      "boundary": 3.66,
+      "consequence": 2.99,
+      "enforcement": 2.8,
+      "weakest_axis": "enforcement"
+    },
+    "renderer.md": {
+      "mechanism": 3.16,
+      "guarantee": 3.03,
+      "boundary": 3.18,
+      "consequence": 2.62,
+      "enforcement": 3.27,
+      "weakest_axis": "consequence"
+    }
+  },
+  "question_level_fact_kinds": {
+    "consequence": 0.17,
+    "guarantee": 0.52,
+    "enforcement": 0.53,
+    "boundary": 0.61,
+    "mechanism": 0.65
+  },
+  "per_question": {
+    "E2": {
+      "score": 0.99,
+      "failure_mode": "complete",
+      "missing_fact_kind": "mechanism",
+      "needed_before_acting": 0.61
+    },
+    "M2": {
+      "score": 0.69,
+      "failure_mode": "scattered",
+      "missing_fact_kind": "guarantee",
+      "needed_before_acting": 0.77
+    },
+    "H3": {
+      "score": 0.17,
+      "failure_mode": "scattered",
+      "missing_fact_kind": "consequence",
+      "needed_before_acting": 0.88
+    },
+    "E3": {
+      "score": 0.3,
+      "failure_mode": "absent",
+      "missing_fact_kind": "boundary",
+      "needed_before_acting": 0.72
+    },
+    "H2": {
+      "score": 0.53,
+      "failure_mode": "complete",
+      "missing_fact_kind": "boundary",
+      "needed_before_acting": 0.69
+    },
+    "E4": {
+      "score": 0.99,
+      "failure_mode": "complete",
+      "missing_fact_kind": "boundary",
+      "needed_before_acting": 0.56
+    },
+    "H5": {
+      "score": 0.01,
+      "failure_mode": "absent",
+      "missing_fact_kind": "mechanism",
+      "needed_before_acting": 0.64
+    },
+    "M3": {
+      "score": 0.62,
+      "failure_mode": "complete",
+      "missing_fact_kind": "mechanism",
+      "needed_before_acting": 0.71
+    },
+    "H1": {
+      "score": 0.49,
+      "failure_mode": "absent",
+      "missing_fact_kind": "enforcement",
+      "needed_before_acting": 0.81
+    },
+    "M1": {
+      "score": 0.57,
+      "failure_mode": "complete",
+      "missing_fact_kind": "enforcement",
+      "needed_before_acting": 0.82
+    },
+    "M4": {
+      "score": 0.51,
+      "failure_mode": "complete",
+      "missing_fact_kind": "enforcement",
+      "needed_before_acting": 0.78
+    },
+    "H4": {
+      "score": 0.36,
+      "failure_mode": "implicit",
+      "missing_fact_kind": "guarantee",
+      "needed_before_acting": 0.8
+    },
+    "E1": {
+      "score": 0.99,
+      "failure_mode": "complete",
+      "missing_fact_kind": "mechanism",
+      "needed_before_acting": 0.52
+    }
+  }
+}
