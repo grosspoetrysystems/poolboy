@@ -13,16 +13,39 @@ sources:
 
 Use a leading --root DIR or --root=DIR to select a project. Result commands accept --format text|json|csv|tsv; exit status is 0 for success, 1 for no match or check failures, and 2 for errors.
 
+## How to read this reference
+
+Every command below is listed with the same fields, and two of them carry
+guarantees rather than description.
+
+**Mutation** is enforced by the command itself, not a convention. A command
+marked read-only builds the document graph in memory and reports from it; it
+has no write path to the corpus, the publication, the source baseline, or the
+generated ledger, whatever its output says. A command marked mutating changes
+something on disk, and its **Effects** names what. Several mutating commands
+only write when an explicit flag asks them to — `check` without `--fix`, bare
+`tidy`, and `checkin` without `--apply` all preview and write nothing.
+
+**Does not** states a deliberate non-goal, not an unimplemented feature. Where a
+command names one, it will not acquire that behavior by adding a flag.
+
+**Verify** gives a command that observes the result. Running it after a mutating
+command is how you confirm what happened rather than assuming it.
+
+Exit status is uniform: `0` succeeded including an empty result, `1` is a valid
+negative such as no match or check findings, and `2` is a usage, configuration,
+or I/O error.
+
 ## `init`
 
 Scaffold a documentation project in an optional directory and report existing Markdown adoption issues; existing files are preserved unless --force is used.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy init [dir] [--force] [--format text|json|csv|tsv]`
 - Effects: Writes starter project files into the target directory and reports Markdown adoption issues; existing files are preserved unless --force is given.
-- Does not: Does not build, publish, or sign anything, and without --force does not overwrite existing files.
+- Deliberately does not: Does not build, publish, or sign anything, and without --force does not overwrite existing files.
 
 ### Verify
 
@@ -43,12 +66,12 @@ Scaffold a documentation project in an optional directory and report existing Ma
 
 Render and publish the configured corpus.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy build [--renderer PATH] [--format text|json|csv|tsv]`
 - Effects: Renders the configured corpus and writes the published output.
-- Does not: Does not sign, approve, or verify the output; building does not imply review or established trust.
+- Deliberately does not: Does not sign, approve, or verify the output; building does not imply review or established trust.
 
 
 ### Related commands
@@ -66,12 +89,12 @@ Render and publish the configured corpus.
 
 Build and serve the configured corpus through a private loopback URL.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/preview.go`
 - Usage: `poolboy preview [--port N] [--renderer PATH]`
 - Effects: Builds the corpus and serves it at a private loopback URL until the process is stopped.
-- Does not: Does not publish the corpus or expose it beyond loopback.
+- Deliberately does not: Does not publish the corpus or expose it beyond loopback.
 
 
 ### Related commands
@@ -86,12 +109,12 @@ Build and serve the configured corpus through a private loopback URL.
 
 Record a bounded source inventory baseline and summarize documentation health.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy scan [--accept] [--format text|json|csv|tsv]`
 - Effects: Records a bounded source inventory baseline and summarizes documentation health.
-- Does not: Does not build, publish, or review documentation.
+- Deliberately does not: Does not build, publish, or review documentation.
 
 ### Verify
 
@@ -111,12 +134,12 @@ Record a bounded source inventory baseline and summarize documentation health.
 
 Compare current sources and summarize affected documentation.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy drift [--format text|json|csv|tsv]`
 - Effects: Compares current sources against the recorded baseline and summarizes affected documentation; read-only.
-- Does not: Does not record or update the baseline.
+- Deliberately does not: Does not record or update the baseline.
 
 
 ### Related commands
@@ -132,12 +155,12 @@ Compare current sources and summarize affected documentation.
 
 Inspect documentation provenance and graph evidence.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy health [--format text|json|csv|tsv]`
 - Effects: Reports documentation provenance and graph evidence; read-only.
-- Does not: Does not change provenance, graph evidence, or corpus files.
+- Deliberately does not: Does not change provenance, graph evidence, or corpus files.
 
 
 ### Related commands
@@ -153,12 +176,12 @@ Inspect documentation provenance and graph evidence.
 
 Find documents citing a source resource directly.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy affected SOURCE [--format text|json|csv|tsv]`
 - Effects: Lists documents that cite the given source resource directly; read-only.
-- Does not: Does not modify entries or the source inventory.
+- Deliberately does not: Does not modify entries or the source inventory.
 
 
 ### Related commands
@@ -175,12 +198,12 @@ Find documents citing a source resource directly.
 
 Create an asynchronous ordinary-Markdown checkout outside the project root and record its exact private comparison base.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy checkout DIR [--format text|json|csv|tsv]`
 - Effects: Creates an ordinary-Markdown checkout at DIR outside the project root and records its private comparison base.
-- Does not: Does not modify the canonical corpus.
+- Deliberately does not: Does not modify the canonical corpus.
 
 ### Verify
 
@@ -198,12 +221,12 @@ Create an asynchronous ordinary-Markdown checkout outside the project root and r
 
 Compare checkout, base, and canonical corpus revisions; preview by default and apply only a conflict-free plan.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy checkin DIR [--apply] [--format text|json|csv|tsv]`
 - Effects: Compares checkout, base, and canonical revisions; previews the plan by default and applies a conflict-free plan only with --apply.
-- Does not: Without --apply, does not modify the canonical corpus, and never applies a plan with conflicts.
+- Deliberately does not: Without --apply, does not modify the canonical corpus, and never applies a plan with conflicts.
 
 ### Verify
 
@@ -223,12 +246,12 @@ Compare checkout, base, and canonical corpus revisions; preview by default and a
 
 Report corpus counts for entries, links, tags, checkboxes, broken links, and orphans.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy status [--format text|json|csv|tsv]`
 - Effects: Reports corpus counts for entries, links, tags, checkboxes, broken links, and orphans; read-only.
-- Does not: Does not modify the corpus or its index.
+- Deliberately does not: Does not modify the corpus or its index.
 
 
 ### Related commands
@@ -244,12 +267,12 @@ Report corpus counts for entries, links, tags, checkboxes, broken links, and orp
 
 List indexed entries.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `ls`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy list [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--sort path|timestamp] [--reverse] [--format text|json|csv|tsv]`
 - Effects: Lists indexed entries, filtered and ordered by the given options; read-only.
-- Does not: Does not modify indexed entries.
+- Deliberately does not: Does not modify indexed entries.
 
 
 ### Related commands
@@ -269,12 +292,12 @@ List indexed entries.
 
 Print one entry body with frontmatter stripped.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy read FILE [--format text|json|csv|tsv]`
 - Effects: Prints one entry body with frontmatter stripped; read-only.
-- Does not: Does not modify the entry.
+- Deliberately does not: Does not modify the entry.
 
 
 ### Related commands
@@ -291,12 +314,12 @@ Print one entry body with frontmatter stripped.
 
 Print one entry's heading hierarchy.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy outline FILE [--format text|json|csv|tsv]`
 - Effects: Prints one entry's heading hierarchy; read-only.
-- Does not: Does not modify the entry.
+- Deliberately does not: Does not modify the entry.
 
 
 ### Related commands
@@ -312,12 +335,12 @@ Print one entry's heading hierarchy.
 
 Extract one Markdown table from an entry.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy table FILE [--n N] [--format text|json|csv|tsv]`
 - Effects: Extracts one Markdown table from an entry; read-only.
-- Does not: Does not modify the entry.
+- Deliberately does not: Does not modify the entry.
 
 
 ### Related commands
@@ -334,12 +357,12 @@ Extract one Markdown table from an entry.
 
 Search entry text; every query word must match by default.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy search QUERY [--any] [--exact] [--lines] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]`
 - Effects: Searches entry text, requiring every query word to match by default; read-only.
-- Does not: Does not modify entries or search state.
+- Deliberately does not: Does not modify entries or search state.
 
 
 ### Related commands
@@ -360,12 +383,12 @@ Search entry text; every query word must match by default.
 
 List GFM checklist items; an optional file scopes the result.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy checkboxes [FILE] [--all] [--done] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]`
 - Effects: Lists GFM checklist items across selected entries; read-only.
-- Does not: Does not modify checklist items.
+- Deliberately does not: Does not modify checklist items.
 
 
 ### Related commands
@@ -385,12 +408,12 @@ List GFM checklist items; an optional file scopes the result.
 
 List tags in use across selected entries.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy tags [--counts] [--sort name|count] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]`
 - Effects: Lists tags in use across selected entries; read-only.
-- Does not: Does not modify entries or tags.
+- Deliberately does not: Does not modify entries or tags.
 
 
 ### Related commands
@@ -410,12 +433,12 @@ List tags in use across selected entries.
 
 List frontmatter property keys in use.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy properties [--counts] [--sort name|count] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]`
 - Effects: Lists frontmatter property keys in use across selected entries; read-only.
-- Does not: Does not modify entries or property keys.
+- Deliberately does not: Does not modify entries or property keys.
 
 
 ### Related commands
@@ -434,12 +457,12 @@ List frontmatter property keys in use.
 
 List values for one frontmatter property.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy property NAME [--counts] [--sort name|count] [--prefix PATH] [--where KEY=VALUE|KEY!=VALUE] [--format text|json|csv|tsv]`
 - Effects: Lists the values in use for one frontmatter property; read-only.
-- Does not: Does not modify entries or property values.
+- Deliberately does not: Does not modify entries or property values.
 
 
 ### Related commands
@@ -459,12 +482,12 @@ List values for one frontmatter property.
 
 List broken internal links.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy unresolved [--format text|json|csv|tsv]`
 - Effects: Lists broken internal links across the corpus; read-only.
-- Does not: Does not repair broken links.
+- Deliberately does not: Does not repair broken links.
 
 
 ### Related commands
@@ -480,12 +503,12 @@ List broken internal links.
 
 List entries with no incoming links.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy orphans [--format text|json|csv|tsv]`
 - Effects: Lists entries with no incoming links; read-only.
-- Does not: Does not modify entries or links.
+- Deliberately does not: Does not modify entries or links.
 
 
 ### Related commands
@@ -500,12 +523,12 @@ List entries with no incoming links.
 
 List unique outgoing link targets from one entry.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy links FILE [--format text|json|csv|tsv]`
 - Effects: Lists unique outgoing link targets from one entry; read-only.
-- Does not: Does not modify links.
+- Deliberately does not: Does not modify links.
 
 
 ### Related commands
@@ -522,12 +545,12 @@ List unique outgoing link targets from one entry.
 
 List every incoming link reference to one entry.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy backlinks FILE [--format text|json|csv|tsv]`
 - Effects: Lists every incoming link reference to one entry; read-only.
-- Does not: Does not modify links.
+- Deliberately does not: Does not modify links.
 
 
 ### Related commands
@@ -544,12 +567,12 @@ List every incoming link reference to one entry.
 
 Relocate an entry and rewrite Markdown links.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `mv`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy move SRC DEST [--dry-run] [--include-frontmatter] [--format text|json|csv|tsv]`
 - Effects: Relocates an entry from SRC to DEST and rewrites Markdown links pointing at it.
-- Does not: With --dry-run, previews the plan and does not write any files.
+- Deliberately does not: With --dry-run, previews the plan and does not write any files.
 
 ### Verify
 
@@ -571,12 +594,12 @@ Relocate an entry and rewrite Markdown links.
 
 Preview or apply canonical link, filename, and wikilink cleanup.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy tidy [--links] [--slug] [--wikilinks] [--all] [--format text|json|csv|tsv]`
 - Effects: Applies the selected link, filename, and wikilink cleanup category, or every category with --all.
-- Does not: Bare tidy is preview-only and does not modify any files.
+- Deliberately does not: Bare tidy is preview-only and does not modify any files.
 
 ### Verify
 
@@ -599,12 +622,12 @@ Preview or apply canonical link, filename, and wikilink cleanup.
 
 Report conformance and corpus health issues.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/commands.go`
 - Usage: `poolboy check [--fix] [--format text|json|csv|tsv]`
 - Effects: Reports conformance and corpus health issues; with --fix applies safe repairs such as syncing okf_version.
-- Does not: Does not publish, review, or approve; without --fix it does not modify any files.
+- Deliberately does not: Does not publish, review, or approve; without --fix it does not modify any files.
 
 ### Verify
 
@@ -624,12 +647,12 @@ Report conformance and corpus health issues.
 
 Generate a private Ed25519 key for explicit TOFU publishing.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/signing.go`
 - Usage: `poolboy keygen [--out PATH] [--force]`
 - Effects: Writes a private Ed25519 key file, defaulting to poolboy.key.
-- Does not: Does not sign or publish anything, and without --force does not overwrite an existing key file.
+- Deliberately does not: Does not sign or publish anything, and without --force does not overwrite an existing key file.
 
 
 ### Related commands
@@ -645,12 +668,12 @@ Generate a private Ed25519 key for explicit TOFU publishing.
 
 Sign the built graph for explicit Ed25519 TOFU verification.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/signing.go`
 - Usage: `poolboy sign [--key PATH] [--root PATH]`
 - Effects: Signs the built graph for explicit Ed25519 TOFU verification.
-- Does not: Asserts authorship only; does not approve the release or establish trust for consumers.
+- Deliberately does not: Asserts authorship only; does not approve the release or establish trust for consumers.
 
 ### Verify
 
@@ -670,12 +693,12 @@ Sign the built graph for explicit Ed25519 TOFU verification.
 
 Verify an approved exact corpus release or report a pending update.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `none`
 - Source: `cmd/poolboy/signing.go`
 - Usage: `poolboy verify DIR-OR-URL [--lock PATH] [--identity URI] [--tofu] [--channel NAME]`
 - Effects: Verifies an approved exact corpus release or reports a pending update; read-only.
-- Does not: Does not approve or record trust; verification alone does not grant approval.
+- Deliberately does not: Does not approve or record trust; verification alone does not grant approval.
 
 
 ### Related commands
@@ -694,12 +717,12 @@ Verify an approved exact corpus release or report a pending update.
 
 Fully verify and interactively approve one exact corpus digest.
 
-- Mutation: `true`
+- Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/signing.go`
 - Usage: `poolboy approve DIR-OR-URL [--lock PATH] [--identity URI] [--tofu] [--channel NAME] [--minimum-release-age DURATION] [--override-age] [--migrate-identity]`
 - Effects: Fully verifies and interactively records approval of one exact corpus digest in the selected trust store.
-- Does not: Does not modify the corpus; approves only the exact digest presented.
+- Deliberately does not: Does not modify the corpus; approves only the exact digest presented.
 
 ### Verify
 
@@ -724,12 +747,12 @@ Fully verify and interactively approve one exact corpus digest.
 
 Print the Poolboy version as a bare string.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `--version, -v`
 - Source: `cmd/poolboy/main.go`
 - Usage: `poolboy version`
 - Effects: Prints the Poolboy version as a bare string; read-only.
-- Does not: Does not inspect or modify the corpus.
+- Deliberately does not: Does not inspect or modify the corpus.
 
 
 ### Related commands
@@ -740,12 +763,12 @@ Print the Poolboy version as a bare string.
 
 Print the top-level usage and command list.
 
-- Mutation: `false`
+- Mutation: `false` — read-only; cannot write to the corpus, publication, source baseline, or generated ledger
 - Aliases: `-h, --help`
 - Source: `cmd/poolboy/help.go`
 - Usage: `poolboy help`
 - Effects: Prints the top-level usage and command list; read-only.
-- Does not: Does not run a command or modify the corpus.
+- Deliberately does not: Does not run a command or modify the corpus.
 
 
 ### Related commands

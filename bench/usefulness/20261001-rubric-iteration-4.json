@@ -1,0 +1,130 @@
+{
+  "iteration": "iteration-4",
+  "grader": "openrouter/typesafe/jev-1.13-20260917",
+  "scale": "0..4, probability-weighted",
+  "baseline_excludes": [
+    "index.md"
+  ],
+  "baseline_note": "index.md is a navigation page and scores 0.44-0.81 on every axis; including it biases each axis mean low by about 0.25.",
+  "generated_documents": [
+    "commands.md"
+  ],
+  "generated_note": "A generated document is repaired by editing templates/commands.md.knap and data/commands.json, never the published output, which make verify would flag as stale.",
+  "axis_means_substantive": {
+    "mechanism": 3.17,
+    "guarantee": 3.22,
+    "boundary": 3.46,
+    "consequence": 3.16,
+    "enforcement": 3.49
+  },
+  "documents": {
+    "renderer.md": {
+      "mechanism": 3.22,
+      "guarantee": 3.11,
+      "boundary": 3.35,
+      "consequence": 3.36,
+      "enforcement": 3.39
+    },
+    "index.md": {
+      "mechanism": 0.86,
+      "guarantee": 0.76,
+      "boundary": 0.75,
+      "consequence": 0.69,
+      "enforcement": 0.45
+    },
+    "architecture.md": {
+      "mechanism": 3.05,
+      "guarantee": 3.23,
+      "boundary": 3.22,
+      "consequence": 3.07,
+      "enforcement": 3.26
+    },
+    "build-and-render.md": {
+      "mechanism": 3.44,
+      "guarantee": 3.06,
+      "boundary": 3.15,
+      "consequence": 3.08,
+      "enforcement": 3.25
+    },
+    "security-boundaries.md": {
+      "mechanism": 3.16,
+      "guarantee": 3.17,
+      "boundary": 3.54,
+      "consequence": 3.04,
+      "enforcement": 3.44
+    },
+    "source-inventory-and-drift.md": {
+      "mechanism": 3.29,
+      "guarantee": 3.06,
+      "boundary": 3.41,
+      "consequence": 3.16,
+      "enforcement": 3.43
+    },
+    "commands.md": {
+      "mechanism": 2.53,
+      "guarantee": 3.37,
+      "boundary": 3.86,
+      "consequence": 3.2,
+      "enforcement": 3.83
+    },
+    "maintenance-commands.md": {
+      "mechanism": 3.11,
+      "guarantee": 3.3,
+      "boundary": 3.34,
+      "consequence": 3.16,
+      "enforcement": 3.69
+    },
+    "portable-contracts.md": {
+      "mechanism": 3.07,
+      "guarantee": 3.21,
+      "boundary": 3.7,
+      "consequence": 3.22,
+      "enforcement": 3.66
+    },
+    "versioned-help.md": {
+      "mechanism": 3.65,
+      "guarantee": 3.46,
+      "boundary": 3.6,
+      "consequence": 3.12,
+      "enforcement": 3.44
+    }
+  },
+  "below_premium_3_0": [
+    {
+      "document": "commands.md",
+      "axis": "mechanism",
+      "score": 2.53,
+      "generated": true
+    }
+  ],
+  "progression": {
+    "iteration-0": {
+      "below_3_0": 7,
+      "note": "baseline after H5 repair, substantive documents only"
+    },
+    "iteration-1": {
+      "repair": "architecture.md guarantee via A/B",
+      "below_3_0": 7
+    },
+    "iteration-2": {
+      "repair": "renderer.md consequence, versioned-help.md boundary",
+      "below_3_0": 7
+    },
+    "iteration-3": {
+      "repair": "portable-contracts enforcement+consequence, maintenance guarantees, architecture consequence",
+      "below_3_0": 2
+    },
+    "iteration-4": {
+      "repair": "commands.md.knap template: mutation prose and reading guide",
+      "below_3_0": 1
+    }
+  },
+  "axis_means_iteration_0": {
+    "mechanism": 3.15,
+    "guarantee": 2.93,
+    "boundary": 3.21,
+    "consequence": 2.96,
+    "enforcement": 3.12
+  },
+  "open_question": "commands.md mechanism sits at 2.53 and is the last axis below premium. A generated command reference lists usage, flags and effects; it does not explain how a command works step by step, which the concept documents do. Either the reference carries per-command mechanism in data/commands.json, or the rubric records a scoped exemption the way it does for index.md. Forcing the number without deciding which would be fitting the metric."
+}

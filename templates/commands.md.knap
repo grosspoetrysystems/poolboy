@@ -13,18 +13,41 @@ sources:
 
 {{ intro }}
 
+## How to read this reference
+
+Every command below is listed with the same fields, and two of them carry
+guarantees rather than description.
+
+**Mutation** is enforced by the command itself, not a convention. A command
+marked read-only builds the document graph in memory and reports from it; it
+has no write path to the corpus, the publication, the source baseline, or the
+generated ledger, whatever its output says. A command marked mutating changes
+something on disk, and its **Effects** names what. Several mutating commands
+only write when an explicit flag asks them to — `check` without `--fix`, bare
+`tidy`, and `checkin` without `--apply` all preview and write nothing.
+
+**Does not** states a deliberate non-goal, not an unimplemented feature. Where a
+command names one, it will not acquire that behavior by adding a flag.
+
+**Verify** gives a command that observes the result. Running it after a mutating
+command is how you confirm what happened rather than assuming it.
+
+Exit status is uniform: `0` succeeded including an empty result, `1` is a valid
+negative such as no match or check findings, and `2` is a usage, configuration,
+or I/O error.
+
 {% for command in commands %}
 ## `{{ command.name }}`
 
 {{ command.summary }}
 
-- Mutation: `{{ command.mutates }}`
+- Mutation: `{{ command.mutates }}` {% if command.mutates %}— writes to disk; see Effects{% else %}— read-only; cannot write to the corpus, publication, source baseline, or generated ledger{% endif %}
 - Aliases: `{{ command.aliases }}`
 - Source: `{{ command.source }}`
 - Usage: `{{ command.usage }}`
 - Effects: {{ command.effects }}
 {% if command.does_not %}
-- Does not: {{ command.does_not }}
+- Deliberately does not: {{ command.does_not }}
 {% endif %}
 
 {% if command.verify_with %}
