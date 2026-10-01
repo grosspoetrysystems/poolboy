@@ -134,3 +134,60 @@ canonical locator plus exact revision, exclusion of private workspace state,
 and rejection of stale published bytes and unknown graph versions. The fixture
 uses the same compiler and publication validator as production; it introduces
 no second manifest or SDK.
+
+## What the CLI enforces, and what it only states
+
+Several rules on this page are obligations on the client. Poolboy cannot check
+them from the other side of an HTTP boundary, and confusing the two kinds is how
+a consumer ends up trusting something that was never verified.
+
+Enforced by the tool, and a failure is observable:
+
+- Graph version and root are validated at build; an unknown version is rejected
+  rather than partially interpreted.
+- Signature verification authenticates the exact graph bytes and every byte the
+  graph names. A tampered artifact fails.
+- Approval binds an exact graph digest; a different digest is reported as
+  pending rather than silently accepted.
+- Private workspace state is excluded from the publication by the compiler, and
+  the contract fixture locks that exclusion.
+- Exit classes are produced by the CLI, so a script can branch on them.
+
+Stated but not enforced, and entirely the client's responsibility:
+
+- **Re-resolving a locator before acting.** Nothing stops a client caching a
+  path and using stale bytes. A mismatch is stale input, not permission to use
+  the latest.
+- **Not treating regenerable views as decisions.** `drift`, `health` and
+  `affected` answer about current evidence. Nothing prevents a client recording
+  one as a durable judgment, and nothing will warn when it goes stale.
+- **Redacting private provenance before build.** The compiler excludes
+  `.poolboy/` state, not secrets a maintainer wrote into corpus prose. Signing
+  does not change a document's audience.
+- **Treating a signature as integrity only.** A valid signature proves the bytes
+  are the publisher's. It proves nothing about review, correctness, licensing or
+  prompt safety, and no command will tell you otherwise.
+
+## What a client must build for itself
+
+Because the contract is files over HTTP rather than a service, several things a
+client might expect from an API do not exist, and each has to be handled on the
+consumer side:
+
+- **There is no revocation.** A publication cannot withdraw bytes a consumer
+  already downloaded. A client that must not act on superseded content has to
+  re-fetch `graph.json` and compare the publication revision itself.
+- **There is no change feed.** Discovering that a corpus moved means fetching
+  the graph again and diffing; nothing will notify.
+- **There is no common response envelope.** JSON shapes are command-specific, so
+  a client parses per command and cannot write one generic decoder.
+- **There is no stdin protocol.** Integration is process invocation with
+  `--root` and `--format json`, which means a client owns process lifetime,
+  timeouts and concurrency.
+- **Renames break locators deliberately.** A client holding `/old.md` gets
+  absence, not a redirect, and must resolve the new locator from the graph.
+
+If a future release adds `review`, `decide`, `apply` or `reconcile`, they will be
+listed by `poolboy help` and the generated command reference. Until a command
+appears there, it is not an operation, whatever this or any other document
+implies about the concept behind it.

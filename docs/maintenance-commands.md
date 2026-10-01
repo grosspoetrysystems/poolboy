@@ -113,3 +113,35 @@ The root `index.md` is the corpus entry point and may carry only its reserved
 Markdown links are the official graph format; wikilinks remain a compatibility
 input so the graph can report them and the explicit tidy operation can migrate
 them.
+
+## What these commands guarantee
+
+These hold for every maintenance command and are what makes it safe to run one
+without rehearsing it first.
+
+- **A query never writes.** Every read-only command builds the index in memory
+  and reports from it. It cannot modify the corpus, the publication, the source
+  baseline, or the generated ledger, whatever the result says.
+- **Mutation is opt-in per command.** `check` reports without writing unless
+  `--fix` is given, bare `tidy` previews every category and writes nothing, and
+  `checkin` previews unless `--apply` is given. The default of every ambiguous
+  command is the safe one.
+- **`--dry-run` means nothing is written.** `move --dry-run` prints exactly the
+  rewrites it would perform and leaves the tree untouched.
+- **A refactor is all or nothing per file.** `move` writes each file atomically,
+  so an interrupted refactor does not leave a half-rewritten document.
+- **Link rewriting preserves meaning.** `move` keeps anchors and link titles,
+  and migrates in-bundle `sources[].resource` citations with the file. It does
+  not invent links or silently drop one it cannot resolve.
+- **Wikilinks are never rewritten implicitly.** They are reported by the graph
+  and migrated only by the explicit `tidy --wikilinks` operation.
+- **Evidence commands never conclude.** `scan`, `drift` and `affected` report
+  what the files say. None of them decides that a document is stale, and none
+  advances the baseline without `scan --accept`.
+- **Exit status is stable.** `0` is success including an empty result, `1` is a
+  valid negative such as no match or check findings, and `2` is a usage,
+  configuration or I/O error. A script can branch on these without parsing text.
+
+The one guarantee deliberately absent: nothing enforces the order in which you
+run these commands. Reviewing before accepting, and checking before building, is
+a workflow contract the CLI will not impose.

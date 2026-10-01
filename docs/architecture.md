@@ -109,6 +109,35 @@ A published corpus is plain files behind HTTP: `GET /index.html`,
 and `GET /<path>.md`. No Poolboy server, SDK, database or inference service is
 required to read it — the details are in [Build and render](build-and-render.md).
 
+## What each choice costs you
+
+The architecture's shape has consequences a maintainer inherits whether or not
+they wanted them.
+
+- **Markdown-link-only graph** — Obsidian wikilinks resolve in your editor but
+  are not graph edges, so `links`, `backlinks` and `orphans` will not see them.
+  A vault-authored corpus needs `tidy --wikilinks` before its graph is accurate.
+- **Canonical root-absolute identity** — renaming a file creates a new locator
+  and removes the old one. Anything outside the corpus that pointed at the old
+  path breaks, and Poolboy cannot fix what it cannot see. Use `move` so at least
+  the in-corpus links and citations travel with the file.
+- **Generated Markdown lives in the corpus** — generated files sit beside
+  authored ones, so `.poolboy/generated.json` must be committed or the next
+  build treats them as handwritten and refuses to replace them. Moving a
+  generated file also means updating the `[[render]]` mapping that produces it.
+- **One process per template** — rendering cost scales with template count, not
+  document size, and the companion must be installed beside the binary. A
+  missing `poolboy-knap.mjs` fails the build rather than skipping renders.
+- **Static publication** — there is no server to invalidate, which also means no
+  revocation and no change feed. Consumers poll `graph.json` or they act on
+  stale bytes.
+- **The Skill is guidance, not a component** — nothing executes it and nothing
+  checks that it was followed. Judgment it encodes is lost if the human or agent
+  skips it.
+- **`--root` does not change directory** — it is consumed before the command, so
+  relative paths in your shell still resolve against your actual working
+  directory, not the project root.
+
 ## Uncertainties
 
 - `bundle` internals here are described from how `internal/compiler` and
