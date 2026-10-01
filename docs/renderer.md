@@ -96,3 +96,33 @@ Knap template failures are distinct diagnostics. A Knap limit error such as an
 overlong template is reported as `LIMIT_EXCEEDED`; Go maps template responses
 to a render error without output. The compiler refuses invalid generated
 Markdown rather than publishing a partial document.
+
+## What a render failure means for you
+
+A failed render is not a partial publication. The build stops before replacing
+anything, so the previously published `dist/`, the corpus, and the generated
+ledger are all exactly as they were. Nothing needs cleaning up before retrying.
+
+What to do depends on which diagnostic you get, and the cost of guessing wrong is
+editing the wrong file:
+
+- **Template failure** — the template or its data is wrong. Fix the `.knap`
+  template or the JSON data the `[[render]]` mapping names, then build again.
+  Nothing in the corpus needs touching.
+- **`UNKNOWN_FILTER`** — the template uses a filter outside the fixed allowlist.
+  The allowlist is not configurable, so the template must be rewritten to avoid
+  it. Adding the filter is not an option.
+- **`LIMIT_EXCEEDED`** — the template, output or a value crossed a Knap limit.
+  These limits are fixed too; split the document or reduce the data rather than
+  looking for a setting to raise.
+- **Timeout or output-size failure** — the render exceeded the five-second
+  deadline or the capture caps. The budgets are not configurable; the input has
+  to get smaller.
+- **Protocol failure** — the companion is missing, unreadable, or returned
+  something that is not one JSON object. This is an installation problem, not a
+  content problem: check that `poolboy-knap.mjs` sits beside the binary.
+
+Because every budget above is fixed rather than configured, a render failure is
+always resolved by changing the template, the data, or the installation — never
+by tuning Poolboy. If a document genuinely cannot fit the limits, it is authored
+as ordinary Markdown instead of generated.

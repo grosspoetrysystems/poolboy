@@ -1,0 +1,148 @@
+{
+  "iteration": "iteration-2",
+  "grader": "openrouter/typesafe/jev-1.13-20260917",
+  "scale": "0..4, probability-weighted",
+  "baseline_excludes": [
+    "index.md"
+  ],
+  "baseline_note": "index.md is a navigation page and scores 0.44-0.81 on every axis; including it biases each axis mean low by about 0.25.",
+  "generated_documents": [
+    "commands.md"
+  ],
+  "generated_note": "A generated document is repaired by editing templates/commands.md.knap and data/commands.json, never the published output, which make verify would flag as stale.",
+  "axis_means_substantive": {
+    "mechanism": 3.15,
+    "guarantee": 3.15,
+    "boundary": 3.43,
+    "consequence": 3.09,
+    "enforcement": 3.2
+  },
+  "documents": {
+    "portable-contracts.md": {
+      "mechanism": 2.94,
+      "guarantee": 3.05,
+      "boundary": 3.67,
+      "consequence": 2.99,
+      "enforcement": 2.77
+    },
+    "build-and-render.md": {
+      "mechanism": 3.44,
+      "guarantee": 3.06,
+      "boundary": 3.17,
+      "consequence": 3.09,
+      "enforcement": 3.26
+    },
+    "versioned-help.md": {
+      "mechanism": 3.66,
+      "guarantee": 3.42,
+      "boundary": 3.6,
+      "consequence": 3.11,
+      "enforcement": 3.41
+    },
+    "index.md": {
+      "mechanism": 0.82,
+      "guarantee": 0.72,
+      "boundary": 0.68,
+      "consequence": 0.62,
+      "enforcement": 0.5
+    },
+    "renderer.md": {
+      "mechanism": 3.23,
+      "guarantee": 3.13,
+      "boundary": 3.39,
+      "consequence": 3.37,
+      "enforcement": 3.44
+    },
+    "commands.md": {
+      "mechanism": 2.54,
+      "guarantee": 3.27,
+      "boundary": 3.93,
+      "consequence": 3.12,
+      "enforcement": 2.91
+    },
+    "architecture.md": {
+      "mechanism": 3.04,
+      "guarantee": 3.22,
+      "boundary": 3.13,
+      "consequence": 2.89,
+      "enforcement": 3.04
+    },
+    "maintenance-commands.md": {
+      "mechanism": 3.07,
+      "guarantee": 2.96,
+      "boundary": 3.05,
+      "consequence": 3.04,
+      "enforcement": 3.14
+    },
+    "source-inventory-and-drift.md": {
+      "mechanism": 3.27,
+      "guarantee": 3.04,
+      "boundary": 3.41,
+      "consequence": 3.15,
+      "enforcement": 3.42
+    },
+    "security-boundaries.md": {
+      "mechanism": 3.15,
+      "guarantee": 3.2,
+      "boundary": 3.52,
+      "consequence": 3.04,
+      "enforcement": 3.44
+    }
+  },
+  "below_premium_3_0": [
+    {
+      "document": "commands.md",
+      "axis": "mechanism",
+      "score": 2.54,
+      "generated": true
+    },
+    {
+      "document": "portable-contracts.md",
+      "axis": "enforcement",
+      "score": 2.77,
+      "generated": false
+    },
+    {
+      "document": "architecture.md",
+      "axis": "consequence",
+      "score": 2.89,
+      "generated": false
+    },
+    {
+      "document": "commands.md",
+      "axis": "enforcement",
+      "score": 2.91,
+      "generated": true
+    },
+    {
+      "document": "portable-contracts.md",
+      "axis": "mechanism",
+      "score": 2.94,
+      "generated": false
+    },
+    {
+      "document": "maintenance-commands.md",
+      "axis": "guarantee",
+      "score": 2.96,
+      "generated": false
+    },
+    {
+      "document": "portable-contracts.md",
+      "axis": "consequence",
+      "score": 2.99,
+      "generated": false
+    }
+  ],
+  "repairs_this_iteration": {
+    "renderer.md": {
+      "axis": "consequence",
+      "before": 2.59,
+      "after": 3.37
+    },
+    "versioned-help.md": {
+      "axis": "boundary",
+      "before": 2.53,
+      "after": 3.6
+    }
+  }
+}

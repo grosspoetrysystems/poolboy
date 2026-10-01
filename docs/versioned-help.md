@@ -105,3 +105,29 @@ notice to stderr while still answering from the embedded catalog.
 - A binary never displays help belonging to a different version.
 - Published help for a released version is the artifact that shipped with it.
 - A flag that exists in code but not in the catalog fails a check before release.
+
+## What this deliberately does not do
+
+The boundaries matter as much as the guarantees, because each one is a thing you
+might reasonably expect and will not get.
+
+- **Help is not configurable.** The hosted base URL, the two-second timeout, the
+  redirect cap and the body limit are fixed in the binary. There is no setting,
+  environment variable or `poolboy.toml` key that redirects help at a private
+  host or relaxes a budget.
+- **Help is never retried.** One attempt, then the embedded catalog. A flaky
+  network degrades help to offline behavior rather than making the command slow.
+- **Help is not corpus content.** It ships inside the binary and on the hosted
+  site. It is not part of any published corpus, is not in `graph.json`, and
+  `check` and `build` never validate it.
+- **Help is not the command reference.** The generated `reference/commands.md`
+  is corpus Markdown built by a render mapping. Both derive from the same
+  catalog, but editing one does not change the other.
+- **Snapshots are never regenerated.** A released version's help is the artifact
+  that shipped with it. Correcting old help requires a new release, not a
+  rebuild of an old one.
+- **Retention is bounded.** Deployment keeps the twelve most recent stable
+  snapshots. Older versions fall back to their embedded catalog permanently and
+  receive an upgrade notice, which is the intended end state rather than a bug.
+- **Prereleases are excluded.** Only stable versions are snapshotted into the
+  hosted manifest, so a prerelease binary always answers from its embedded copy.
