@@ -40,6 +40,19 @@ not look like a cohort change. The `c5931ac3…` digest recorded for the 0.2.1
 fanout below predates this change and was computed over the entire file; the same
 cases now digest to `cde9cbbe…`.
 
+## Grade vocabulary
+
+Four grades: `correct`, `partial`, `incorrect`, `unsupported`.
+
+`unsupported` is tier-dependent and the one trap in the vocabulary. On a refusal
+tier it is the **pass** — the reader correctly declined. On a graded tier it is a
+**failure** — the reader declined a question the corpus was supposed to answer,
+which is honest but still a gap. `H3` and `H5` carry `unsupported` from the second
+grader and are failures, not passes.
+
+The scorer disambiguates by tier, so a grades file is only meaningful alongside
+the question bank that assigns the tiers.
+
 ## Replay
 
 Both benchmarks pin a specimen and name an explicit released version. Neither
@@ -249,6 +262,114 @@ identical publication digest have already produced materially different grades, 
 a grade shift is only corpus evidence when it exceeds observed variance on an
 unchanged corpus.
 
+## Making this a release dependency
+
+The fanout began as an externality: a disposable sandbox, run by hand, consulted
+when someone remembered. The measurement is good enough to stop treating it that
+way. This is the intended end state, not what exists today; tracked in `GPS-341`
+through `GPS-344`.
+
+### Two signals, only one of them blocking
+
+The second-grader result decides the shape. Refusal and graded tiers are not the
+same kind of measurement and must not be gated the same way.
+
+**The refusal tiers block.** Two independent graders agreed 7/7 at a mean
+confidence of `1.00` on whether the reader declined. Whether a published corpus
+induces confabulation is an objective property, it is cheap to measure, and it is
+the failure that actually endangers a consumer: a corpus that answers
+confidently when it should decline. Any confabulation on a release candidate
+holds the draft.
+
+**The graded tiers do not block; they are recorded.** The same two graders agreed
+on 5 of 13, and the disagreements were exactly where grader confidence fell. A
+threshold on a number two careful graders cannot reproduce would gate releases on
+grader mood, and worse, it would reward writing documents that satisfy the
+question bank rather than the reader. Record the continuous score, publish it,
+and let it move.
+
+Once repeated runs establish how much the graded score varies on an unchanged
+publication, a regression guard becomes possible: block on a drop larger than
+measured variance. That guard cannot be built before the variance is measured,
+and inventing a threshold now would be fabricating the baseline it needs.
+
+### Score on the mass, not the label
+
+Four grade labels across thirteen questions produced three distinct values. The
+same grades as probability distributions produced twelve. `H2` and `H4` are both
+`partial` by label, but score `0.53` and `0.36` — a real difference in how close
+the corpus is, invisible to the label.
+
+The scorer therefore accepts either a label or a probability map per question.
+The argmax still decides pass and fail, so the gate stays crisp; the mass decides
+the score, so movement is visible before it crosses a bucket boundary. This is
+where the gradation the benchmark needs actually comes from — finer questions
+help, but finer *reading* of the same questions helps more.
+
+### Where it runs
+
+Not per pull request: the reader needs a built publication, and the roles cost
+model calls. The natural seam is the release workflow, which already builds the
+publication, already creates the GitHub release as a draft, and already publishes
+that draft only after a separate job proves the artifact works. The usefulness
+benchmark becomes another such job: it runs against the built publication, the
+refusal gate can hold the draft, and the graded evidence is uploaded as a release
+asset beside the help snapshot.
+
+That makes the measurement a dependency of shipping rather than a thing someone
+remembers to run.
+
+### Cohort gradation
+
+The present cohort varies framework and size, which predicts conversion mechanics
+but not corpus usefulness. The axes that should vary, because they are what makes
+documentation hard:
+
+- **Documentation state** — none, sparse, fragmented and stale, or actively maintained.
+- **Derivation** — authored prose, generated from code, or reference tables.
+- **Genre** — how-to guide, API reference, architecture narrative, operational runbook.
+- **Coupling** — a docs-only repository against documentation living beside the implementation it describes.
+
+The most important missing tier is the **undocumented repository**, where there is
+no prose to convert and the corpus must be derived from code. Nothing in the
+current cohort tests it, and it is the strongest form of the product claim. A
+repository with good documentation mostly tests conversion; a repository with
+none tests whether Poolboy can produce documentation worth reading.
+
+### From verdicts to repairs
+
+The reason this loop can improve the product rather than just score it: a failing
+question already carries its own repair instruction. Ground truth states the
+minimum facts and cites the source that proves them, so a miss identifies the
+missing fact, the evidence for it, and which document should have carried it.
+
+That is a draft corpus patch, not a grade. It was already done by hand once —
+`GPS-328` through `GPS-332` and `GPS-340` were written directly from recorded
+misses. The loop is to make that step mechanical: emit a gap record per failing
+question, land the repair, regrade, and confirm the score moved by more than
+variance.
+
+For foreign corpora the same loop points at conversion rules instead of
+documents. A reader that cannot answer because a framework route was dropped is
+evidence about an ingestion utility, not about prose, and it routes to `GPS-339`.
+
+### The obvious way this goes wrong
+
+A loop that writes documents until its own benchmark passes is reward hacking
+with extra steps. Three guards, all of which exist today and must survive
+automation:
+
+- Questions are authored from maintainer tasks and source behavior **with the
+  export unseen**. A bank written by reading the corpus passes by construction.
+- Ground truth comes from source reviewers reading implementation and tests, not
+  from the corpus under test. The corpus never grades itself.
+- The refusal tiers punish the degenerate strategy directly. A corpus padded
+  until it answers everything starts answering the false premises too, and that
+  is the blocking signal.
+
+A repair is legitimate when it adds a fact the source supports and a maintainer
+needs. It is illegitimate when it adds text shaped like the question.
+
 ## Baseline: 2026-09-29
 
 ### Identity and boundary
@@ -407,10 +528,11 @@ declined all three out-of-domain questions on scope grounds instead of answering
 from world knowledge. On this corpus the export-only reader does not confabulate
 and is not merely agreeable.
 
-The difficulty gradient is also new information. Lookup is solved, synthesis is
-nearly solved, and every remaining failure is operational reasoning: exactly the
-questions an agent must answer correctly before deciding whether a mutation is
-safe.
+The difficulty gradient is also new information, and it holds under both graders
+even though the per-question grades do not: lookup is strongest, synthesis is
+weaker, and operational reasoning is weakest. Do not read the hand grader's
+`M` 3/4 as "synthesis nearly solved" — the second grader scores that tier 0/4.
+What is durable is the ordering, not the rate.
 
 ### Second grader: what is objectively gradable
 

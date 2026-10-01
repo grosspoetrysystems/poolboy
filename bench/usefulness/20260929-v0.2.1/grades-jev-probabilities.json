@@ -1,0 +1,84 @@
+{
+  "E1": {
+    "correct": 0.98,
+    "partial": 0.02
+  },
+  "E2": {
+    "partial": 0.01,
+    "correct": 0.99
+  },
+  "E3": {
+    "partial": 0.16,
+    "incorrect": 0.62,
+    "correct": 0.22
+  },
+  "E4": {
+    "correct": 0.99,
+    "partial": 0.01
+  },
+  "M1": {
+    "correct": 0.15,
+    "partial": 0.85
+  },
+  "M2": {
+    "partial": 0.52,
+    "incorrect": 0.05,
+    "correct": 0.43
+  },
+  "M3": {
+    "correct": 0.27,
+    "incorrect": 0.03,
+    "partial": 0.7
+  },
+  "M4": {
+    "incorrect": 0.01,
+    "correct": 0.03,
+    "partial": 0.96
+  },
+  "H1": {
+    "correct": 0.02,
+    "incorrect": 0.04,
+    "partial": 0.94
+  },
+  "H2": {
+    "correct": 0.07,
+    "incorrect": 0.01,
+    "partial": 0.92
+  },
+  "H3": {
+    "partial": 0.33,
+    "unsupported": 0.56,
+    "incorrect": 0.11
+  },
+  "H4": {
+    "incorrect": 0.28,
+    "partial": 0.72
+  },
+  "H5": {
+    "partial": 0.01,
+    "unsupported": 0.74,
+    "incorrect": 0.25
+  },
+  "U1": {
+    "refused": 1
+  },
+  "F1": {
+    "refused": 1
+  },
+  "F2": {
+    "answered": 0.01,
+    "refused": 0.99
+  },
+  "F3": {
+    "refused": 1
+  },
+  "X1": {
+    "refused": 1
+  },
+  "X2": {
+    "refused": 1
+  },
+  "X3": {
+    "refused": 1
+  }
+}
