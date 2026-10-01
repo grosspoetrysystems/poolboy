@@ -23,5 +23,6 @@ Start here, then follow the concept you need:
 - [Maintenance commands](maintenance-commands.md) — the CLI surface, the link model, and move semantics.
 - [Source inventory and drift](source-inventory-and-drift.md) — the evidence baseline, the scan/drift/accept lifecycle, and reconciliation.
 - [Portable corpus and review contracts](portable-contracts.md) — publication identity, private workspace state, compatibility, and process boundaries.
+- [Versioned structured help](versioned-help.md) — how `help` is sourced, checked, snapshotted per release, and served with an embedded fallback.
 - [Security boundaries](security-boundaries.md) — the inspection boundary, scan safety limits, and the render boundary.
 - [Command reference](reference/commands.md) — the generated, per-command CLI reference.
