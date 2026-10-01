@@ -1,5 +1,5 @@
 ---
-type: Reference
+type: reference
 title: "Poolboy command reference"
 description: "Generated reference for Poolboy's CLI commands and flags."
 status: draft

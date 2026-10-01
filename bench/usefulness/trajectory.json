@@ -14,7 +14,22 @@
       "questions": 0.556,
       "refusal": 0.999,
       "readers": 1,
-      "note": "mechanical baseline; rubric computed retrospectively over substantive documents"
+      "note": "mechanical baseline; rubric computed retrospectively over substantive documents",
+      "corpus": {
+        "documents": 9,
+        "bytes": 74494,
+        "bytes_mean": 8277.1,
+        "bytes_stdev": 5624.6,
+        "links": 14,
+        "links_per_document": 1.56,
+        "unreferenced": 0,
+        "types": {
+          "": 1,
+          "Reference": 2,
+          "concept": 6
+        },
+        "sources_cited": 67
+      }
     },
     {
       "run": "2026-10-01",
@@ -25,7 +40,22 @@
       "questions": 0.666,
       "refusal": 0.998,
       "readers": 2,
-      "note": "after four rubric iterations; first two-reader run, spread 0.048"
+      "note": "after four rubric iterations; first two-reader run, spread 0.048",
+      "corpus": {
+        "documents": 10,
+        "bytes": 94601,
+        "bytes_mean": 9460.1,
+        "bytes_stdev": 6053.7,
+        "links": 16,
+        "links_per_document": 1.6,
+        "unreferenced": 0,
+        "types": {
+          "": 1,
+          "Reference": 2,
+          "concept": 7
+        },
+        "sources_cited": 74
+      }
     }
   ],
   "trajectory": {
@@ -50,5 +80,6 @@
     ],
     "slope": null,
     "note": "fewer than three runs; rubric-to-reader coupling is not yet measurable"
-  }
+  },
+  "corpus_note": "Corpus features are derived from each run's published graph.json and recorded because the publication is rebuilt and gone afterwards. With two runs they describe; they do not yet explain, and no correlation against them is reportable."
 }

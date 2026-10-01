@@ -8,14 +8,57 @@ declined, and a confident substantive answer is the failure.
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import math
 import statistics
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 ROOT = Path(__file__).resolve().parent
 QUESTIONS = ROOT / "questions.json"
+RUN_LOG = ROOT / "usefulness/trajectory.json"
+
+
+# The run log's shape, declared once. These are the schema of record for an
+# archive that outlives any single run, and they are what `features()` and
+# `record()` construct. Rows are generated, never parsed from untrusted input,
+# so construction is the gate and there is no runtime validator to drift from it.
+
+
+class Corpus(TypedDict):
+    documents: int
+    bytes: int
+    bytes_mean: float
+    bytes_stdev: float
+    links: int
+    links_per_document: float
+    unreferenced: int
+    types: dict[str, int]
+    sources_cited: int
+
+
+class Run(TypedDict):
+    run: str
+    commit: str
+    poolboy: str
+    publication_sha256: str
+    rubric: float
+    questions: float
+    refusal: float
+    readers: int
+    note: str
+    corpus: Corpus
+
+
+def record(run: str, commit: str, poolboy: str, publication_sha256: str, rubric: float,
+           questions: float, refusal: float, readers: int, note: str, corpus: Corpus) -> Run:
+    """Build one run row. Every field is required, which is the entire check."""
+    return Run(run=run, commit=commit, poolboy=poolboy, publication_sha256=publication_sha256,
+               rubric=rubric, questions=questions, refusal=refusal, readers=readers,
+               note=note, corpus=corpus)
+
 
 GRADED_PASS = {"correct"}
 REFUSAL_PASS = {"unsupported", "false-premise", "out-of-scope", "refused"}
@@ -147,6 +190,33 @@ def trajectory(runs: list[dict]) -> dict:
     return out
 
 
+def features(graph: dict) -> Corpus:
+    """Describe the corpus a run scored, derived from its published manifest.
+
+    Every field is mechanical. Nothing here is typed in by hand, because a
+    hand-maintained feature drifts from the artifact it claims to describe and
+    then quietly corrupts the comparison it exists to support.
+
+    These are recorded because they cannot be recovered later: the publication a
+    run scored is rebuilt and gone. They are not yet evidence of anything.
+    """
+    files = graph["files"]
+    sizes = [f["bytes"] for f in files.values()]
+    out_links = [len(f.get("links", [])) for f in files.values()]
+    linked_to = {t for f in files.values() for t in f.get("links", [])}
+    return Corpus(
+        documents=len(files),
+        bytes=sum(sizes),
+        bytes_mean=round(statistics.mean(sizes), 1),
+        bytes_stdev=round(statistics.stdev(sizes), 1) if len(sizes) > 1 else 0.0,
+        links=sum(out_links),
+        links_per_document=round(statistics.mean(out_links), 2),
+        unreferenced=sum(1 for k in files if k not in linked_to and k != graph.get("root")),
+        types=dict(sorted(collections.Counter(f.get("type", "") for f in files.values()).items())),
+        sources_cited=sum(len(f.get("sources", [])) for f in files.values()),
+    )
+
+
 def render(bank: dict, result: dict) -> str:
     names = bank["tiers"]
     lines = ["| Tier | Questions | Pass | Rate | Score |", "| --- | --- | --- | --- | --- |"]
@@ -244,6 +314,32 @@ def demo() -> None:
         ]
     )
     assert three["slope"] == 1.0, "one reader point per rubric point"
+
+    # Corpus features are derived, never asserted, so a malformed manifest is a
+    # loud failure rather than a quietly wrong row in the run log.
+    graph = {
+        "root": "/index.md",
+        "files": {
+            "/index.md": {"bytes": 100, "links": ["/a.md"], "type": "concept", "sources": [{}]},
+            "/a.md": {"bytes": 300, "links": [], "type": "reference", "sources": [{}, {}]},
+            "/orphan.md": {"bytes": 200, "links": [], "type": "concept", "sources": []},
+        },
+    }
+    f = features(graph)
+    assert f == {
+        "documents": 3,
+        "bytes": 600,
+        "bytes_mean": 200.0,
+        "bytes_stdev": 100.0,
+        "links": 1,
+        "links_per_document": 0.33,
+        "unreferenced": 1,
+        "types": {"concept": 2, "reference": 1},
+        "sources_cited": 3,
+    }, f
+    # The root is not counted as unreferenced: nothing is expected to link to it.
+    assert features({"root": "/index.md", "files": {"/index.md": {"bytes": 1}}})["unreferenced"] == 0
+
     print("usefulness self-test passed")
 
 

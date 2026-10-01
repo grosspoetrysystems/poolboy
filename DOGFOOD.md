@@ -603,6 +603,87 @@ coupling it claims to measure. The log carries `"slope": null` today and says wh
 Every point is stored in `bench/usefulness/trajectory.json` with its commit and
 publication digest, so the history is replayable rather than remembered.
 
+### What this is, structurally
+
+This is the shape of an adapter evaluation sweep — the loop used when tuning a
+LoRA adapter or an MLX fine-tune. Each run is one row: a configuration, a frozen
+eval set, a scored result, and the features of the thing under test. Progress is
+a trajectory through that space, and the only trustworthy claims are the ones the
+rows support.
+
+The disciplines carry across directly, and this benchmark already keeps them:
+
+| Discipline | Here |
+| --- | --- |
+| Freeze the eval set before tuning | question bank frozen in `bench/questions.json` before any repair |
+| Pin the artifact under test | publication `sha256` recorded per run |
+| Pin the judge | grader model and version recorded beside the grades |
+| Hold out a control | refusal and out-of-scope tiers, which must not move |
+| Record config, not just score | corpus features derived per run |
+
+One disanalogy governs everything, and it is not a detail. An adapter sweep runs
+hundreds of cheap evaluations, so a correlation across configurations means
+something. A run here costs minutes, two readers and a grading pass, and there
+are **two of them**. The same arithmetic that is routine at `n=300` is
+astrology at `n=2`.
+
+So the features are recorded and nothing is regressed against them yet. They are
+captured now because the publication a run scored is rebuilt and gone afterwards:
+cheap to record today, impossible to reconstruct later. The log says so in
+`corpus_note` rather than leaving a future reader to assume the columns were
+analysed.
+
+The companion risk is the one sweeps teach hardest: enough recorded features and
+few enough runs, and something will correlate with the score by chance. The guard
+is the same as for the slope — the analysis is refused until the rows exist, not
+run early and caveated.
+
+Captured so far:
+
+| Run | Documents | Bytes | Links/doc | Sources cited | Score |
+| --- | --- | --- | --- | --- | --- |
+| `2026-09-29` | 9 | 74,494 | `1.56` | 67 | `0.556` |
+| `2026-10-01` | 10 | 94,601 | `1.60` | 74 | `0.666` |
+
+Deriving these found a corpus defect on the first run: document `type` was
+`Reference` on two files and `concept` on the rest, an inconsistency no reader
+question would ever have caught. Normalised to lowercase. That is the ordinary
+payoff of mechanical features — they describe the artifact exactly, including the
+parts nobody was looking at.
+
+### Types for the run log
+
+Pydantic is Python's Zod — `model_validate_json`, `strict=True`, JSON Schema
+export — and `msgspec` is the faster, stricter variant. Neither is used here, and
+the reason is the shape of the data rather than a dislike of dependencies.
+
+Zod exists for data crossing a boundary you do not control: a request body, a
+third-party response, a form. Run rows cross no such boundary. They are derived
+from a `graph.json` this repository just built, by `features()`, in the same
+process that writes them. There is no untrusted input to parse, so a validator
+would only be checking this code against itself.
+
+What is wanted is the declared shape, and `TypedDict` provides exactly that at
+zero runtime cost:
+
+- `Corpus` and `Run` are the schema of record for an archive that outlives any
+  single run.
+- `features()` returns a `Corpus`; `record()` returns a `Run` with every field
+  required. Construction is the gate.
+- There is no runtime validator, so there is nothing to drift away from the
+  declaration.
+
+A first attempt did build one — thirty lines walking `__annotations__` against a
+hand-written type table. It had Pydantic's cost and none of its correctness, and
+it was defending against a malformed row that nothing in the pipeline can
+produce. Deleted. If these artifacts ever are read from somewhere this repository
+does not control, the answer is Pydantic, not a second attempt at that function.
+
+Honest limit: `TypedDict` is erased at runtime and `make check` runs no Python
+type checker, so these are checked by an editor and by reading. Adding a Python
+toolchain for two stdlib scripts costs more than it returns. The guarantee that
+actually holds is that every row is built by `record()` from derived values.
+
 ### Premium
 
 The thresholds that define done, rather than merely better. Three columns, read

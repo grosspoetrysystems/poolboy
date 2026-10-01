@@ -1,5 +1,5 @@
 ---
-type: Reference
+type: reference
 title: {{ title | yaml }}
 description: {{ description | yaml }}
 status: draft

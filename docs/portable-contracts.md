@@ -1,5 +1,5 @@
 ---
-type: Reference
+type: reference
 title: Portable corpus and review contracts
 sources:
   - resource: internal/compiler/graph.go
