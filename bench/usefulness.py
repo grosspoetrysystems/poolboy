@@ -18,7 +18,6 @@ from typing import TypedDict
 
 ROOT = Path(__file__).resolve().parent
 QUESTIONS = ROOT / "questions.json"
-RUN_LOG = ROOT / "usefulness/trajectory.json"
 
 
 # The run log's shape, declared once. These are the schema of record for an
@@ -48,16 +47,9 @@ class Run(TypedDict):
     questions: float
     refusal: float
     readers: int
+    comparable: bool
     note: str
     corpus: Corpus
-
-
-def record(run: str, commit: str, poolboy: str, publication_sha256: str, rubric: float,
-           questions: float, refusal: float, readers: int, note: str, corpus: Corpus) -> Run:
-    """Build one run row. Every field is required, which is the entire check."""
-    return Run(run=run, commit=commit, poolboy=poolboy, publication_sha256=publication_sha256,
-               rubric=rubric, questions=questions, refusal=refusal, readers=readers,
-               note=note, corpus=corpus)
 
 
 GRADED_PASS = {"correct"}
@@ -120,30 +112,31 @@ def score(bank: dict, grades: dict[str, str | dict[str, float]]) -> dict:
     }
 
 
-def combine(rubric_mean: float, graded_mean: float, rubric_scale: float = 4.0) -> dict:
-    """Combine the two axes without letting either hide the other.
+def improved(before: dict, after: dict, reader_spread: float) -> dict:
+    """Did the corpus get more useful between two runs?
 
-    The headline is the **minimum**, not the mean. A mean lets a cheap axis carry
-    an expensive one: three iterations of document-structure work raised the
-    rubric while readers gained nothing, and an average would have reported that
-    as progress. Taking the minimum means a gain counts only when the weaker axis
-    moves, which is the only kind of gain observed to be real.
+    Only the graded axis can answer that, so only the graded axis gates. The
+    rubric is reported beside it, never folded into it: a 0-4 grader scaled to
+    0-1 and a 0-1 continuous score are not calibrated against each other, so any
+    arithmetic mixing them measures the two graders' relative harshness as much
+    as the corpus.
 
-    The **span** between the axes is reported alongside, because a widening span
-    is the signature of optimising the cheaper measurement. A headline without
-    its span is not interpretable.
-
-    `limiter` names the axis currently holding the score down, which is where the
-    next repair belongs.
+    `reader_spread` is the mean disagreement between readers on the same
+    publication. A graded move smaller than that is reader luck, not corpus
+    improvement, and the verdict says so.
     """
-    r = rubric_mean / rubric_scale
-    q = graded_mean
+    dq = after["questions"] - before["questions"]
+    dr = after["rubric"] - before["rubric"]
     return {
-        "rubric": round(r, 3),
-        "questions": round(q, 3),
-        "score": round(min(r, q), 3),
-        "span": round(abs(r - q), 3),
-        "limiter": "questions" if q <= r else "rubric",
+        "d_questions": round(dq, 3),
+        "d_rubric": round(dr, 3),
+        "reader_spread": round(reader_spread, 3),
+        "improved": dq > reader_spread,
+        "verdict": (
+            "improved" if dq > reader_spread
+            else "regressed" if dq < -reader_spread
+            else "inside reader spread; no corpus movement demonstrated"
+        ),
     }
 
 
@@ -165,28 +158,43 @@ def direction(before: tuple[float, float], after: tuple[float, float]) -> dict:
 
 
 def trajectory(runs: list[dict]) -> dict:
-    """Correlation between the two axes across the logged run history.
+    """Coupling between the two axes across the logged run history.
 
     This is the claim the rubric rests on — that stating something makes it
-    usable — expressed as a number that accrues instead of an assertion. It is
-    deliberately refused below three runs: a slope through two points is a line
-    by construction and carries no evidence.
+    usable — expressed as a number that accrues instead of an assertion.
+
+    Two refusals are deliberate. Below three runs there is no slope: a line
+    through two points is a line by construction. And runs marked
+    `comparable: false` are excluded, because a point measured under a different
+    protocol — a different reader count, bank, or grader — moves for reasons that
+    have nothing to do with the corpus, and regressing across that change
+    attributes an instrument difference to the documents.
     """
-    pts = [(r["rubric"], r["questions"]) for r in runs]
-    out = {"runs": len(pts), "points": pts}
+    usable = [r for r in runs if r.get("comparable", True)]
+    pts = [(r["rubric"], r["questions"]) for r in usable]
+    out: dict = {"runs": len(pts), "excluded": len(runs) - len(pts), "points": pts}
     out["legs"] = [direction(a, b) for a, b in zip(pts, pts[1:])]
     if len(pts) < 3:
         out["slope"] = None
-        out["note"] = "fewer than three runs; rubric-to-reader coupling is not yet measurable"
+        out["note"] = "fewer than three comparable runs; coupling is not yet measurable"
         return out
     xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    if len(set(ys)) < 2:
+        out["slope"] = 0.0
+        out["correlation"] = None
+        out["note"] = (
+            "readers did not move across runs; slope is zero and correlation undefined. "
+            "This is the rubric-gaming signature, not a missing measurement."
+        )
+        return out
     if len(set(xs)) < 2:
         out["slope"] = None
+        out["correlation"] = None
         out["note"] = "rubric did not vary; coupling undefined"
         return out
     out["slope"] = round(statistics.linear_regression(xs, ys).slope, 3)
     out["correlation"] = round(statistics.correlation(xs, ys), 3)
-    out["note"] = "reader points gained per rubric point, measured over logged runs"
+    out["note"] = "reader points gained per rubric point, measured over comparable runs"
     return out
 
 
@@ -282,25 +290,37 @@ def demo() -> None:
     ) - 1 + 0.4
     assert not hedged["gate"], "an argmax of correct on a false premise must fail"
 
-    # The headline cannot be raised by the cheap axis alone. This is the whole
-    # point: structural work that readers do not benefit from must not score.
-    before = combine(3.30, 0.666)
-    structural_only = combine(3.80, 0.666)
-    assert structural_only["score"] == before["score"], "one axis must not move the headline"
-    assert structural_only["span"] > before["span"], "a one-sided gain must widen the span"
+    # Only the graded axis gates, and only beyond reader disagreement. A rubric
+    # gain with readers unmoved is the rubric-gaming case and must not pass.
+    base = {"rubric": 0.825, "questions": 0.666}
+    spread = 0.048
+    gamed = improved(base, {"rubric": 0.950, "questions": 0.666}, spread)
+    assert not gamed["improved"] and gamed["d_rubric"] > 0
+    assert "inside reader spread" in gamed["verdict"]
 
-    # A gain on the limiting axis does move it, and narrows the span.
-    real = combine(3.30, 0.766)
-    assert real["score"] > before["score"]
-    assert real["span"] < before["span"]
-
-    # The limiter names where the next repair belongs.
-    assert combine(3.30, 0.666)["limiter"] == "questions"
-    assert combine(2.00, 0.900)["limiter"] == "rubric"
+    # A graded move smaller than reader disagreement is luck, not improvement.
+    assert not improved(base, {"rubric": 0.825, "questions": 0.700}, spread)["improved"]
+    assert improved(base, {"rubric": 0.825, "questions": 0.766}, spread)["improved"]
+    assert improved(base, {"rubric": 0.900, "questions": 0.600}, spread)["verdict"] == "regressed"
 
     # Movement is a bearing, and the gaming signature has a distinct one.
     assert direction((0.77, 0.56), (0.83, 0.67))["bearing"] > 45, "balanced gain leans to readers"
     assert direction((0.77, 0.56), (0.95, 0.56))["bearing"] == 0, "rubric-only gain bears 0"
+
+    # A run measured under a different protocol is excluded, not averaged in.
+    mixed = [
+        {"rubric": 0.70, "questions": 0.50, "comparable": False},
+        {"rubric": 0.80, "questions": 0.60},
+        {"rubric": 0.90, "questions": 0.70},
+        {"rubric": 1.00, "questions": 0.80},
+    ]
+    assert trajectory(mixed) == trajectory(mixed[1:]) | {"excluded": 1}
+
+    # Flat readers across runs is the gaming case the tool exists to catch, so it
+    # must report, not raise. `statistics.correlation` dies on a constant series.
+    flat = trajectory([{"rubric": r, "questions": 0.666} for r in (0.70, 0.80, 0.90)])
+    assert flat["slope"] == 0.0 and flat["correlation"] is None
+    assert "gaming signature" in flat["note"]
 
     # Coupling is refused until three runs exist; two points are a line by
     # construction and would manufacture the correlation they claim to measure.
@@ -347,13 +367,24 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("grades", type=Path, nargs="?", help="JSON object of question id to grade")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument(
+        "--trajectory",
+        type=Path,
+        nargs="?",
+        const=ROOT / "usefulness/trajectory.json",
+        help="derive legs and coupling from a run log instead of scoring grades",
+    )
     args = parser.parse_args()
 
     if args.self_test:
         demo()
         return 0
+    if args.trajectory is not None:
+        log = json.loads(args.trajectory.read_text(encoding="utf-8"))
+        print(json.dumps(trajectory(log["runs"]), indent=2))
+        return 0
     if args.grades is None:
-        parser.error("pass a grades file or --self-test")
+        parser.error("pass a grades file, --trajectory, or --self-test")
 
     bank = json.loads(QUESTIONS.read_text(encoding="utf-8"))
     grades = json.loads(args.grades.read_text(encoding="utf-8"))
