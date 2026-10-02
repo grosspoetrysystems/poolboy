@@ -484,8 +484,11 @@ What changes as a result:
 - The axis means stay as a repair-targeting signal, not as a premium gate. The
   premium table's rubric column is provisional until more repairs are validated
   against readers.
-- `M2` regressing while its documents' rubric scores rose is the sharpest single
-  warning in this run and needs its own investigation.
+- `M2` fell `-0.13` while its documents' rubric scores rose, which would be the
+  sharpest warning in this run if it were established. It is not: the move is
+  `1.3x` this run's believability floor and spans the same one-reader to
+  two-reader protocol change that withdrew the aggregate. Re-tested for free by
+  the next run under a fixed protocol; not acted on before then.
 
 ### Two axes, deliberately not combined
 
@@ -532,16 +535,25 @@ What does not depend on the aggregate is the per-question evidence. Each questio
 was asked of both publications, and the two readers of the second agreed to
 within `0.048`:
 
-| Question | `0.2.1` | now | Move | Against spread |
+| Question | `0.2.1` | now | Move | Standing |
 | --- | --- | --- | --- | --- |
-| `H5` versioned help | `0.01` | `0.96` | `+0.95` | 20x |
-| `H3` move semantics | `0.17` | `0.49` | `+0.32` | 6x |
-| `M1`, `H1`, `H2`, `H4` | — | — | `-0.06` to `+0.03` | all within |
-| `M2` | `0.69` | `0.56` | `-0.13` | 2.7x, wrong way |
+| `H5` versioned help | `0.01` | `0.96` | `+0.95` | established, 20x spread |
+| `H3` move semantics | `0.17` | `0.49` | `+0.32` | established, 6x spread |
+| `M1`, `H1`, `H2`, `H4` | — | — | `-0.06` to `+0.03` | flat, all within spread |
+| `M2` | `0.69` | `0.56` | `-0.13` | suspected only |
 
 A one-reader-to-two-reader change cannot move a question from `0.01` to `0.96`;
 both readers independently found and cited a document that did not previously
-exist. Those two repairs stand. The four flat ones stand as flat.
+exist. Those two repairs stand at 20x and 6x the spread. The four flat ones stand
+as flat.
+
+`M2` does not stand, and the reason is the one that withdrew the aggregate. Its
+`-0.13` is also a one-reader baseline against a two-reader mean, and it is only
+`1.3x` the `0.10` believability floor this run established — well inside what a
+change of instrument can produce on its own. Withdrawing a `+0.11` while keeping
+a `-0.13` obtained the same way would be choosing which contamination to notice.
+It is recorded as **suspected**, re-testable for free in the next run, and it is
+not evidence of a regression today.
 
 The claim this supports is narrower than a gain: the rubric's demonstrated power
 is **finding absence**. Its power to improve the presentation of facts already
@@ -602,16 +614,22 @@ unit, so the distance mixes incomparable quantities and the angle is a function
 of that mismatch rather than of the work. The signs survive; the geometry does
 not.
 
-The accruing payoff is the slope. Across enough points, regressing questions on
-rubric measures the thing the rubric rests on — how many reader points a rubric
-point actually buys. That is an assumption today; after enough runs it is a
-number, and if it comes out near zero the rubric is retired rather than defended.
+The accruing payoff is the **correlation**, not the slope. Across enough points,
+it answers whether rubric movement travels with reader movement at all — the
+thing the rubric rests on. Near zero, the rubric is retired rather than defended.
+
+The slope is kept for inspection and is not reportable as evidence. "How many
+reader points a rubric point buys" is not a quantity: the slope's magnitude
+scales with the arbitrary `/4` used to put the rubric on `0-1`, so it measures a
+unit choice as much as a relationship. Correlation is scale-invariant, which is
+exactly what a retire-the-rubric rule needs — the self-test asserts the
+correlation survives doubling the rubric scale while the slope does not.
 
 Three refusals are built in, and each one costs a number that would otherwise
 have been publishable:
 
-- **Below three comparable runs, no slope.** A line through two points is a line
-  by construction.
+- **Below three comparable runs, no correlation.** A line through two points is a
+  line by construction.
 - **Flat readers across runs** reports slope `0.0` with correlation undefined.
   This is exactly the rubric-gaming case, so the tool must report it rather than
   raise — `statistics.correlation` dies on a constant series, which would have
@@ -700,7 +718,7 @@ zero runtime cost:
 - `Corpus` and `Run` are the schema of record for an archive that outlives any
   single run.
 - `features()` returns a `Corpus`, derived from a manifest this repository just
-  built. Nothing in a row is typed in by hand.
+  built. That block has no hand-entry path.
 - There is no runtime validator, so there is nothing to drift away from the
   declaration.
 
@@ -715,10 +733,16 @@ and `make check` runs no Python type checker, so these annotations are checked b
 an editor and by reading, not by the build. They are documentation with a precise
 format. A passthrough `record()` constructor was written to look like enforcement
 and deleted once it was clear it enforced nothing — a `TypedDict` is a plain
-`dict` at runtime, and the function restated the field list a third time. What
-actually holds is weaker and true: every numeric field in a row is computed by
-`features()` or by the scorer, so there is no hand-entry path for the values the
-analysis depends on.
+`dict` at runtime, and the function restated the field list a third time.
+
+A stronger claim was published here and is withdrawn: "nothing in a row is typed
+in by hand" was false. Only `corpus` is derived. `rubric` and `questions` — the
+two fields `trajectory()` and `movement()` actually read — are transcribed into
+the log from a grading pass, as are `readers`, `comparable` and
+`publication_sha256`. The transcription is the weakest link in the chain and
+saying otherwise hid it. Closing it means having the grading pass write its own
+row; until that exists, the digest is what makes a wrong transcription findable
+rather than prevented.
 
 ### Premium
 

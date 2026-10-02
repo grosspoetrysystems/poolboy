@@ -111,66 +111,53 @@ def score(bank: dict, grades: dict[str, str | dict[str, float]]) -> dict:
     }
 
 
-def improved(before: dict, after: dict, reader_spread: float) -> dict:
-    """Did the corpus get more useful between two runs?
+def movement(before: dict, after: dict, reader_spread: float) -> dict:
+    """Classify the movement between two runs. One verdict, computed once.
 
-    Only the graded axis can answer that, so only the graded axis gates. The
-    rubric is reported beside it, never folded into it: a 0-4 grader scaled to
-    0-1 and a 0-1 continuous score are not calibrated against each other, so any
-    arithmetic mixing them measures the two graders' relative harshness as much
-    as the corpus.
+    Only the graded axis can say whether the corpus got more useful, so only the
+    graded axis decides. The rubric delta is reported beside it, never folded in:
+    a `0-4` rubric scaled to `0-1` and a `0-1` graded mean are not calibrated
+    against each other, so any arithmetic mixing them — a mean, a minimum, a
+    distance, an angle — measures the two graders' relative harshness as much as
+    the corpus. Only the signs of the two deltas survive that objection.
 
-    `reader_spread` is the mean disagreement between readers on the same
-    publication. A graded move smaller than that is reader luck, not corpus
-    improvement, and the verdict says so.
+    `reader_spread` is required rather than defaulted. It is the mean
+    disagreement between readers on one publication, it is remeasured every run,
+    and a stale default silently reclassifies every verdict that depends on it.
     """
     dq = after["questions"] - before["questions"]
     dr = after["rubric"] - before["rubric"]
+    if dq > reader_spread:
+        kind = "improved"
+    elif dq < -reader_spread:
+        kind = "regressed"
+    elif dr > reader_spread:
+        kind = "rubric-only: documents say more, readers gained nothing"
+    else:
+        kind = "flat: inside reader spread, no corpus movement demonstrated"
     return {
         "d_questions": round(dq, 3),
         "d_rubric": round(dr, 3),
         "reader_spread": round(reader_spread, 3),
-        "improved": dq > reader_spread,
-        "verdict": (
-            "improved" if dq > reader_spread
-            else "regressed" if dq < -reader_spread
-            else "inside reader spread; no corpus movement demonstrated"
-        ),
+        "improved": kind == "improved",
+        "kind": kind,
     }
 
 
-def direction(before: tuple[float, float], after: tuple[float, float], spread: float = 0.048) -> dict:
-    """Classify the movement between two runs.
-
-    Deliberately not a vector. `hypot` and `atan2` over these two axes would be
-    the same error as averaging them: a `0-4` rubric scaled to `0-1` and a `0-1`
-    graded mean share no unit, so a distance mixes incomparable quantities and an
-    angle is a function of that mismatch rather than of the work. The earlier
-    `62.2` bearing read as a measurement and was not one.
-
-    What the two deltas do support is their signs, against the one scale that is
-    measured — reader disagreement. That is enough to name the case, including
-    the one this benchmark exists to catch.
-    """
-    dr, dq = after[0] - before[0], after[1] - before[1]
-    if dq > spread:
-        kind = "improved"
-    elif dq < -spread:
-        kind = "regressed"
-    elif dr > spread:
-        kind = "rubric-only: documents say more, readers gained nothing"
-    else:
-        kind = "flat"
-    return {"d_rubric": round(dr, 3), "d_questions": round(dq, 3), "kind": kind}
-
-
-def trajectory(runs: list[dict]) -> dict:
+def trajectory(runs: list[dict], reader_spread: float) -> dict:
     """Coupling between the two axes across the logged run history.
 
     This is the claim the rubric rests on — that stating something makes it
-    usable — expressed as a number that accrues instead of an assertion.
+    usable — accruing as a measurement instead of an assertion.
 
-    Two refusals are deliberate. Below three runs there is no slope: a line
+    Only `correlation` is reported as evidence. The slope is kept for inspection
+    but is not interpretable as "reader points per rubric point": its magnitude
+    scales with the arbitrary `/4` normalisation of the rubric axis, so it is an
+    artifact of a unit choice. Correlation is scale-invariant, so "near zero" —
+    the condition under which the rubric is retired rather than defended — means
+    the same thing however the rubric is normalised.
+
+    Two refusals are deliberate. Below three runs there is no coupling: a line
     through two points is a line by construction. And runs marked
     `comparable: false` are excluded, because a point measured under a different
     protocol — a different reader count, bank, or grader — moves for reasons that
@@ -178,30 +165,36 @@ def trajectory(runs: list[dict]) -> dict:
     attributes an instrument difference to the documents.
     """
     usable = [r for r in runs if r.get("comparable", True)]
-    pts = [(r["rubric"], r["questions"]) for r in usable]
-    out: dict = {"runs": len(pts), "excluded": len(runs) - len(pts), "points": pts}
-    out["legs"] = [direction(a, b) for a, b in zip(pts, pts[1:])]
-    if len(pts) < 3:
-        out["slope"] = None
+    out: dict = {
+        "runs": len(usable),
+        "excluded": len(runs) - len(usable),
+        "points": [(r["rubric"], r["questions"]) for r in usable],
+        "legs": [movement(a, b, reader_spread) for a, b in zip(usable, usable[1:])],
+    }
+    if len(usable) < 3:
+        out["correlation"] = None
         out["note"] = "fewer than three comparable runs; coupling is not yet measurable"
         return out
-    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    xs = [r["rubric"] for r in usable]
+    ys = [r["questions"] for r in usable]
     if len(set(ys)) < 2:
-        out["slope"] = 0.0
         out["correlation"] = None
+        out["slope"] = 0.0
         out["note"] = (
-            "readers did not move across runs; slope is zero and correlation undefined. "
+            "readers did not move across runs; correlation is undefined and the slope is zero. "
             "This is the rubric-gaming signature, not a missing measurement."
         )
         return out
     if len(set(xs)) < 2:
-        out["slope"] = None
         out["correlation"] = None
         out["note"] = "rubric did not vary; coupling undefined"
         return out
-    out["slope"] = round(statistics.linear_regression(xs, ys).slope, 3)
     out["correlation"] = round(statistics.correlation(xs, ys), 3)
-    out["note"] = "reader points gained per rubric point, measured over comparable runs"
+    out["slope"] = round(statistics.linear_regression(xs, ys).slope, 3)
+    out["note"] = (
+        "correlation between the axes over comparable runs; near zero retires the rubric. "
+        "Slope is not an exchange rate: its magnitude depends on the rubric's normalisation."
+    )
     return out
 
 
@@ -299,23 +292,17 @@ def demo() -> None:
 
     # Only the graded axis gates, and only beyond reader disagreement. A rubric
     # gain with readers unmoved is the rubric-gaming case and must not pass.
-    base = {"rubric": 0.825, "questions": 0.666}
     spread = 0.048
-    gamed = improved(base, {"rubric": 0.950, "questions": 0.666}, spread)
+    base = {"rubric": 0.825, "questions": 0.666}
+    gamed = movement(base, {"rubric": 0.950, "questions": 0.666}, spread)
     assert not gamed["improved"] and gamed["d_rubric"] > 0
-    assert "inside reader spread" in gamed["verdict"]
+    assert gamed["kind"].startswith("rubric-only")
 
     # A graded move smaller than reader disagreement is luck, not improvement.
-    assert not improved(base, {"rubric": 0.825, "questions": 0.700}, spread)["improved"]
-    assert improved(base, {"rubric": 0.825, "questions": 0.766}, spread)["improved"]
-    assert improved(base, {"rubric": 0.900, "questions": 0.600}, spread)["verdict"] == "regressed"
-
-    # Movement is classified by sign against reader spread, never by an angle
-    # over two axes that share no unit.
-    assert direction((0.77, 0.56), (0.83, 0.67))["kind"] == "improved"
-    assert direction((0.77, 0.56), (0.95, 0.56))["kind"].startswith("rubric-only")
-    assert direction((0.77, 0.56), (0.77, 0.40))["kind"] == "regressed"
-    assert direction((0.77, 0.56), (0.78, 0.57))["kind"] == "flat"
+    assert not movement(base, {"rubric": 0.825, "questions": 0.700}, spread)["improved"]
+    assert movement(base, {"rubric": 0.825, "questions": 0.766}, spread)["improved"]
+    assert movement(base, {"rubric": 0.900, "questions": 0.600}, spread)["kind"] == "regressed"
+    assert movement(base, {"rubric": 0.830, "questions": 0.670}, spread)["kind"].startswith("flat")
 
     # A run measured under a different protocol is excluded, not averaged in.
     mixed = [
@@ -324,26 +311,26 @@ def demo() -> None:
         {"rubric": 0.90, "questions": 0.70},
         {"rubric": 1.00, "questions": 0.80},
     ]
-    assert trajectory(mixed) == trajectory(mixed[1:]) | {"excluded": 1}
+    assert trajectory(mixed, spread) == trajectory(mixed[1:], spread) | {"excluded": 1}
 
     # Flat readers across runs is the gaming case the tool exists to catch, so it
     # must report, not raise. `statistics.correlation` dies on a constant series.
-    flat = trajectory([{"rubric": r, "questions": 0.666} for r in (0.70, 0.80, 0.90)])
-    assert flat["slope"] == 0.0 and flat["correlation"] is None
+    flat = trajectory([{"rubric": r, "questions": 0.666} for r in (0.70, 0.80, 0.90)], spread)
+    assert flat["correlation"] is None and flat["slope"] == 0.0
     assert "gaming signature" in flat["note"]
+    assert all(leg["kind"].startswith("rubric-only") for leg in flat["legs"])
 
     # Coupling is refused until three runs exist; two points are a line by
     # construction and would manufacture the correlation they claim to measure.
-    two = trajectory([{"rubric": 0.77, "questions": 0.56}, {"rubric": 0.83, "questions": 0.67}])
-    assert two["slope"] is None and len(two["legs"]) == 1
-    three = trajectory(
-        [
-            {"rubric": 0.70, "questions": 0.50},
-            {"rubric": 0.80, "questions": 0.60},
-            {"rubric": 0.90, "questions": 0.70},
-        ]
-    )
-    assert three["slope"] == 1.0, "one reader point per rubric point"
+    two = trajectory([{"rubric": 0.77, "questions": 0.56}, {"rubric": 0.83, "questions": 0.67}], spread)
+    assert two["correlation"] is None and len(two["legs"]) == 1
+
+    # Correlation is the reported evidence; it is invariant to how the rubric is
+    # normalised, which is exactly what the retire-the-rubric rule needs.
+    rising = [{"rubric": r, "questions": q} for r, q in ((0.70, 0.50), (0.80, 0.60), (0.90, 0.70))]
+    rescaled = [{"rubric": r["rubric"] * 2, "questions": r["questions"]} for r in rising]
+    assert trajectory(rising, spread)["correlation"] == trajectory(rescaled, spread)["correlation"] == 1.0
+    assert trajectory(rising, spread)["slope"] != trajectory(rescaled, spread)["slope"]
 
     # Corpus features are derived, never asserted, so a malformed manifest is a
     # loud failure rather than a quietly wrong row in the run log.
@@ -391,7 +378,7 @@ def main() -> int:
         return 0
     if args.trajectory is not None:
         log = json.loads(args.trajectory.read_text(encoding="utf-8"))
-        print(json.dumps(trajectory(log["runs"]), indent=2))
+        print(json.dumps(trajectory(log["runs"], log["reader_spread"]), indent=2))
         return 0
     if args.grades is None:
         parser.error("pass a grades file, --trajectory, or --self-test")
