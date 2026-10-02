@@ -442,9 +442,13 @@ too many: the A/B result showed placement alone moves the rubric, so the proxy
 could have been rewarding structure rather than usefulness. Two readers were run
 against the repaired publication (`0a450237…`) and graded against the same bank.
 
-Graded mean rose `0.556` → `0.666`. Reader spread between the two readers was
-`0.048` on the graded tiers and `0.001` on the refusal tiers, so roughly `0.10`
-is the smallest movement worth believing.
+The graded mean of that run was `0.666` against a `0.2.1` baseline of `0.556`.
+The two numbers are not a valid delta — the baseline was graded by one reader and
+this run by two, so their difference carries an instrument change (see
+"Attribution"). Within this run, the two readers disagreed by `0.048` on the
+graded tiers and `0.001` on the refusal tiers, so roughly `0.10` is the smallest
+per-question movement worth believing, and that floor is what the findings below
+are measured against.
 
 **Validated.** Two repairs moved far beyond that floor:
 
@@ -516,22 +520,33 @@ The pair has four outcomes, and three of them are informative:
 The second row is where this run landed for five of thirteen questions, and it is
 the row a single composite score cannot express.
 
-### Attribution, so the gain is not oversold
+### Attribution, stated at the level that survives
 
-The `+0.11` graded gain is not spread across the repairs. It decomposes almost
-entirely into two content additions:
+An earlier version of this section decomposed a `+0.11` aggregate gain into
+per-repair contributions. That aggregate is a one-reader baseline subtracted from
+a two-reader run, so it is partly an instrument change, and every figure derived
+from it — including a `+0.013` residual for the structural repairs obtained by
+subtraction — inherits the contamination. Withdrawn.
 
-| Source | Contribution to graded mean |
-| --- | --- |
-| `H5`, a missing document written from source | `+0.073` |
-| `H3`, a missing consequence stated | `+0.025` |
-| every structural repair combined | `+0.013`, inside reader spread |
+What does not depend on the aggregate is the per-question evidence. Each question
+was asked of both publications, and the two readers of the second agreed to
+within `0.048`:
 
-Three iterations of rubric work produced a change indistinguishable from noise at
-the question level, except where a fact was genuinely absent. The rubric's
-demonstrated power is finding absence. Its power to improve presentation of facts
-already present is, so far, unproven — and will stay labelled unproven until a
-structural repair clears the reader spread on its own.
+| Question | `0.2.1` | now | Move | Against spread |
+| --- | --- | --- | --- | --- |
+| `H5` versioned help | `0.01` | `0.96` | `+0.95` | 20x |
+| `H3` move semantics | `0.17` | `0.49` | `+0.32` | 6x |
+| `M1`, `H1`, `H2`, `H4` | — | — | `-0.06` to `+0.03` | all within |
+| `M2` | `0.69` | `0.56` | `-0.13` | 2.7x, wrong way |
+
+A one-reader-to-two-reader change cannot move a question from `0.01` to `0.96`;
+both readers independently found and cited a document that did not previously
+exist. Those two repairs stand. The four flat ones stand as flat.
+
+The claim this supports is narrower than a gain: the rubric's demonstrated power
+is **finding absence**. Its power to improve the presentation of facts already
+present is unproven, and stays labelled unproven until a structural repair clears
+reader spread on its own under a fixed protocol.
 
 ### One gate, two reported numbers
 
@@ -570,14 +585,22 @@ any arithmetic that merges them.
 ### The coordinate, and what the history buys
 
 A run is a point `(rubric, questions)` and the target is to travel up and to the
-right. Keeping the point gives each run a **bearing**:
+right. Movement between two runs is **classified by the signs of its two deltas**
+against reader spread, not measured as an angle:
 
-| Bearing | Meaning |
+| Case | Meaning |
 | --- | --- |
-| `90` | pure reader gain; the rubric did not even see it |
-| `45` | balanced |
-| `0` | pure rubric gain, readers unmoved — the gaming signature |
-| negative | something regressed |
+| `improved` | readers gained beyond their own disagreement |
+| `regressed` | readers lost beyond it |
+| `rubric-only` | documents say more, readers gained nothing — the gaming signature |
+| `flat` | neither axis moved meaningfully |
+
+An earlier version computed `hypot` and `atan2` over these two axes and published
+a bearing of `62.2`. That was the same error as the deleted composite, wearing a
+different hat: a `0-4` rubric scaled to `0-1` and a `0-1` graded mean share no
+unit, so the distance mixes incomparable quantities and the angle is a function
+of that mismatch rather than of the work. The signs survive; the geometry does
+not.
 
 The accruing payoff is the slope. Across enough points, regressing questions on
 rubric measures the thing the rubric rests on — how many reader points a rubric
@@ -676,8 +699,8 @@ zero runtime cost:
 
 - `Corpus` and `Run` are the schema of record for an archive that outlives any
   single run.
-- `features()` returns a `Corpus`; `record()` returns a `Run` with every field
-  required. Construction is the gate.
+- `features()` returns a `Corpus`, derived from a manifest this repository just
+  built. Nothing in a row is typed in by hand.
 - There is no runtime validator, so there is nothing to drift away from the
   declaration.
 
@@ -687,10 +710,15 @@ it was defending against a malformed row that nothing in the pipeline can
 produce. Deleted. If these artifacts ever are read from somewhere this repository
 does not control, the answer is Pydantic, not a second attempt at that function.
 
-Honest limit: `TypedDict` is erased at runtime and `make check` runs no Python
-type checker, so these are checked by an editor and by reading. Adding a Python
-toolchain for two stdlib scripts costs more than it returns. The guarantee that
-actually holds is that every row is built by `record()` from derived values.
+Honest limit, since the ask was strict types: `TypedDict` is erased at runtime
+and `make check` runs no Python type checker, so these annotations are checked by
+an editor and by reading, not by the build. They are documentation with a precise
+format. A passthrough `record()` constructor was written to look like enforcement
+and deleted once it was clear it enforced nothing — a `TypedDict` is a plain
+`dict` at runtime, and the function restated the field list a third time. What
+actually holds is weaker and true: every numeric field in a row is computed by
+`features()` or by the scorer, so there is no hand-entry path for the values the
+analysis depends on.
 
 ### Premium
 

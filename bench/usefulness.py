@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import collections
 import json
-import math
 import statistics
 import sys
 from pathlib import Path
@@ -140,21 +139,29 @@ def improved(before: dict, after: dict, reader_spread: float) -> dict:
     }
 
 
-def direction(before: tuple[float, float], after: tuple[float, float]) -> dict:
-    """The movement between two runs as a vector, not two unrelated deltas.
+def direction(before: tuple[float, float], after: tuple[float, float], spread: float = 0.048) -> dict:
+    """Classify the movement between two runs.
 
-    Each run is a point `(rubric, questions)`. What a run is worth is where it
-    travelled, and the bearing says which kind of work it was: `90` is pure
-    reader gain, `0` is pure rubric gain with readers unmoved, and `45` is
-    balanced. A bearing near `0` is the gaming signature.
+    Deliberately not a vector. `hypot` and `atan2` over these two axes would be
+    the same error as averaging them: a `0-4` rubric scaled to `0-1` and a `0-1`
+    graded mean share no unit, so a distance mixes incomparable quantities and an
+    angle is a function of that mismatch rather than of the work. The earlier
+    `62.2` bearing read as a measurement and was not one.
+
+    What the two deltas do support is their signs, against the one scale that is
+    measured — reader disagreement. That is enough to name the case, including
+    the one this benchmark exists to catch.
     """
     dr, dq = after[0] - before[0], after[1] - before[1]
-    return {
-        "d_rubric": round(dr, 3),
-        "d_questions": round(dq, 3),
-        "distance": round(math.hypot(dr, dq), 3),
-        "bearing": round(math.degrees(math.atan2(dq, dr)), 1),
-    }
+    if dq > spread:
+        kind = "improved"
+    elif dq < -spread:
+        kind = "regressed"
+    elif dr > spread:
+        kind = "rubric-only: documents say more, readers gained nothing"
+    else:
+        kind = "flat"
+    return {"d_rubric": round(dr, 3), "d_questions": round(dq, 3), "kind": kind}
 
 
 def trajectory(runs: list[dict]) -> dict:
@@ -303,9 +310,12 @@ def demo() -> None:
     assert improved(base, {"rubric": 0.825, "questions": 0.766}, spread)["improved"]
     assert improved(base, {"rubric": 0.900, "questions": 0.600}, spread)["verdict"] == "regressed"
 
-    # Movement is a bearing, and the gaming signature has a distinct one.
-    assert direction((0.77, 0.56), (0.83, 0.67))["bearing"] > 45, "balanced gain leans to readers"
-    assert direction((0.77, 0.56), (0.95, 0.56))["bearing"] == 0, "rubric-only gain bears 0"
+    # Movement is classified by sign against reader spread, never by an angle
+    # over two axes that share no unit.
+    assert direction((0.77, 0.56), (0.83, 0.67))["kind"] == "improved"
+    assert direction((0.77, 0.56), (0.95, 0.56))["kind"].startswith("rubric-only")
+    assert direction((0.77, 0.56), (0.77, 0.40))["kind"] == "regressed"
+    assert direction((0.77, 0.56), (0.78, 0.57))["kind"] == "flat"
 
     # A run measured under a different protocol is excluded, not averaged in.
     mixed = [
