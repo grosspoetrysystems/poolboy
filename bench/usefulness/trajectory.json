@@ -4,8 +4,6 @@
     "rubric": "document-level rubric mean, 0-4, scaled to 0-1",
     "questions": "graded-tier continuous mean, 0-1"
   },
-  "reader_spread": 0.048,
-  "reader_spread_note": "Mean per-question disagreement between the two readers of the 2026-10-01 run on the graded tiers (refusal tiers: 0.001). Remeasured whenever the reader protocol changes; a movement smaller than this is reader luck, not corpus change.",
   "corpus_note": "Corpus features are derived from each run's published graph.json and recorded because the publication is rebuilt and gone afterwards. With two runs they describe; they do not yet explain, and no correlation against them is reportable.",
   "derived": "Nothing derived is stored here. Run `python3 bench/usefulness.py --trajectory` to compute legs, slope and coupling from these rows, so an appended run can never leave a stale cached answer beside it.",
   "runs": [
@@ -19,7 +17,7 @@
       "refusal": 0.999,
       "readers": 1,
       "comparable": false,
-      "note": "mechanical baseline, graded by one reader; excluded from the trajectory because a one-reader score is not comparable with the two-reader protocol",
+      "note": "mechanical baseline, graded by one reader; excluded from the trajectory because a one-reader score is not comparable with the two-reader protocol; single reader, so disagreement was not measurable",
       "corpus": {
         "documents": 9,
         "bytes": 74494,
@@ -34,7 +32,8 @@
           "concept": 6
         },
         "sources_cited": 67
-      }
+      },
+      "reader_spread": null
     },
     {
       "run": "2026-10-01",
@@ -61,7 +60,9 @@
           "concept": 7
         },
         "sources_cited": 74
-      }
+      },
+      "reader_spread": 0.048
     }
-  ]
+  ],
+  "reader_spread_note": "Per run: mean per-question disagreement between that run's readers on the graded tiers. A movement smaller than the later run's spread is reader luck, not corpus change."
 }
