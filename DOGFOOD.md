@@ -1103,3 +1103,44 @@ has no docs, fragmented docs, or an already robust corpus.
 The harness records the cohort and binary digests, invocation flags, effective
 commands, configured-corpus statistics, partial-run state, and collision-safe run
 IDs. Framework-specific route interpretation belongs to source ingestion.
+
+## Review record: 2026-10-01
+
+Fourteen defects were caught by review during one session of benchmark work.
+They are written down because any proposal to automate this role is otherwise
+unfalsifiable — the same trap the rubric fell into. A reviewer that cannot
+recover these is not a reviewer, and one that recovers all of them has only
+matched a known answer key, so this is a floor and never a score.
+
+Eight shipped to `main` before being caught. That number is the honest measure
+of how much the role is doing.
+
+| # | Defect | Caught before shipping |
+| --- | --- | --- |
+| 1 | `min(rubric/4, graded)` composed two uncalibrated scales; it returned the harsher grader, not the weaker axis | no |
+| 2 | `hypot`/`atan2` over those same axes published a bearing of `62.2` as a measurement | no |
+| 3 | A `+0.11` aggregate was stated as fact across a one-reader to two-reader change | no |
+| 4 | `M2`'s `-0.13` was kept as evidence for exactly the reason the `+0.11` was withdrawn | no |
+| 5 | "Nothing in a row is typed in by hand" was false; only `corpus` is derived | no |
+| 6 | Slope reported as "reader points per rubric point"; its magnitude is a unit choice | no |
+| 7 | `statistics.correlation` raises on a constant series, so flat readers — the gaming case the tool exists to detect — would have killed the scorer | no |
+| 8 | Corrections declared complete while three flagged items survived into the commit | no |
+| 9 | A hand-rolled `load_runs` validator: Pydantic's cost, none of its correctness, guarding input that cannot occur | yes |
+| 10 | `record()` was a passthrough restating the field list a third time and enforcing nothing | yes |
+| 11 | `reader_spread` defaulted to a measured, run-specific `0.048` | yes |
+| 12 | `direction` and `improved` computed the same verdict twice and could diverge | yes |
+| 13 | `sed` edited a generated file instead of its template; the ledger caught it | yes |
+| 14 | A recommendation carried the exact defect it rejected in the alternative one paragraph above | yes |
+
+Two properties of this set matter more than its length.
+
+**Most are consistency failures, not knowledge failures.** Items 3, 4, 6 and 14
+are all the same shape: a standard applied in one paragraph and not the next.
+None required knowing anything the document did not already contain. That is the
+class a relentless frontier walk is well suited to, because it is found by
+reading what is already written against itself.
+
+**Item 7 is the exception, and the hardest.** It was latent — nothing failed, no
+number was wrong, and it would have surfaced only on the run that mattered most.
+Finding it required executing the branch, not reading the text. Any proposal here
+should say plainly whether it can reach that class or only the first.
