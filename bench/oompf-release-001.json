@@ -1,0 +1,75 @@
+{
+  "id": "oompf-release-001",
+  "date": "2026-10-06",
+  "issue": "GPS-296",
+  "scope": "Released-tool installation, existing-Markdown adoption diagnostics, worktree inventory, and no-change drift only.",
+  "source_revision": "a549499cd6fb1b4fecdb1d2659b916bf78399057",
+  "tool": {
+    "package": "@grosspoetrysystems/poolboy",
+    "version": "0.2.1",
+    "node": "v26.10.0",
+    "npm": "11.19.1",
+    "platform": "darwin-arm64",
+    "installation": "Isolated global prefix; lifecycle scripts disabled; original global 0.1.1 unchanged."
+  },
+  "evidence_directory": "../.poolboy-trials/oompf-run-20261006-HJLw0q",
+  "evidence_files": [
+    "RUNBOOK.md",
+    "commands.json",
+    "original-markdown-hashes.json"
+  ],
+  "observations": {
+    "init_exit": 0,
+    "existing_markdown_files": 20,
+    "existing_markdown_changed": 0,
+    "adoption_errors": 20,
+    "adoption_error_kind": "Existing ordinary documents lack required type metadata.",
+    "check_exit": 1,
+    "build_exit": 1,
+    "build_errors": 20,
+    "scan_exit": 0,
+    "admitted_source_files": 182,
+    "git_metadata_kind": "worktree pointer file",
+    "git_metadata_admitted": false,
+    "drift_exit": 0,
+    "drift_changes": 0,
+    "baseline_acceptance_requested": false,
+    "original_checkout_status": "Only the pre-existing untracked .DS_Store remains."
+  },
+  "elapsed_seconds": {
+    "init": 0.153,
+    "check": 0.136,
+    "scan": 0.159,
+    "build": 0.306,
+    "drift": 0.161
+  },
+  "usage": {
+    "model_tokens": "unknown",
+    "model_calls": "unknown",
+    "total_cost": "unknown",
+    "quota_usage": "unknown",
+    "total_manual_effort": "unknown"
+  },
+  "verdicts": {
+    "released_install": "pass",
+    "existing_markdown_preservation": "pass",
+    "adoption_diagnostics": "pass",
+    "worktree_metadata_exclusion": "pass",
+    "unchanged_source_drift": "pass",
+    "valid_adopted_corpus": "fail",
+    "named_reader_task": "not_run",
+    "controlled_refresh": "not_run",
+    "fresh_session_recovery": "not_run",
+    "whole_repository_coverage": "not_run",
+    "end_to_end_adoption": "not_proven"
+  },
+  "limitations": [
+    "Mechanical smoke only; no source discovery or semantic review.",
+    "No specimen-specific exclusions, init --force, or hand-cleaned inventory used.",
+    "Initial scan created an inventory baseline; it does not imply review acceptance.",
+    "No target application or target dependency installation was executed.",
+    "No source, corpus, prompts, or raw command output included in this record.",
+    "Discovery allowance is not recorded; stop before the first source-reading batch."
+  ],
+  "next_gate": "Approve one worker / one authoring invocation over the four source files already named in the runbook; stop for usage review before expansion. Dollar/token caps are not enforceable by the available prompt controls."
+}
