@@ -1,0 +1,48 @@
+{
+  "id": "oompf-refresh-001",
+  "issue": "GPS-296",
+  "input": "Oompf a549499cd6fb1b4fecdb1d2659b916bf78399057 disposable specimen; authoring-002 corpus; released Poolboy 0.2.1",
+  "treatment": "After saving source/document hashes and prospective questions, change only the fixture's api.ts retry schedule from [1000,2000,4000,8000,15000] to [1000,2000]. This is an experiment input, not an Oompf fix.",
+  "questions": ["Confirmation bounds and waits", "First-publish confirmation and coordinate storage", "No-change upgrade reconciliation"],
+  "question_fixture": "Private reader-questions.json contains source-backed scoring criteria frozen before this experiment. Reader received questions and exact publication allowlist, not the answer key. Earlier reader runs were not preregistered by this later fixture.",
+  "attempts": [
+    {"worker": "FreshRefreshWorker", "duration_seconds_reported": 116, "result": "Fresh agent compared checkpoint source hashes, found api.ts changed and the other three inputs unchanged, invalidated the old retry claim and changed only cli.md's two affected lines"},
+    {"reader": "RefreshExportReader", "duration_seconds_reported": 35, "result": "Answers and unchanged controls were correct, but the reader cited open-questions.md's stale five-wait claim as high-confidence corroboration. Failed to detect contradictory supporting evidence; no access-boundary violation reported."}
+  ],
+  "verification": {
+    "check_exit": 0,
+    "build_exit": 0,
+    "repeat_build_exit": 0,
+    "repeat_identical_files": 14,
+    "matching_graph_resources": 13,
+    "exact_zip_markdown_files": 10,
+    "broken_links": 0,
+    "orphans": 0,
+    "drift": "api.ts modification detected alongside the two preexisting setup changes",
+    "affected": ["/cli.md", "/open-questions.md", "/workflows.md"],
+    "actual_document_changes": ["cli.md"],
+    "unrelated_document_bytes": "unchanged",
+    "source_baseline": "unchanged; scan --accept not used",
+    "reader_input_hashes": "unchanged across the reader run",
+    "semantic_refresh": "FAIL: one of two necessary document edits made. open-questions.md:149-150 still says fixed five-wait schedule; current api.ts has two waits. Mechanical success and correct answers did not catch this recall miss."
+  },
+  "product_learning": [
+    "File-level affected identified all three review candidates. The agent updated cli.md but missed the semantically equivalent five-wait wording in open-questions.md: one of two required document edits made. Candidate discovery worked; semantic review and reader corroboration failed.",
+    "A fresh agent recovered from a file checkpoint and rejected stale input assumptions; no Poolboy-native resume API or full harness restart was exercised.",
+    "Partial review must not advance the project-wide source baseline. The remaining source_changed signals are expected, not permission to clear them.",
+    "Normal reader inputs include llms.txt and graph.json plus Markdown. The earlier Markdown-only boundary violation was not source leakage or a defect in these manifests.",
+    "Freeze questions and keep source-backed answer keys outside reader access before future comparisons. Preserve historical failures without retroactive preregistration claims.",
+    "Review the relevant sections of every affected document, not only literal matches for the changed value. Audit cited passages for contradictions; a correct answer does not validate its supporting citations."
+  ],
+  "sister_project_finding": {
+    "scope": "Separately inspected original pinned CLI and web registration code before fixture mutation; no original Oompf edits or live requests",
+    "observation": "Original CLI can make six registration POSTs while configured limiter permits five per 60 seconds per key. Live rejection depends on timing, deployment and provider counter behavior.",
+    "reproduction": "Actual registerProfile plus confirmIndexedHash executed with fake HTTP and sleep: rejecting POST six yields rate_limited after five GETs; accepting it with stale metadata yields index_update_failed after six GETs. Both assertions passed, exit 0.",
+    "relationship": "Adjacent to GPS-317 no-change upgrade recovery, not the same behavior; no Oompf fix claimed"
+  },
+  "usage": {"refresh_worker_invocations": 2, "separate_read_only_investigations": 2, "tokens": "unknown", "model_calls": "unknown", "cost": "unknown"},
+  "evidence_directory": "../.poolboy-trials/oompf-run-20261006-HJLw0q",
+  "reports": ["reader-questions.json", "refresh-checkpoint.json", "refresh-worker.txt", "refresh-reader.txt", "refresh-artifact-hashes.json", "commands.json", "retry-budget-smoke.ts"],
+  "decision": "Mechanical publication and fresh-agent changed-input detection passed; semantic refresh FAILED. Retain the contradictory corpus and reader report as failure evidence. Do not accept the baseline or claim a completed semantic refresh. Prioritize this reusable review failure over another unmeasured prose-polishing cycle.",
+  "limits": "Prompt-only reader boundary. New affected-section/citation-consistency guidance has not been replay-validated. No whole-repository review, full harness restart, other planned change scenarios, clean-init adoption fix, ARS score improvement, deployment or production retry fix is claimed. One attempted disposable full-project copy timed out and its partial directory was removed; the experiment instead used the already-isolated specimen."
+}

@@ -1,7 +1,7 @@
 {
   "id": "oompf-loop-targets",
   "issue": "GPS-296",
-  "purpose": "Bounded paired comparisons; operational gates, not statistical confidence or permission to run every bucket.",
+  "purpose": "Poolboy product-learning gates across controlled sister projects; not statistical confidence or repeated documentation polishing.",
   "buckets": [
     {"id": "mechanical", "target": "check/build pass; repeated artifact bytes and graph digests match; ZIP mirrors corpus; zero broken links/orphans", "hard_fail": "Any integrity failure", "ease_up": "After pass, rerun only when relevant corpus, renderer, config or tool inputs change"},
     {"id": "task_correctness", "target": "Source-checked recovery answer covers repeat publish, upgrade changes, upgrade no-change early return, partial side effects, bounded confirmation and explicit unsupported claims; independent export-only reader answers the same questions", "hard_fail": "Any unsupported guarantee or incorrect recovery instruction", "ease_up": "After source review and reader pass, freeze the question set; no prose-only optimization"},
@@ -16,12 +16,12 @@
     "caveat": "Correction informed by A's failure is a paired repair, not a blinded independent A/B or population-level result. Metadata citations do not establish semantic coverage."
   },
   "loop_limits": {
-    "per_iteration": "One authorized bounded treatment; verify and record before another invocation",
+    "per_iteration": "One bounded treatment; verify and record before continuing within the user-authorized improvement loop",
     "plateau": "Pause after two consecutive attempts in a bucket without a criterion improvement; diagnose or revise the target with user approval rather than retrying",
     "pass": "Stop optimizing the bucket when its explicit criteria pass; later input drift invalidates only affected results",
     "immediate_stop": ["scope/access boundary violation", "source/config/baseline precondition drift", "new hard-fail regression", "provider failure or unavailable necessary evidence"],
-    "promotion": "A passed bucket permits proposing the next bucket, not automatically spending a new allowance or deploying",
+    "promotion": "Continue to the next in-scope learning seam after its prerequisites pass. Ask only for material scope/cost decisions, blockers or deployment; a worker boundary is not an approval gate.",
     "budget": "Prompt-level bounds only; no enforced token or dollar cap. Unknown usage is not zero."
   },
-  "current_pair": {"A": "oompf-authoring-001", "B": "one approved recovery correction on the same four source files", "classification": "paired repair", "independent_reader": "not yet approved", "deployment": "not approved"}
+  "current_pair": {"A": "oompf-authoring-001", "B": "oompf-authoring-002", "classification": "paired repair, not independent A/B", "independent_reader": "completed; prompt-constrained evidence in oompf-reader-001", "deployment": "not approved"}
 }
