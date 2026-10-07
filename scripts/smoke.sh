@@ -64,7 +64,7 @@ cat > "$TMP/tasks/reconcile.md" <<'MD'
 ---
 type: task
 title: Reconcile accounts
-status: open
+status: draft
 ---
 - [ ] reconcile the bank statement
 - [x] file the Q1 report
@@ -128,7 +128,7 @@ contains "$($BIN properties)" "status"
 
 echo "--- property enumerates a key's values ---"
 contains "$($BIN property type --counts)" "dataset"
-contains "$($BIN property status)" "open"
+contains "$($BIN property status)" "draft"
 
 echo "--- property unknown key => empty, exit 0 (like ls) ---"
 $BIN property zzznope >/dev/null

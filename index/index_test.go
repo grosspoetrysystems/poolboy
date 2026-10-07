@@ -166,7 +166,7 @@ func TestEscapingLinkIsOutOfBundleNotBroken(t *testing.T) {
 // (an advisory warning), never as a broken link or an error.
 func TestOutOfBundleReferenceWarns(t *testing.T) {
 	idx := build(t, map[string]string{
-		"index.md":    "---\ntype: index\n---\n[prd](../PRD.md) and [b](/b.md)\n",
+		"index.md":    "[prd](../PRD.md) and [b](/b.md)\n",
 		"sub/page.md": "---\ntype: note\n---\n[prd](../../PRD.md)\n",
 		"b.md":        "---\ntype: note\n---\nx\n",
 	})
@@ -209,18 +209,26 @@ func TestReservedFilesExemptFromType(t *testing.T) {
 	}
 }
 
-func TestReservedFileFrontmatterLinted(t *testing.T) {
+func TestReservedRootExtraFrontmatterErrors(t *testing.T) {
 	idx := build(t, map[string]string{
-		"index.md": "---\ntype: index\nokf_version: \"0.1\"\n---\nhome\n", // type is disallowed here
+		"index.md": "---\nokf_version: \"0.1\"\ntitle: Home\ntype: index\noriginal_url: https://example.test/docs\n---\nhome\n",
 	})
 	issues := idx.Check()
-	if !hasWarning(issues, "/index.md", "no frontmatter") {
-		t.Errorf("reserved file carrying frontmatter should warn, got %+v", issues)
-	}
-	for _, is := range issues {
-		if is.Level == "error" {
-			t.Errorf("reserved file must not produce an error: %+v", is)
+	for _, key := range []string{"title", "type", "original_url"} {
+		if !hasError(issues, "/index.md", key) {
+			t.Errorf("reserved index.md key %q should error, got %+v", key, issues)
 		}
+	}
+}
+
+// Check rewrites the shared validator's missing-type error to add the poolboy.toml
+// `ignore` hint, and it does so by matching that validator's exact message text.
+// Reword the message upstream and the hint silently disappears, so pin it here.
+func TestMissingTypeKeepsIgnoreHint(t *testing.T) {
+	idx := build(t, map[string]string{"a.md": "---\ntitle: no type\n---\nx\n"})
+	issues := idx.Check()
+	if !hasError(issues, "/a.md", "`ignore` in poolboy.toml") {
+		t.Errorf("missing-type error must keep the ignore hint, got %+v", issues)
 	}
 }
 
@@ -654,7 +662,7 @@ func TestCheckSeverity(t *testing.T) {
 		"a.md":         "---\ntype: note\n---\nok\n",                   // valid, linked
 		"notype.md":    "---\ntitle: x\n---\nbody\n",                   // ERROR: missing type
 		"weird.md":     "---\ntype: bogus\n---\n[x](/gone.md)\n",       // ERROR undeclared type (vocab declared) + WARNING broken link
-		"sub/index.md": "---\ntype: note\n---\nbody\n",                 // WARNING: reserved file carries frontmatter
+		"sub/index.md": "---\ntype: note\n---\nbody\n",                 // ERROR: reserved file carries frontmatter
 		"a/b/c/d/e.md": "---\ntype: note\n---\nbody\n",                 // WARNING: depth > 3
 	})
 	errs, warns := 0, 0
@@ -666,11 +674,11 @@ func TestCheckSeverity(t *testing.T) {
 			warns++
 		}
 	}
-	if errs != 2 {
-		t.Errorf("errors = %d, want 2 (missing type + undeclared type; a broken link is a warning, not an error)", errs)
+	if errs != 3 {
+		t.Errorf("errors = %d, want 3 (missing type + undeclared type + reserved-file frontmatter; a broken link is a warning, not an error)", errs)
 	}
-	if warns != 3 {
-		t.Errorf("warnings = %d, want 3 (broken link, reserved-file frontmatter, depth)", warns)
+	if warns != 2 {
+		t.Errorf("warnings = %d, want 2 (broken link and depth)", warns)
 	}
 	// A broken link is a warning per OKF (not-yet-written knowledge), so it never fails the lint.
 	if !hasWarning(idx.Check(), "/weird.md", "broken link") {
