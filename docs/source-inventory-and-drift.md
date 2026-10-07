@@ -11,6 +11,10 @@ sources:
   - resource: ../internal/source/ignore.go
   - resource: ../internal/source/affected.go
   - resource: ../internal/health/health.go
+  - resource: ../cmd/poolboy/product.go
+  - resource: ../cmd/poolboy/commands.go
+  - resource: ../index/index.go
+  - resource: ../internal/compiler/build.go
   - resource: ../internal/compiler/publication.go
 ---
 # Source inventory and drift
@@ -116,12 +120,58 @@ signal is reported only where `orphan` is not, and the same `log.md` and
 declared entry point to measure from.
 
 Findings are advisory. They identify observable review evidence; they do not
-declare a document stale, exclude it, or rewrite it. A missing corpus or
-baseline appears as `unavailable`, not as a clean result. The command still
-returns the evidence it can compute and supports text, JSON, CSV, and TSV. If
-the advisory inspection itself fails after `scan` or `drift` succeeds, JSON
-includes `health_error` alongside `health: null`; the source operation remains
-successful.
+declare a document stale, exclude it, or rewrite it. In the `health` view, a
+missing corpus or baseline appears as `unavailable`, not as a clean result. The
+command still returns the evidence it can compute and supports text, JSON, CSV,
+and TSV. If the advisory inspection itself fails after `scan` or `drift`
+succeeds, JSON includes `health_error` alongside `health: null`; the source
+operation remains successful. `drift` has a separate source-comparison
+precondition: with no `.poolboy/sources.lock.json`, it returns an error telling
+the operator to run `scan` first.
+
+## Lifecycle: evidence, review, check, build, and acceptance
+
+These commands answer different questions. They form a useful operator
+lifecycle, but not one CLI transaction:
+
+1. **Scan and drift — what source changed?** An initial `scan` records the
+   source inventory. Later `drift` comparisons are read-only. A human or agent
+   reviews the changed paths and the documentation-health evidence; those
+   reports do not decide that a document is stale.
+2. **Human review — what should change?** Review is judgment over the evidence,
+   the Markdown, provenance, render inputs, and the previous publication. The
+   CLI has no review-complete state. `checkin --apply` can transport a
+   conflict-free draft into the corpus, but it is not a review decision and
+   does not advance the source baseline.
+3. **Check — does the current corpus have check findings?** `check` builds its
+   index and reports conformance and health issues; it is read-only unless
+   `--fix` is given. A clean check prints `ok: no issues found` and exits 0.
+   A warning-only check prints the warnings and, **as implemented today, still
+   exits 0**: `cmdCheck` counts only issues whose current level is `"error"`.
+   An error-level finding exits 1. This severity mapping describes the current
+   implementation, not a permanent lifecycle guarantee. A clean check is not
+   proof that review or acceptance happened: it records no review decision and
+   does not accept the source baseline.
+4. **Build — can this corpus be published?** `build` independently validates
+   the candidate corpus, renders configured documents, and publishes the
+   static output. It is not a continuation of `check`: the compiler performs
+   its own validation and staging. A successful build therefore proves that
+   this build's publication checks passed, not that a human reviewed the
+   evidence or accepted the source baseline.
+5. **Accept — which source inventory is the new baseline?** After review,
+   rerun `drift`, then use `scan --accept` to make the newly scanned inventory
+   the accepted baseline. The flag is an explicit operator action; it does not
+   prove that review, `check`, or `build` happened.
+
+The recommended reviewed-publication sequence is therefore `drift` (or the
+initial `scan`), human review and reconciliation, `check`, `build`, a final
+`drift`, and then `scan --accept`. This is operator convention, not enforced
+ordering. The CLI does enforce the individual boundaries: an existing
+baseline cannot be replaced without `--accept`, `drift` cannot compare without
+a baseline, `check` and `build` apply their own validation, and `build` stages
+before publishing. It does not require `scan --accept` before `build`, or
+`check` before either `build` or `scan --accept`; those transitions remain
+advisory workflow choices.
 
 ## Review and reconciliation workflow
 
@@ -138,11 +188,9 @@ variance; `checkin DIR --apply` transports only a conflict-free file-level
 result into the working corpus. Check-in is not the reconciliation defined
 here: it records no evidence judgment and never advances the source baseline.
 
-Only after every outstanding change has been reviewed and both `check` and
-`build` succeed may the workflow run `scan --accept`. Rerun `drift` before
-acceptance to catch source changes that occurred during review. There is no
-per-document review database or `resume` command: this is a workflow contract,
-not semantic enforcement by the CLI. Poolboy keeps one project-wide baseline.
+There is no per-document review database or `resume` command. Poolboy keeps
+one project-wide baseline, so the review and acceptance decision must remain
+with the operator.
 
 `affected SOURCE` is a separate direct-provenance query. It scans corpus
 Markdown frontmatter for `sources[].resource`, resolves explicit `./` and
