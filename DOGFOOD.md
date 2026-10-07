@@ -1144,3 +1144,275 @@ reading what is already written against itself.
 number was wrong, and it would have surfaced only on the run that mattered most.
 Finding it required executing the branch, not reading the text. Any proposal here
 should say plainly whether it can reach that class or only the first.
+
+## Exploratory direction: adaptive documentation inquiry
+
+Status: discussion captured, not an implementation specification or a release
+gate. Start with a bounded internal experiment. Consider a user-facing feature
+only after a useful MVP has been vetted. This is one possible part of Poolboy,
+not a replacement for its existing purpose.
+
+### Purpose
+
+Poolboy should help people make useful documentation from the code and written
+material they have, including little or no existing documentation. That baseline
+cannot supply knowledge that has never been recorded, or reliably settle
+ambiguous intent. The proposed workflow helps owners contribute that missing
+knowledge without first having to plan and write whole documents.
+
+The inspiration is the premise of grilling: follow an answer into the next
+meaningful question, uncover assumptions, and ask for support. It does not
+require using the grilling skill, a particular agent role, or skills at all.
+It is not a request to grill the human during this design discussion.
+
+### What documentation is for
+
+Documentation can support action, understanding, judgment, memory, and
+participation. Its subject need not be software. It may preserve intent,
+engineering rationale, historical constraints, human and economic tradeoffs,
+company mission, or a project's distinctive voice. It may also be a succinct
+product reference or a broad collection of general knowledge.
+
+Completeness depends on the owner's intended purpose, audience, and scope.
+Do not require every page to serve every purpose, assume more text is better,
+or normalize distinctive writing into a generic voice. Broader use cases should
+inform the idea without all becoming requirements for the first experiment.
+
+### Proposed experience
+
+Use the baseline as something concrete to explore. Questions can develop from
+reader tasks, claims, explanations, contradictions, and answers to earlier
+questions. Include both novice and expert perspectives where appropriate.
+Look for answers in available material before asking the owner; distinguish
+scattered information from genuinely missing knowledge.
+
+Surface a small, prioritized set of consequential questions rather than an
+exhaustive missing-section checklist. Help turn rough human answers into
+reviewable documentation changes. The intended benefit is making the writing
+work people avoid easier, not creating an endless interview.
+
+Preserve the distinction between documented claims, observed behavior, stated
+intent, historical evidence, disagreement, and unknowns. Do not invent motives,
+guarantees, or certainty to make the publication look complete.
+
+### Supply, demand, and the builder
+
+People and agents need usable knowledge, while the available material may be
+absent, scattered, stale, or unclear. More generated text does not necessarily
+improve supply. Demand also needs care: questions may omit context, carry false
+premises, or ask for certainty the evidence cannot support. Improve questions
+as well as answers; not every question warrants another page.
+
+Explaining a product can expose unfinished reasoning or implementation in that
+product. This applies to any builder using Poolboy, not just Poolboy's own
+development. In agent-assisted building, an artifact may arrive before its
+builder has examined all its consequences. Documentation inquiry can act as a
+limited thesis defense: connect intent, claims, and actual behavior.
+
+An unresolved question might call for documentation, a product decision, a
+repair, or clarification of an intentional boundary. Do not disguise a product
+problem with persuasive prose or invent a retrospective justification. Keep
+the workflow documentation-led; this does not establish a general product
+auditor or authorize automatic code changes.
+
+### Internal experiment and possible feature
+
+Begin with Poolboy's own corpus, bounded inquiry, and human-reviewed changes.
+Keep the static benchmark: repeatable questions support comparison, while
+adaptive inquiry can discover weaknesses the existing bank misses. Useful
+discoveries may become retained benchmark questions; the adaptive workflow
+need not itself become a gate or a single score.
+
+Evaluate whether the experiment finds consequential gaps, reduces the effort
+of resolving them, and helps readers after the changes. Use independent review
+and repeat reader tasks rather than letting the questioner certify its own
+suggestions. Interesting conversations alone are not evidence of improvement.
+
+Text inquiry can expose inconsistencies and suggest runtime failure hypotheses;
+it does not verify latent, execution-dependent defects such as review item 7.
+Those require a separate executable check before any behavioral claim.
+
+If that loop proves useful, explore a user-facing version. The question budget,
+prioritization, interaction model, evaluation method, and timing remain open.
+Do not build the broader feature before learning from the internal MVP.
+
+### First internal experiment: inquiry-001
+
+Use a frozen copy of the current README, `site/start.md`, `site/try.md`, and
+`docs/**/*.md`. This is an authored-documentation experiment, not an export-only
+reader run, and its results are not comparable to the existing usefulness scores.
+Record content hashes and reader traces in `bench/inquiry-001.json`.
+
+Two separate readers explore different needs: a first-time owner with sparse
+docs, and a maintainer evaluating the authority of generated docs and maintenance
+signals. Each may follow at most two chains of four questions, using only that
+corpus, without source code, the static question bank, or this experiment record.
+This separation is an instruction boundary, not a filesystem sandbox.
+
+Retain at most three consequential findings across both readers. Investigate
+them against repository evidence before asking the owner anything. Preserve
+answered and rejected questions as well as gaps. Propose changes rather than
+automatically applying publication edits. A separate reviewer will assess
+whether the findings and proposed wording are supported; this is not yet proof
+of reader improvement, time saved, or a vetted user-facing MVP.
+
+#### First-run result
+
+Two readers returned four chains containing sixteen question steps and four
+candidate gaps. Evidence review closed three candidates: onboarding already
+requires a scope inventory, semantic review is explicitly outside CLI checks,
+and durable review records are already documented as a deferred capability.
+Those findings do not justify more documentation or new features.
+
+One finding remains: `docs/versioned-help.md` does not clearly connect existing
+CI verification to generated-reference freshness. `make verify` checks the
+catalog, rebuilds the site, and rejects diffs in the tracked generated ledger and
+command reference. CI invokes it on pull requests and pushes, including tags.
+The separate tag-release workflow does not depend on Check's result, so the
+"before release" wording also needs that qualification. Hosted runs and external
+controls were not inspected. The current catalog check passed for 32 commands
+and 38 command names; that alone does not establish release enforcement.
+
+A separate reviewer supported the finding and all three closures, with two
+wording refinements retained in `bench/inquiry-001.json`. The artifact contains
+input hashes, unedited reader reports, evidence, proposed edits, and the review.
+The owner-policy question was later withdrawn: documenting the existing checks
+requires no new policy decision. No publication or workflow changes were applied.
+H5 shares this topic, but its export-only reader cannot inspect repository
+configuration. The source-backed investigation reached beyond that reader's
+evidence boundary; topic overlap is not detection overlap. This does not show
+that adaptive questioning outperforms static questions given equal evidence.
+
+This was a self-directed reading and triage trial, not an owner interview.
+Reader improvement and effort saved were not measured. The operational prompts
+also left the broader intent/knowledge use case untested. A next experiment
+should test a consequential owner answer and its effect on reader understanding,
+rather than expand this finding into a release audit.
+
+### Controlled export inquiry: inquiry-002
+
+Build fresh exports in a temporary project using the existing `dev` binary and
+companion, recording both executable hashes. Compare the intact publication
+with a rebuilt variant that omits the final explanatory paragraph of
+`renderer.md`. The paragraph describes ordinary authored Markdown as an
+alternative when useful content cannot fit renderer limits. Only the temporary
+copy changes; graph and ZIP artifacts are rebuilt rather than patched.
+
+Two independent readers per condition receive the same large-reference scenario
+and may follow at most six questions. Neutral labels conceal which condition
+they receive. Readers see only their assigned export, with an instruction-only
+boundary matching the retained export-reader access style. They do not see source
+code, the intervention, the question bank, or peer results.
+
+Record criteria before dispatch: find existing fixed-budget guidance; distinguish
+an explicit alternative from a justified inference; avoid invented historical
+rationale; respect the boundary between publication integrity and semantic truth;
+and avoid asking the owner questions already answered by the corpus.
+
+The omission may not remove the answer if other pages still support it. Recovery
+in both conditions is a valid result, not a reason to keep deleting material.
+An independent reviewer assesses each trace before receiving the condition key.
+This is a small, scenario-guided experiment, not statistical validation, an
+owner interview, or a score comparable with earlier benchmark runs.
+
+#### Result and method changes
+
+All four readers recovered ordinary authored Markdown as an option. Both intact
+readers cited the explicit fallback paragraph; both omission readers labeled the
+route as an inference from the remaining corpus model and build flow. Removing
+the paragraph changed their cited support, not the available destination. This
+run therefore does not establish that adding it improves reader decisions.
+
+All four respected fixed renderer limits and the distinction between
+build/signature evidence and prose correctness. The independent review found one
+misattributed citation, one unsupported requirement for an owner-defined migration
+step, and one reader who used seven questions including the owner question,
+exceeding the six-question cap. Keep those defects in the raw record rather than
+repairing the traces after assessment.
+
+Under the original owner-burden criterion, all four proposed questions were
+unanswered in the export and consequential under their stated conditions. A
+separate routing observation matters: whether content must remain automatically
+regenerated, or whether its existing locator must remain stable, is an owner
+requirement. The mechanics of converting a generated path to authored Markdown
+are a source-research question, not necessarily missing human knowledge. Readers
+were barred from source code; they were not at fault for leaving that unanswered.
+
+That mechanical question was resolved separately through source inspection and
+a disposable-copy smoke check. Removing both the target's render mapping and its
+specific ledger entry preserved the document at the same path; a subsequent
+authored edit also built and published with matching bytes. Removing only the
+mapping failed on an incoming link in this fixture, leaving the source untouched.
+Source inspection shows why mapping-only removal is not a conversion procedure:
+an unchanged formerly generated target is a stale-removal candidate. This checks
+current implementation behavior, not a promised migration command or API.
+
+For the next inquiry:
+
+- Count any final owner question within the six-question total.
+- Verify citations before retaining a finding.
+- Route unanswered questions to documentation, source/runtime evidence, or human
+  intent before asking the owner. Do not infer intent from implementation.
+- Do not turn a missing procedure into an invented approval requirement.
+- Keep conditional owner questions conditional; do not force one just because
+  the format allows it.
+
+The routing distinction was an exploratory follow-up, not a retroactively added
+pass/fail criterion. The reviewer initially overstated file equality; its
+correction is retained: only the other Markdown files were identical, not the
+rebuilt graph and archive artifacts. Labels were fixed, not randomized, and two
+readers per condition do not establish a causal effect or model independence.
+No owner interview, time-saving measurement, or new owner-supplied knowledge was
+tested.
+
+`bench/inquiry-002.json` retains the protocol, raw traces, blind assessment,
+unblinded interpretation, source investigation, and smoke evidence.
+The two exact export surfaces are retained locally, not versioned: `bench/`
+holds text evidence only, so the archive lives at
+`.substrate/trials/inquiry-002/inquiry-002-exports.zip`
+(SHA-256 `32774ddbfa2483897e622d0f076f975572cdf732d9d788c3779fedd0e3b9a6d4`) and is
+absent from a fresh clone. The per-artifact hashes in `inquiry-002.json` keep the
+claims checkable; replaying the comparison byte-for-byte needs that local copy.
+Both builds succeeded; every graph-named artifact matched its recorded hash and
+byte count; the retained archive passed its integrity check. Production code and
+published documentation remain unchanged.
+
+### Next bounded inquiry: inquiry-003
+
+Execution split recorded 2026-10-06:
+
+1. [GPS-348: Select a research-cleared owner question](https://linear.app/grosspoetrysystems/issue/GPS-348). Check existing evidence first; select one consequential unknown or record that no interview is justified. Freeze the reader task, criteria, and pre-answer material before incorporating an owner answer.
+2. [GPS-349: Capture the answer as a reviewable documentation change](https://linear.app/grosspoetrysystems/issue/GPS-349). Depends on question selection and an actual owner answer. Distinguish a recovered intention from a new decision; retain unknowns and owner review. Internal intent need not become public corpus content.
+3. [GPS-350: Evaluate reader usefulness](https://linear.app/grosspoetrysystems/issue/GPS-350). Depends on the reviewed change. Compare independent readers on fixed before/after material, retain raw results, and record a continue/revise/stop disposition without a composite score or causal claim.
+
+These are bounded experiments under GPS-296, not a substitute for its remaining
+foreign-repository coverage, change-capture, and fresh-session resumption proof.
+Reuse the existing benchmark harness where suitable; stronger isolation and
+variance calibration remain GPS-335 and GPS-336 rather than new implementations
+inside this run. No provider migration, automatic publication, or user-facing
+interview system follows from this experiment.
+
+The live board checked on 2026-10-06 records release proof (GPS-295), public
+deployment (GPS-292), installation guidance (GPS-298), portable contracts
+(GPS-311), and the reusable harness (GPS-334) as Done. GPS-296 remains In Progress.
+Those are board states, not a fresh deployment or release verification; older
+planning notes that still call release/deployment the immediate blockers are
+historical context.
+
+#### Research disposition
+
+The bounded inquiry-003 search did not establish a justified owner question.
+Private agent use and public readership are already explicit in
+`site/index.html`; `site/start.md` and `site/try.md` distinguish the current-project
+and isolated-trial workflows. A scout proposed asking which audience should win
+when resources conflict. Main rejected that question: the proposed reader task
+required choosing the documented workflow and identifying the supported audiences,
+not resolving any demonstrated conflict between them.
+
+`bench/inquiry-003.json` retains the candidate, source locations, rejection, and
+revisit condition. No owner question was asked, no intervention was made, and no
+reader evaluation ran. GPS-348 closes through its explicit no-question outcome;
+GPS-349 and GPS-350 remain parked until a real task exposes consequential missing
+intent. The evaluation protocol and pre-answer material must be frozen then,
+before the answer shapes the test. This is a bounded negative result, not proof
+that all owner knowledge is already documented.
