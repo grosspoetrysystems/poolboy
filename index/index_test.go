@@ -85,6 +85,59 @@ func TestBrokenAndOrphans(t *testing.T) {
 	}
 }
 
+// The thru.org capture: a reserved root index that links nothing, and content
+// pages that link each other. Every page has an incoming link, so Orphans is
+// silent and the corpus passes check/build/unresolved — while a reader starting
+// at the root can reach none of it.
+func TestUnreachableFromRootDespiteNoOrphans(t *testing.T) {
+	idx := build(t, map[string]string{
+		"index.md":    "---\nokf_version: \"0.1\"\n---\n# Docs\n",
+		"overview.md": "---\ntype: note\n---\n[guide](/guide.md)\n",
+		"guide.md":    "---\ntype: note\n---\n[overview](/overview.md)\n",
+	})
+	if orph := idx.Orphans(); len(orph) != 0 {
+		t.Fatalf("orphans = %+v, want none: each page has an incoming link", orph)
+	}
+	got := paths(idx.Unreachable())
+	if want := []string{"/guide.md", "/overview.md"}; !slices.Equal(got, want) {
+		t.Errorf("unreachable = %v, want %v", got, want)
+	}
+}
+
+func TestUnreachableFollowsLinksAndHonorsExemptions(t *testing.T) {
+	idx := build(t, map[string]string{
+		"poolboy.toml":   "spec=\"0.1\"\ntypes=[\"note\"]\nignore_orphans=[\"backlog/**\"]\n",
+		"index.md":       "---\ntype: index\n---\n[a](/a.md)\n",
+		"a.md":           "---\ntype: note\n---\n[deep](/deep.md)\n", // reached transitively
+		"deep.md":        "---\ntype: note\n---\nend\n",
+		"stranded.md":    "---\ntype: note\n---\n[broken](/nope.md)\n", // unreachable; its broken edge is unresolved's finding
+		"log.md":         "# Log\n",                                    // reserved, exempt
+		"backlog/off.md": "---\ntype: note\n---\nparked\n",
+	})
+	if got, want := paths(idx.Unreachable()), []string{"/stranded.md"}; !slices.Equal(got, want) {
+		t.Errorf("unreachable = %v, want %v", got, want)
+	}
+}
+
+// No declared entry point is a different finding than an unreachable page, so
+// the query stays silent rather than reporting every entry.
+func TestUnreachableWithoutRootIndex(t *testing.T) {
+	idx := build(t, map[string]string{
+		"a.md": "---\ntype: note\n---\nno root index exists\n",
+	})
+	if got := idx.Unreachable(); len(got) != 0 {
+		t.Errorf("unreachable = %+v, want none without a root index", got)
+	}
+}
+
+func paths(entries []*Entry) []string {
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.Path)
+	}
+	return out
+}
+
 func TestEscapingLinkIsOutOfBundleNotBroken(t *testing.T) {
 	idx := build(t, map[string]string{
 		"index.md": "---\ntype: index\n---\n[esc](/../../../../../../../../etc/hosts)\n",

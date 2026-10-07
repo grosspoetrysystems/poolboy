@@ -104,6 +104,17 @@ sources whose current SHA-256 differs from that baseline, and corpus orphans
 from the same `ignore_orphans`-aware graph query used elsewhere. The root
 `/index.md` is navigation metadata and is exempt from missing-source findings.
 
+It also reports `unreachable`: an entry the root `/index.md` cannot reach by
+following internal links. `orphans` answers whether anything links to a page, so
+a cluster of pages linking each other is never orphaned even when nothing the
+root reaches points into it — a reader starting at the root and clicking arrives
+nowhere. That is the common shape when a foreign tree is ingested and its
+navigation lived in the site frontend. Every orphan is unreachable, so the
+signal is reported only where `orphan` is not, and the same `log.md` and
+`ignore_orphans` exemptions apply. A corpus with no root index reports
+`graph_root` as `unavailable` rather than flagging every entry: there is no
+declared entry point to measure from.
+
 Findings are advisory. They identify observable review evidence; they do not
 declare a document stale, exclude it, or rewrite it. A missing corpus or
 baseline appears as `unavailable`, not as a clean result. The command still

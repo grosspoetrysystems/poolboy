@@ -62,6 +62,16 @@ func Inspect(b *bundle.Bundle, baseline, current *source.Inventory) ([]Item, err
 	for _, entry := range idx.Orphans() {
 		orphans[entry.Path] = true
 	}
+	unreachable := make(map[string]bool)
+	for _, entry := range idx.Unreachable() {
+		unreachable[entry.Path] = true
+	}
+	// Must match what Unreachable() measures from: the indexed entry, not the
+	// file on disk. A poolboy.toml `ignore` rule can leave index.md present but
+	// unindexed, and FileExists would call that a root while the graph has none.
+	if _, err := idx.Resolve("/index.md"); err != nil {
+		items = append(items, Item{Signal: "graph_root", Status: Unavailable})
+	}
 	for _, entry := range idx.Entries {
 		resources := resources(entry.Frontmatter()["sources"])
 		if entry.Path != "/index.md" && len(resources) == 0 {
@@ -95,6 +105,13 @@ func Inspect(b *bundle.Bundle, baseline, current *source.Inventory) ([]Item, err
 		}
 		if orphans[entry.Path] {
 			items = append(items, Item{Document: entry.Path, Signal: "orphan", Status: Finding})
+		}
+		// Every orphan is unreachable, so reporting both says nothing new. The
+		// unreachable signal is kept for the case orphans structurally cannot
+		// report: a page with incoming links whose whole cluster hangs off
+		// nothing the root index reaches.
+		if unreachable[entry.Path] && !orphans[entry.Path] {
+			items = append(items, Item{Document: entry.Path, Signal: "unreachable", Status: Finding})
 		}
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -166,7 +183,9 @@ func signalOrder(signal string) int {
 		return 3
 	case "orphan":
 		return 4
-	default:
+	case "unreachable":
 		return 5
+	default:
+		return 6
 	}
 }

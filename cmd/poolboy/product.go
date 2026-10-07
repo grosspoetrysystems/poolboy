@@ -225,12 +225,12 @@ func healthSummary(items []health.Item) []string {
 		counts[item.Signal]++
 	}
 	lines := []string{"Documentation smell test:"}
-	for _, signal := range []string{"orphan", "missing_sources", "source_missing", "source_not_in_baseline", "source_changed"} {
+	for _, signal := range []string{"orphan", "unreachable", "missing_sources", "source_missing", "source_not_in_baseline", "source_changed"} {
 		if counts[signal] > 0 {
 			lines = append(lines, fmt.Sprintf("  %d %s", counts[signal], signal))
 		}
 	}
-	for _, signal := range []string{"corpus", "source_baseline"} {
+	for _, signal := range []string{"corpus", "source_baseline", "graph_root"} {
 		if counts[signal] > 0 {
 			lines = append(lines, fmt.Sprintf("  %s unavailable", signal))
 		}

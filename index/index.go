@@ -763,6 +763,48 @@ func (idx *Index) Orphans() []*Entry {
 	return out
 }
 
+// Unreachable returns entries the declared graph root cannot reach by following
+// internal links. Orphans answers a local question — does anything link here —
+// so a cluster of pages that link each other is never orphaned even when nothing
+// outside it points in. This answers the reader's question instead: starting at
+// the root index and clicking, what is never arrived at.
+//
+// The same exclusions apply as Orphans (log.md, poolboy.toml `ignore_orphans`),
+// because a deliberately parked document is not a navigation defect. A corpus
+// with no root index yields nil: there is no declared entry point to measure
+// from, which is a different finding than an unreachable page.
+//
+// Unresolved links are not followed and not reported here; a broken edge is
+// `unresolved`'s finding, and this query only reports where it leaves a page
+// stranded.
+func (idx *Index) Unreachable() []*Entry {
+	root, ok := idx.byPath["/index.md"]
+	if !ok {
+		return nil
+	}
+	seen := map[string]bool{root.Path: true}
+	for queue := []*Entry{root}; len(queue) > 0; {
+		e := queue[0]
+		queue = queue[1:]
+		for _, l := range e.Links {
+			next, ok := idx.byPath[l.Target]
+			if !ok || seen[next.Path] {
+				continue
+			}
+			seen[next.Path] = true
+			queue = append(queue, next)
+		}
+	}
+	var out []*Entry
+	for _, e := range idx.Entries {
+		if seen[e.Path] || e.base() == "log.md" || idx.orphanExempt(e.Path) {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 // orphanExempt reports whether p is covered by a poolboy.toml `ignore_orphans`
 // glob (see matchGlob): an exact path, a `dir/**` subtree, or any `*`/`?`/`**`
 // pattern.
