@@ -58,6 +58,32 @@ Dependabot is authorized repository automation. Its generated pull requests are 
 
 Edit templates and metadata rather than generated output. Run `make site`, review changes to `.poolboy/generated.json` and generated documents, and include them in the same commit as their inputs. `make verify` fails when generated output is stale.
 
+## What lives in this repository
+
+The repository carries the product and nothing else: Go and TypeScript source,
+maintained documentation under `docs/`, the published site inputs, packaging,
+and the shipped `skills/poolboy-discovery/` Skill that users install in their
+own coding agent.
+
+Evaluation material is local working evidence and is deliberately absent. The
+benchmark harness and its retained results, dogfood records, trial narratives,
+captured foreign corpora, external-project notes, and personal agent tooling
+live under `.substrate/`, which is Git-ignored by a `.gitignore` containing `*`
+inside the directory itself. The same self-ignore pattern applies to any other
+local-only tree. A fresh clone will not have them, and that is intended.
+
+The test is whether someone using or building Poolboy needs the file. The
+discovery Skill ships because the product tells users to run it. A benchmark
+cohort, a question bank, a grader, or a record of how one documentation site
+survived capture does not ship, because it describes our evaluation of the
+product rather than the product.
+
+Two consequences worth stating plainly. Benchmark runs are not reproducible
+from a clone; replaying one needs the local harness. And a path under
+`.substrate/` is a provenance pointer, not retrievable evidence — when evidence
+has to reach a reader, put the measured result in the issue or pull request
+rather than a link nobody else can open.
+
 ## Pull requests
 
 Keep changes focused. Include the command or scenario that proves the behavior. Do not commit build output, local signing keys, environment files, or generated `.site/` contents.
