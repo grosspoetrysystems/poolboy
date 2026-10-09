@@ -85,6 +85,15 @@ sorted unique internal links, and normalized sources. Graph edges collapse to
 canonical document identity: fragments are validated but are not separate
 nodes. `graph.llms` contains the exact byte size and SHA-256 of `llms.txt`.
 
+Derived traversal is a separate `graph.nav` map keyed by the same document
+paths, so signing covers authored identity and computed edges without
+conflating them. `backlinks` is the sorted inverse of the authored links,
+excluding self-links. `prev` and `next` follow the order the root `index.md`
+links documents, so the authored index is the sequence; a document the index
+never links has no position and no `nav` entry at all. `llms.txt` publishes the
+same sequence under a `Reading order` heading. Nothing here is guessed: a corpus
+that states no relationship publishes no edge.
+
 `graph.artifacts` is a sibling map of every other owned non-Markdown
 publication file except `graph.json`, `graph.json.sig`,
 `graph.json.sigstore.json`, and `poolboy.pub`. Its keys are clean,
@@ -125,6 +134,38 @@ application code. Signing happens before upload, and the signature sidecars
 travel with the corpus. `base_url` may pin a canonical publication root, but
 leaving it empty lets the landing derive the deployed host and subpath at
 runtime.
+
+Poolboy has no publication target. `build` writes the configured `output`
+directory; nothing detects a host, and `base_url` is a canonical-root hint for
+share metadata, never a routing decision.
+
+`publish` is the setup report for one documented destination, GitHub Pages. It
+reads the configured output, derives the project-site URL from the `origin`
+remote in `.git/config`, and names the admin action that enables Pages. It
+makes no network call and changes no repository state; `--apply` writes
+`.github/workflows/poolboy-docs.yml` and nothing else, pinned to the Poolboy
+version that generated it and uploading the configured output. A development
+build writes a placeholder pin rather than a version npm cannot resolve, so a
+misconfigured deploy fails loudly instead of publishing stale bytes. Rewriting
+an existing workflow requires `--force`.
+
+The published project site lives under a `/REPO/` subpath, which the landing's
+relative links and runtime-derived base already handle, so the bytes `poolboy
+preview` serves are the bytes Pages serves. A custom domain is GitHub Pages
+configuration — repository setting plus DNS — and cannot be expressed in the
+workflow or the publication: with Actions publishing GitHub creates no `CNAME`
+file and ignores one in the uploaded artifact. Neither path is
+configuration-free; the project-site default still requires the Pages source
+and workflow permissions, which only a repository admin can set. Pages is
+public hosting and is not a route for documentation that must stay internal.
+
+Because the publication is deterministic and self-contained, a released tool can
+embed the same `dist/` it publishes (`//go:embed all:dist` for a Go binary) and
+answer documentation queries with no network access, which is what CI,
+sandboxes, and air-gapped hosts require. The SHA-256 of the embedded
+`graph.json` identifies the embedded revision and matches the published one when
+both come from the same build. The published site is then an opt-in mirror, not
+a runtime dependency: the binary itself never fetches.
 
 The built-in `index.html` derives its favicon from `logo`, or from the
 effective nonempty `mark` when no logo is set. Empty mark plus no logo
