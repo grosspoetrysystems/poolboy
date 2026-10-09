@@ -3,10 +3,10 @@ pre-commit:
   commands:
     go-format:
       glob: "*.go"
-      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 fmt --diff {staged_files}
+      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0 fmt --diff {staged_files}
     go-lint:
       glob: "*.go"
-      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run ./...
+      run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0 run ./...
     typescript-lint:
       root: companion/
       glob: "*.{ts,js,mjs,json,jsonc}"

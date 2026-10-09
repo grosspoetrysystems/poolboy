@@ -1,6 +1,6 @@
 .PHONY: build check fmt hooks site verify
 
-GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
 # SITE_URL absolutizes the product page's share-card and canonical URLs
 # (e.g. https://poolboy.example). Empty keeps them root-relative to the host.
