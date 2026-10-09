@@ -54,6 +54,24 @@
       "related": ["build"]
     },
     {
+      "name": "publish",
+      "summary": "Report what publishing the corpus on GitHub Pages requires; write the workflow only with --apply.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/publish.go",
+      "flags": [
+        {"name": "--apply", "description": "Write .github/workflows/poolboy-docs.yml, pinned to a published Poolboy version."},
+        {"name": "--force", "description": "Overwrite an existing Poolboy publishing workflow."},
+        {"name": "--pin VERSION", "description": "Published Poolboy version the workflow runs; defaults to this build's version, which must itself be a release."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format; JSON exposes the resolved output, URL, enable command, and whether the pin is a release."}
+      ],
+      "usage": "poolboy publish [--apply] [--force] [--pin VERSION] [--format text|json|csv|tsv]",
+      "effects": "Reports the corpus output directory, the resulting Pages URL, and the admin action that enables Pages; with --apply writes the publishing workflow pinned to a published Poolboy version.",
+      "does_not": "Makes no network calls, changes no repository settings, enables no Pages site, publishes nothing, and refuses --apply when no published version is available to pin.",
+      "verify_with": [["build"]],
+      "related": ["build", "preview"]
+    },
+    {
       "name": "scan",
       "summary": "Record a bounded source inventory baseline and summarize documentation health.",
       "mutates": true,

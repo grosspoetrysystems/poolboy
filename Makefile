@@ -18,6 +18,12 @@ check:
 	go test -race -cover ./...
 	$(GOLANGCI_LINT) run ./...
 	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+	# The workflow `poolboy publish` writes is shipped as Go source, so lint the
+	# real generated file rather than a copy that can drift from it.
+	tmp=$$(mktemp -d) && go run ./cmd/poolboy --root $$tmp init $$tmp >/dev/null \
+	  && go run ./cmd/poolboy --root $$tmp publish --apply --pin 0.0.0 >/dev/null \
+	  && go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 $$tmp/.github/workflows/poolboy-docs.yml \
+	  && rm -rf $$tmp
 	node .github/scripts/check-pr-contract.mjs --self-test
 	node scripts/check-command-docs.mjs
 	node scripts/generate-help-snapshot.mjs --self-test

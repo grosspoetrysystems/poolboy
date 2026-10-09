@@ -105,6 +105,32 @@ Build and serve the configured corpus through a private loopback URL.
 
 - `--port N` — Use a loopback port; 0 chooses an available port.
 - `--renderer PATH` — Use a trusted Knap companion path.
+## `publish`
+
+Report what publishing the corpus on GitHub Pages requires; write the workflow only with --apply.
+
+- Mutation: `true` — writes to disk; see Effects
+- Aliases: `none`
+- Source: `cmd/poolboy/publish.go`
+- Usage: `poolboy publish [--apply] [--force] [--pin VERSION] [--format text|json|csv|tsv]`
+- Effects: Reports the corpus output directory, the resulting Pages URL, and the admin action that enables Pages; with --apply writes the publishing workflow pinned to a published Poolboy version.
+- Deliberately does not: Makes no network calls, changes no repository settings, enables no Pages site, publishes nothing, and refuses --apply when no published version is available to pin.
+
+### Verify
+
+- `build`
+
+### Related commands
+
+- `build`
+- `preview`
+
+### Flags and arguments
+
+- `--apply` — Write .github/workflows/poolboy-docs.yml, pinned to a published Poolboy version.
+- `--force` — Overwrite an existing Poolboy publishing workflow.
+- `--pin VERSION` — Published Poolboy version the workflow runs; defaults to this build's version, which must itself be a release.
+- `--format text|json|csv|tsv` — Choose result output format; JSON exposes the resolved output, URL, enable command, and whether the pin is a release.
 ## `scan`
 
 Record a bounded source inventory baseline and summarize documentation health.
