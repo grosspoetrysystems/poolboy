@@ -144,8 +144,9 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 	if err != nil {
 		return err
 	}
-	llmsBytes := renderLLMS(b.Name)
-	graphBytes, err := buildGraph(stagedIndex, candidate, artifacts, llmsBytes)
+	order := readingOrder(stagedIndex)
+	llmsBytes := renderLLMS(b.Name, order)
+	graphBytes, err := buildGraph(stagedIndex, candidate, artifacts, llmsBytes, order)
 	if err != nil {
 		return err
 	}
