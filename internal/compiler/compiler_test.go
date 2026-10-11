@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -211,7 +212,9 @@ func TestBuildRefusesUnknownExistingPublicationFiles(t *testing.T) {
 	if err := os.WriteFile(sentinel, []byte("keep\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "unknown file") {
+	err := Build(context.Background(), b, rendererPath)
+	var publicationErr *PublicationError
+	if err == nil || !strings.Contains(err.Error(), "unknown file") || !errors.As(err, &publicationErr) || publicationErr.Code != "OUTPUT_OCCUPIED" || publicationErr.Path != filepath.Join(root, "dist") {
 		t.Fatalf("unknown publication file error = %v", err)
 	}
 	got, err := os.ReadFile(sentinel)

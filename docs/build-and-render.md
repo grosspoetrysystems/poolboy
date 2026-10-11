@@ -76,6 +76,13 @@ replacement with rollback attempts, not a crash- or power-loss recovery
 guarantee, and it does not promise uninterrupted availability across the
 directory renames.
 
+Operational build failures preserve that boundary. Text and JSON carry the same
+facts; JSON uses exit 2 and the fields `code`, `status`, `detail`, and
+`next_action`. Missing companions, missing Node.js, and renderer
+template/protocol/process failures are classified without matching error
+strings. A foreign or occupied output is reported with its path and preserved
+without deletion. Validation failures remain the issue array with exit 1.
+
 ## Published files
 
 `graph.json` has a fixed version (`"0"`), root (`"/index.md"`), a dedicated
@@ -140,14 +147,36 @@ directory; nothing detects a host, and `base_url` is a canonical-root hint for
 share metadata, never a routing decision.
 
 `publish` is the setup report for one documented destination, GitHub Pages. It
-reads the configured output, derives the project-site URL from the `origin`
-remote in `.git/config`, and names the admin action that enables Pages. It
-makes no network call and changes no repository state; `--apply` writes
-`.github/workflows/poolboy-docs.yml` and nothing else, pinned to the Poolboy
-version that generated it and uploading the configured output. A development
-build writes a placeholder pin rather than a version npm cannot resolve, so a
-misconfigured deploy fails loudly instead of publishing stale bytes. Rewriting
-an existing workflow requires `--force`.
+reads the configured output, derives a project-site URL only from a recognized
+local `origin` remote, and names the admin action that enables Pages. It makes
+no network call and changes no repository state; `--apply` writes
+`.github/workflows/poolboy-docs.yml` and nothing else. The workflow contains an
+exact Poolboy version string, but syntax is not proof that npm has published or
+can resolve that version. JSON exposes the same bounded prerequisites as text
+(`step`, `status`, `owner`, `detail`, and `next_action`); operational failures
+use `code`, `status`, `detail`, and `next_action` and exit 2. Rewriting an
+existing workflow requires `--force`.
+
+The report keeps these adoption boundaries explicit and offline:
+
+1. A missing companion or missing Node.js runtime blocks a render; install the
+   trusted companion/Node.js or pass `--renderer`, and rerun.
+2. A nonempty foreign or occupied output is refused and preserved; choose
+   another output or move it deliberately.
+3. A linked worktree or checkout without a resolvable GitHub remote gets no
+   fabricated URL or command; resolve the owner/repository outside Poolboy.
+4. The trigger branch comes from local `origin/HEAD` when available; an
+   assumed branch is unverified and must be checked before committing.
+5. Pages enablement and admin access remain a GitHub-admin action.
+6. Auto-merge policy is outside Poolboy and is neither queried nor changed.
+7. Branch protection and rulesets are not inspected or bypassed.
+8. Existing required CI is not inspected; maintainers must inspect/fix it.
+9. npm resolution of the exact workflow pin is checked only by the workflow
+   run, never inferred from semver syntax.
+
+Poolboy does not commit, push, merge, change Pages settings, change branch
+protection, enable auto-merge, or inspect remote CI. It reports local facts and
+unverified external steps; it does not claim deployment success.
 
 The published project site lives under a `/REPO/` subpath, which the landing's
 relative links and runtime-derived base already handle, so the bytes `poolboy

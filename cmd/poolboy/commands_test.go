@@ -1240,3 +1240,138 @@ func TestCheckoutCheckinAgentWorkflow(t *testing.T) {
 		t.Fatalf("canonical guide=%q", data)
 	}
 }
+func TestBuildJSONReportsMissingCompanionAction(t *testing.T) {
+	t.Cleanup(func() { rootDir = "" })
+	root := t.TempDir()
+	write := func(rel, content string) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec = \"0.2\"\ncorpus = \"docs\"\noutput = \"dist\"\n[[render]]\ntemplate = \"template.txt\"\ndata = \"data.json\"\noutput = \"generated.md\"\n")
+	write("docs/index.md", "---\nokf_version: \"0.2\"\n---\n# Docs\n")
+	write("template.txt", "ignored by the missing companion check")
+	write("data.json", "{}\n")
+	t.Chdir(root)
+
+	out, code := capture(t, func() int {
+		return cmdBuild([]string{"--renderer", filepath.Join(root, "missing.mjs"), "--format", "json"})
+	})
+	if code != 2 {
+		t.Fatalf("build exit = %d, want 2; output=%s", code, out)
+	}
+	var failure actionableStep
+	if err := json.Unmarshal([]byte(out), &failure); err != nil {
+		t.Fatalf("failure is not JSON: %v\n%s", err, out)
+	}
+	if failure.Code != "COMPANION_NOT_FOUND" || failure.Status != "blocked" ||
+		!strings.Contains(failure.NextAction, "--renderer") || failure.Path == "" {
+		t.Fatalf("failure = %+v", failure)
+	}
+	if _, err := os.Stat(filepath.Join(root, "dist")); !os.IsNotExist(err) {
+		t.Fatalf("missing companion changed publication: %v", err)
+	}
+
+	stderr, restore := captureStderr(t)
+	_, code = capture(t, func() int {
+		return cmdBuild([]string{"--renderer", filepath.Join(root, "missing.mjs")})
+	})
+	restore()
+	if code != 2 || !strings.Contains(<-stderr, "--renderer") {
+		t.Fatalf("text missing companion action: code=%d", code)
+	}
+}
+
+func TestBuildJSONReportsOccupiedOutputAndPreservesIt(t *testing.T) {
+	t.Cleanup(func() { rootDir = "" })
+	root := t.TempDir()
+	docs := filepath.Join(root, "docs")
+	if err := os.MkdirAll(docs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\ncorpus = \"docs\"\noutput = \"dist\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(docs, "index.md"), []byte("---\nokf_version: \"0.2\"\n---\n# Docs\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(root, "dist", "sentinel.txt")
+	if err := os.MkdirAll(filepath.Dir(sentinel), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sentinel, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	out, code := capture(t, func() int { return cmdBuild([]string{"--format", "json"}) })
+	if code != 2 {
+		t.Fatalf("build exit = %d, want 2; output=%s", code, out)
+	}
+	var failure actionableStep
+	if err := json.Unmarshal([]byte(out), &failure); err != nil {
+		t.Fatalf("failure is not JSON: %v\n%s", err, out)
+	}
+	outputPath, err := filepath.EvalSymlinks(filepath.Join(root, "dist"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if failure.Code != "OUTPUT_OCCUPIED" || failure.Status != "blocked" ||
+		failure.Path != outputPath {
+		t.Fatalf("failure = %+v", failure)
+	}
+	got, err := os.ReadFile(sentinel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "keep\n" {
+		t.Fatalf("publication sentinel changed: %q", got)
+	}
+}
+func TestBuildJSONPreservesRendererDiagnostics(t *testing.T) {
+	t.Cleanup(func() { rootDir = "" })
+	root := t.TempDir()
+	write := func(rel, content string, mode os.FileMode) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("poolboy.toml", "spec = \"0.2\"\ncorpus = \"docs\"\noutput = \"dist\"\n[[render]]\ntemplate = \"template.txt\"\ndata = \"data.json\"\noutput = \"generated.md\"\n", 0o644)
+	write("docs/index.md", "---\nokf_version: \"0.2\"\n---\n# Docs\n", 0o644)
+	write("template.txt", "template", 0o644)
+	write("data.json", "{}\n", 0o644)
+	write("renderer.sh", "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"ok\":false,\"kind\":\"template\",\"errors\":[{\"code\":\"UNKNOWN_FILTER\",\"message\":\"nope\",\"line\":2,\"column\":3}],\"warnings\":[]}'\nexit 1\n", 0o700)
+	t.Chdir(root)
+
+	out, code := capture(t, func() int {
+		return cmdBuild([]string{"--renderer", filepath.Join(root, "renderer.sh"), "--format", "json"})
+	})
+	if code != 2 {
+		t.Fatalf("build exit = %d, want 2; output=%s", code, out)
+	}
+	var failure actionableStep
+	if err := json.Unmarshal([]byte(out), &failure); err != nil {
+		t.Fatalf("failure is not JSON: %v\n%s", err, out)
+	}
+	if failure.Code != "UNKNOWN_FILTER" || failure.Kind != "template" ||
+		len(failure.Diagnostics) != 1 || failure.Diagnostics[0].Line != 2 ||
+		!strings.Contains(failure.NextAction, "template") {
+		t.Fatalf("failure = %+v", failure)
+	}
+	if !strings.Contains(failure.Detail, "template.txt") || !strings.Contains(failure.Detail, "generated.md") {
+		t.Fatalf("renderer failure lost source/output context: %+v", failure)
+	}
+	if _, err := os.Stat(filepath.Join(root, "dist")); !os.IsNotExist(err) {
+		t.Fatalf("renderer failure changed publication: %v", err)
+	}
+}

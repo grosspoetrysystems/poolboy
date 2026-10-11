@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,5 +198,92 @@ func TestReleaseVersionGate(t *testing.T) {
 		if !releaseVersion.MatchString(version) {
 			t.Errorf("%q rejected as a published release", version)
 		}
+	}
+}
+func TestPublishJSONPrerequisitesAndOfflineRefusals(t *testing.T) {
+	dir := publishProject(t, "https://github.com/acme/widget")
+	t.Chdir(dir)
+
+	out, code := capture(t, func() int { return cmdPublish([]string{"--format", "json"}) })
+	if code != 0 {
+		t.Fatalf("publish json exit %d: %s", code, out)
+	}
+	var plan publishPlan
+	if err := json.Unmarshal([]byte(out), &plan); err != nil {
+		t.Fatalf("publish json: %v\n%s", err, out)
+	}
+	if plan.VersionSyntaxValid || len(plan.Prerequisites) == 0 {
+		t.Fatalf("plan = %+v", plan)
+	}
+	for _, name := range []string{"pages_admin", "npm_resolution", "auto_merge", "branch_protection", "required_ci"} {
+		found := false
+		for _, step := range plan.Prerequisites {
+			if step.Step == name && step.Status == "unverified" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing unverified prerequisite %q: %+v", name, plan.Prerequisites)
+		}
+	}
+	text, code := capture(t, func() int { return cmdPublish(nil) })
+	if code != 0 {
+		t.Fatalf("publish text exit %d: %s", code, text)
+	}
+	for _, want := range []string{"pages_admin", "npm_resolution", "auto_merge", "branch_protection", "required_ci", "unverified"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("text plan missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(out, `"version_is_release"`) || strings.Contains(out, `"released": true`) {
+		t.Fatalf("publish claimed an npm release from syntax: %s", out)
+	}
+
+	if _, code := capture(t, func() int { return cmdPublish([]string{"--apply", "--pin", "0.2.1"}) }); code != 0 {
+		t.Fatalf("initial apply exit = %d", code)
+	}
+	workflowPath := filepath.Join(dir, filepath.FromSlash(publishWorkflowPath))
+	before, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, code = capture(t, func() int {
+		return cmdPublish([]string{"--apply", "--pin", "0.2.1", "--format", "json"})
+	})
+	if code != 2 {
+		t.Fatalf("existing workflow exit = %d, want 2; output=%s", code, out)
+	}
+	var failure actionableStep
+	if err := json.Unmarshal([]byte(out), &failure); err != nil {
+		t.Fatalf("existing workflow failure JSON: %v\n%s", err, out)
+	}
+	if failure.Code != "WORKFLOW_EXISTS" || failure.Status != "blocked" || !strings.Contains(failure.NextAction, "--force") {
+		t.Fatalf("existing workflow failure = %+v", failure)
+	}
+	after, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatal("refused workflow replacement changed the file")
+	}
+
+	other := publishProject(t, "https://github.com/acme/widget")
+	t.Chdir(other)
+	out, code = capture(t, func() int {
+		return cmdPublish([]string{"--apply", "--format", "json"})
+	})
+	if code != 2 {
+		t.Fatalf("invalid version exit = %d, want 2; output=%s", code, out)
+	}
+	if err := json.Unmarshal([]byte(out), &failure); err != nil {
+		t.Fatalf("invalid version failure JSON: %v\n%s", err, out)
+	}
+	if failure.Code != "VERSION_SYNTAX_INVALID" || failure.Status != "blocked" || !strings.Contains(failure.NextAction, "--pin") {
+		t.Fatalf("invalid version failure = %+v", failure)
+	}
+	if _, err := os.Stat(filepath.Join(other, ".github")); !os.IsNotExist(err) {
+		t.Fatal("refused invalid version created workflow files")
 	}
 }

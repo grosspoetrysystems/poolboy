@@ -54,7 +54,7 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 	if err != nil {
 		return err
 	}
-	if err := validateExistingPublication(r.output); err != nil {
+	if err := checkExistingPublication(r.output); err != nil {
 		return err
 	}
 	if strings.TrimSpace(b.Spec) != "0.2" {
@@ -202,7 +202,7 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 		return err
 	}
 	defer func() { _ = os.Remove(ledgerTemp) }()
-	if err := validateExistingPublication(r.output); err != nil {
+	if err := checkExistingPublication(r.output); err != nil {
 		return err
 	}
 

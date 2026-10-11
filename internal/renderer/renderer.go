@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -105,6 +106,28 @@ type response struct {
 	Errors   []TemplateError `json:"errors"`
 }
 
+// ResolveError reports that the companion renderer could not be located as a
+// usable regular file. Its stable Code and Path let a caller report an exact
+// next action without matching on message text.
+type ResolveError struct {
+	Code string // COMPANION_NOT_FOUND, COMPANION_NOT_REGULAR, COMPANION_UNREADABLE
+	Path string
+	err  error
+}
+
+func (e *ResolveError) Error() string {
+	switch e.Code {
+	case "COMPANION_NOT_REGULAR":
+		return "companion is not a regular file at " + e.Path
+	case "COMPANION_UNREADABLE":
+		return fmt.Sprintf("stat companion at %s: %v", e.Path, e.err)
+	default:
+		return "companion not found at " + e.Path
+	}
+}
+
+func (e *ResolveError) Unwrap() error { return e.err }
+
 // Resolve returns the renderer command path to run. An explicit path is used as
 // given (a trusted installed companion, typically an absolute cli.mjs). An empty
 // path resolves to the default companion beside the running executable.
@@ -120,12 +143,12 @@ func Resolve(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("companion not found at %s", path)
+			return "", &ResolveError{Code: "COMPANION_NOT_FOUND", Path: path}
 		}
-		return "", fmt.Errorf("stat companion at %s: %w", path, err)
+		return "", &ResolveError{Code: "COMPANION_UNREADABLE", Path: path, err: err}
 	}
 	if !info.Mode().IsRegular() {
-		return "", fmt.Errorf("companion is not a regular file at %s", path)
+		return "", &ResolveError{Code: "COMPANION_NOT_REGULAR", Path: path}
 	}
 	return path, nil
 }
@@ -159,6 +182,19 @@ func Render(ctx context.Context, rendererPath, template string, variables map[st
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	runErr := cmd.Run()
+	if runErr != nil {
+		var execErr *exec.Error
+		if errors.As(runErr, &execErr) &&
+			(strings.HasSuffix(strings.ToLower(rendererPath), ".mjs") ||
+				strings.HasSuffix(strings.ToLower(rendererPath), ".js")) {
+			return Result{}, &RenderError{
+				Kind:    KindAdapter,
+				Code:    "NODE_NOT_FOUND",
+				Message: fmt.Sprintf("Node.js runtime unavailable: %v", execErr),
+				Stderr:  stderr.snippet(),
+			}
+		}
+	}
 
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		code := "CANCELED"

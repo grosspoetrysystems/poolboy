@@ -105,8 +105,22 @@ func TestResolveConfiguredCompanion(t *testing.T) {
 func TestResolveMissingCompanion(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing.mjs")
 	_, err := Resolve(path)
-	if err == nil || err.Error() != "companion not found at "+path {
+	var resolveErr *ResolveError
+	if err == nil || err.Error() != "companion not found at "+path || !errors.As(err, &resolveErr) || resolveErr.Code != "COMPANION_NOT_FOUND" || resolveErr.Path != path {
 		t.Fatalf("missing companion error = %v", err)
+	}
+}
+
+func TestRenderReportsMissingNode(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	path := filepath.Join(t.TempDir(), "renderer.mjs")
+	if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Render(context.Background(), path, "template", nil)
+	var renderErr *RenderError
+	if !errors.As(err, &renderErr) || renderErr.Kind != KindAdapter || renderErr.Code != "NODE_NOT_FOUND" {
+		t.Fatalf("missing Node error = %#v", err)
 	}
 }
 

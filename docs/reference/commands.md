@@ -70,8 +70,8 @@ Render and publish the configured corpus.
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy build [--renderer PATH] [--format text|json|csv|tsv]`
-- Effects: Renders the configured corpus and writes the published output.
-- Deliberately does not: Does not sign, approve, or verify the output; building does not imply review or established trust.
+- Effects: Renders the configured corpus and writes the published output. Missing companions, missing Node.js, renderer failures, and occupied output are reported as actionable operational failures in JSON when requested.
+- Deliberately does not: Does not sign, approve, or verify the output; building does not imply review or established trust, and refused output is never deleted.
 
 
 ### Related commands
@@ -84,7 +84,7 @@ Render and publish the configured corpus.
 ### Flags and arguments
 
 - `--renderer PATH` — Use a trusted Knap companion path.
-- `--format text|json|csv|tsv` — Choose result output format.
+- `--format text|json|csv|tsv` — Choose result output format; operational JSON failures contain code, status, detail, and next_action and exit 2.
 ## `preview`
 
 Build and serve the configured corpus through a private loopback URL.
@@ -113,8 +113,8 @@ Report what publishing the corpus on GitHub Pages requires; write the workflow o
 - Aliases: `none`
 - Source: `cmd/poolboy/publish.go`
 - Usage: `poolboy publish [--apply] [--force] [--pin VERSION] [--format text|json|csv|tsv]`
-- Effects: Reports the corpus output directory, the resulting Pages URL, and the admin action that enables Pages; with --apply writes the publishing workflow pinned to a published Poolboy version.
-- Deliberately does not: Makes no network calls, changes no repository settings, enables no Pages site, publishes nothing, and refuses --apply when no published version is available to pin.
+- Effects: Reports the corpus output, locally derived GitHub target and trigger branch, and bounded local/external prerequisites; with --apply writes only the publishing workflow.
+- Deliberately does not: Makes no network calls, changes no repository settings, enables no Pages site, commits, pushes, merges, changes auto-merge or branch protection, or inspects CI; external Pages, npm, merge-policy, and required-CI facts remain unverified, and invalid version syntax or an existing workflow without --force refuse --apply.
 
 ### Verify
 
@@ -127,10 +127,10 @@ Report what publishing the corpus on GitHub Pages requires; write the workflow o
 
 ### Flags and arguments
 
-- `--apply` — Write .github/workflows/poolboy-docs.yml, pinned to a published Poolboy version.
+- `--apply` — Write .github/workflows/poolboy-docs.yml with a release-shaped Poolboy version pin; npm resolution remains unverified offline.
 - `--force` — Overwrite an existing Poolboy publishing workflow.
-- `--pin VERSION` — Published Poolboy version the workflow runs; defaults to this build's version, which must itself be a release.
-- `--format text|json|csv|tsv` — Choose result output format; JSON exposes the resolved output, URL, enable command, and whether the pin is a release.
+- `--pin VERSION` — Poolboy version the workflow runs; defaults to this build's version and checks only local release syntax.
+- `--format text|json|csv|tsv` — Choose result output format; JSON exposes local facts plus bounded prerequisites with step, status, owner, detail, and next_action.
 ## `scan`
 
 Record a bounded source inventory baseline and summarize documentation health.

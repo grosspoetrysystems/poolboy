@@ -133,6 +133,15 @@ dist/
   **/*.md
   assets/**             # any additional safe files copied from landing.site_dir
 ```
+
+When a build cannot proceed, text and JSON report the same next action. With
+`--format json`, operational failures exit 2 as an object containing
+`code`, `status`, `detail`, and `next_action`: a missing companion names the
+path or `--renderer` remedy, a missing Node.js runtime names the PATH remedy,
+renderer failures preserve their kind/code and template diagnostics, and a
+foreign or occupied output names the preserved path. Validation failures keep
+their existing issue-array JSON and exit 1. Poolboy never deletes an output it
+cannot prove it owns.
 `poolboy build` is deterministic and keyless. The public deploy workflow signs
 the exact `graph.json` bytes with Sigstore and publishes
 `graph.json.sigstore.json`. For a private/local Ed25519 publication:
@@ -290,32 +299,52 @@ It reads the configured output directory, derives the project-site URL from the
 repository's `origin` remote, and names the one admin action that enables
 Pages. It makes no network calls and changes nothing:
 
-```text
-Publish target: GitHub Pages
-  corpus output: site
-  published at:  https://acme.github.io/widget/
-  workflow:      not present; --apply writes .github/workflows/poolboy-docs.yml pinned to Poolboy 0.2.1
-
-Requires repository admin, once:
-  Settings -> Pages -> Build and deployment -> Source: GitHub Actions
-  or: gh api -X POST repos/acme/widget/pages -f build_type=workflow
+```sh
+poolboy publish
+poolboy publish --format json
 ```
 
+Enabling Pages requires repository admin: **Settings → Pages → Build and
+deployment → Source: GitHub Actions**. The report also gives the corresponding
+`gh api` command when it can resolve the GitHub remote.
+
 `poolboy publish --apply` writes that workflow, pinned to the Poolboy version
-that generated it, uploading the `output` directory your `poolboy.toml` already
-configures. It refuses to overwrite an existing one without `--force`, so a
+selected by the command, uploading the `output` directory your `poolboy.toml`
+already configures. A release-shaped version is only a local syntax check:
+Poolboy does not claim that the package exists on npm. JSON plans expose the
+same bounded prerequisites as text (`step`, `status`, `owner`, `detail`, and
+`next_action`), including the local output/workflow state and branch source.
+Operational failures use JSON `code`, `status`, `detail`, and `next_action` and
+exit 2. It refuses to overwrite an existing workflow without `--force`, so a
 workflow you have tuned survives. Set `output` to a directory nothing else
 writes: `dist/` is already compiled output in many projects.
 
-Enabling Pages stays yours. Someone with **admin on the repository** does it
-once, in settings or with the `gh` command above; until then the workflow fails
-at its deploy step. A contributor opening a pull request cannot do it, and
-neither can an agent unless it has been given a token with that access.
+The commands distinguish local blockers from external prerequisites:
+
+1. A missing companion is a local build prerequisite; install
+   `poolboy-knap.mjs` beside the binary or pass `--renderer`.
+2. A nonempty foreign or occupied output is refused and preserved; choose
+   another output or move it deliberately.
+3. A linked worktree or checkout without a resolvable GitHub remote has no
+   fabricated URL or `gh` command; resolve the owner/repository yourself.
+4. The trigger branch comes from local `origin/HEAD` when available; an assumed
+   `main` is marked unverified and must be checked before committing.
+5. Pages enablement and repository-admin access are GitHub-admin steps, not
+   Poolboy checks.
+6. Auto-merge policy belongs to the repository maintainer and is not queried or
+   changed.
+7. Branch protection and rulesets remain in force; Poolboy does not bypass them.
+8. Existing required CI is not inspected; maintainers must inspect/fix it before
+   merging.
+9. The exact Poolboy package version is written into the workflow, but npm
+   resolution is checked only by the workflow run, never inferred from syntax.
 
 Poolboy does not detect your hosting or pick a publication target. There is no
 fallback and no inference from `base_url`: `build` writes a directory and the
 workflow uploads it. `poolboy init` writes no CI, and `publish` without
-`--apply` writes nothing either.
+`--apply` writes nothing either. Poolboy also never commits, pushes, changes
+Pages settings, changes branch protection, enables auto-merge, or inspects
+remote CI.
 
 This is the cheapest public surface for a repository that has none: a CLI, a
 library, an internal utility. A project that already publishes documentation

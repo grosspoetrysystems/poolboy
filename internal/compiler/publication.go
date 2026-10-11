@@ -15,6 +15,26 @@ import (
 
 const maxPublicationManifestBytes = 32 << 20
 
+// PublicationError reports output that cannot be safely replaced. The
+// underlying detail remains in Error while Code and Path let callers choose a
+// remediation without matching error text.
+type PublicationError struct {
+	Code string
+	Path string
+	Err  error
+}
+
+func (e *PublicationError) Error() string { return e.Err.Error() }
+
+func (e *PublicationError) Unwrap() error { return e.Err }
+
+func checkExistingPublication(output string) error {
+	if err := validateExistingPublication(output); err != nil {
+		return &PublicationError{Code: "OUTPUT_OCCUPIED", Path: output, Err: err}
+	}
+	return nil
+}
+
 // validateExistingPublication permits replacing only an empty directory or a
 // complete publication produced by Poolboy. Unknown files are never silently
 // removed by the directory swap.
