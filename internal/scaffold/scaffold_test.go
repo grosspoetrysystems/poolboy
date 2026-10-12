@@ -33,6 +33,11 @@ func TestWrite(t *testing.T) {
 	if slices.Contains(written, "CLAUDE.md") {
 		t.Errorf("docs scaffold should not emit generic agent files: %v", written)
 	}
+	// init must not write CI into a consumer repository: the Pages workflow is an
+	// example to copy, not something Poolboy installs.
+	if _, err := os.Stat(filepath.Join(dir, ".github")); !os.IsNotExist(err) {
+		t.Errorf(".github should not be scaffolded: %v", err)
+	}
 	// repeated initialization preserves existing starter files unless forced
 	custom := []byte("custom docs\n")
 	if err := os.WriteFile(filepath.Join(dir, "docs", "getting-started.md"), custom, 0o644); err != nil {

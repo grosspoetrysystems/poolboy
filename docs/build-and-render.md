@@ -76,6 +76,13 @@ replacement with rollback attempts, not a crash- or power-loss recovery
 guarantee, and it does not promise uninterrupted availability across the
 directory renames.
 
+Operational build failures preserve that boundary. Text and JSON carry the same
+facts; JSON uses exit 2 and the fields `code`, `status`, `detail`, and
+`next_action`. Missing companions, missing Node.js, and renderer
+template/protocol/process failures are classified without matching error
+strings. A foreign or occupied output is reported with its path and preserved
+without deletion. Validation failures remain the issue array with exit 1.
+
 ## Published files
 
 `graph.json` has a fixed version (`"0"`), root (`"/index.md"`), a dedicated
@@ -84,6 +91,15 @@ Each Markdown entry includes title, optional type, exact byte size, SHA-256,
 sorted unique internal links, and normalized sources. Graph edges collapse to
 canonical document identity: fragments are validated but are not separate
 nodes. `graph.llms` contains the exact byte size and SHA-256 of `llms.txt`.
+
+Derived traversal is a separate `graph.nav` map keyed by the same document
+paths, so signing covers authored identity and computed edges without
+conflating them. `backlinks` is the sorted inverse of the authored links,
+excluding self-links. `prev` and `next` follow the order the root `index.md`
+links documents, so the authored index is the sequence; a document the index
+never links has no position and no `nav` entry at all. `llms.txt` publishes the
+same sequence under a `Reading order` heading. Nothing here is guessed: a corpus
+that states no relationship publishes no edge.
 
 `graph.artifacts` is a sibling map of every other owned non-Markdown
 publication file except `graph.json`, `graph.json.sig`,
@@ -125,6 +141,60 @@ application code. Signing happens before upload, and the signature sidecars
 travel with the corpus. `base_url` may pin a canonical publication root, but
 leaving it empty lets the landing derive the deployed host and subpath at
 runtime.
+
+Poolboy has no publication target. `build` writes the configured `output`
+directory; nothing detects a host, and `base_url` is a canonical-root hint for
+share metadata, never a routing decision.
+
+`publish` is the setup report for one documented destination, GitHub Pages. It
+reads the configured output, derives a project-site URL only from a recognized
+local `origin` remote, and names the admin action that enables Pages. It makes
+no network call and changes no repository state; `--apply` writes
+`.github/workflows/poolboy-docs.yml` and nothing else. The workflow contains an
+exact Poolboy version string, but syntax is not proof that npm has published or
+can resolve that version. JSON exposes the same bounded prerequisites as text
+(`step`, `status`, `owner`, `detail`, and `next_action`); operational failures
+use `code`, `status`, `detail`, and `next_action` and exit 2. Rewriting an
+existing workflow requires `--force`.
+
+The report keeps these adoption boundaries explicit and offline:
+
+1. A missing companion or missing Node.js runtime blocks a render; install the
+   trusted companion/Node.js or pass `--renderer`, and rerun.
+2. A nonempty foreign or occupied output is refused and preserved; choose
+   another output or move it deliberately.
+3. A linked worktree or checkout without a resolvable GitHub remote gets no
+   fabricated URL or command; resolve the owner/repository outside Poolboy.
+4. The trigger branch comes from local `origin/HEAD` when available; an
+   assumed branch is unverified and must be checked before committing.
+5. Pages enablement and admin access remain a GitHub-admin action.
+6. Auto-merge policy is outside Poolboy and is neither queried nor changed.
+7. Branch protection and rulesets are not inspected or bypassed.
+8. Existing required CI is not inspected; maintainers must inspect/fix it.
+9. npm resolution of the exact workflow pin is checked only by the workflow
+   run, never inferred from semver syntax.
+
+Poolboy does not commit, push, merge, change Pages settings, change branch
+protection, enable auto-merge, or inspect remote CI. It reports local facts and
+unverified external steps; it does not claim deployment success.
+
+The published project site lives under a `/REPO/` subpath, which the landing's
+relative links and runtime-derived base already handle, so the bytes `poolboy
+preview` serves are the bytes Pages serves. A custom domain is GitHub Pages
+configuration — repository setting plus DNS — and cannot be expressed in the
+workflow or the publication: with Actions publishing GitHub creates no `CNAME`
+file and ignores one in the uploaded artifact. Neither path is
+configuration-free; the project-site default still requires the Pages source
+and workflow permissions, which only a repository admin can set. Pages is
+public hosting and is not a route for documentation that must stay internal.
+
+Because the publication is deterministic and self-contained, a released tool can
+embed the same `dist/` it publishes (`//go:embed all:dist` for a Go binary) and
+answer documentation queries with no network access, which is what CI,
+sandboxes, and air-gapped hosts require. The SHA-256 of the embedded
+`graph.json` identifies the embedded revision and matches the published one when
+both come from the same build. The published site is then an opt-in mirror, not
+a runtime dependency: the binary itself never fetches.
 
 The built-in `index.html` derives its favicon from `logo`, or from the
 effective nonempty `mark` when no logo is set. Empty mark plus no logo

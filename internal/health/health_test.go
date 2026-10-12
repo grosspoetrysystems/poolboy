@@ -81,6 +81,61 @@ func TestInspectReportsDeterministicDocumentationSignals(t *testing.T) {
 	}
 }
 
+// The thru.org shape: a reserved root that links nothing, and content pages that
+// link each other. Orphans sees incoming links everywhere and stays silent, so
+// this is the finding it structurally cannot produce. The orphan itself is not
+// reported twice.
+func TestInspectReportsStrandedClusterOrphansCannotSee(t *testing.T) {
+	root := t.TempDir()
+	b := &bundle.Bundle{Root: root, Dir: filepath.Join(root, "docs"), Output: "dist"}
+	writeFile(t, root, "docs/index.md", "---\nokf_version: \"0.1\"\n---\n# Docs\n")
+	writeFile(t, root, "docs/overview.md", "---\ntype: note\nsources:\n  - resource: https://example.test/a\n---\n[guide](/guide.md)\n")
+	writeFile(t, root, "docs/guide.md", "---\ntype: note\nsources:\n  - resource: https://example.test/b\n---\n[deep](/deep.md)\n")
+	writeFile(t, root, "docs/deep.md", "---\ntype: note\nsources:\n  - resource: https://example.test/c\n---\n# Deep\n")
+
+	items, err := Current(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.Signal == "orphan" || item.Signal == "unreachable" {
+			got = append(got, item.Document+"|"+item.Signal)
+		}
+	}
+	// overview has no inbound link at all, so it is the orphan and is not also
+	// reported unreachable. guide and deep are linked by a sibling, which is
+	// exactly why orphans misses them.
+	want := []string{"/deep.md|unreachable", "/guide.md|unreachable", "/overview.md|orphan"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("graph signals:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// An `ignore` rule can leave index.md on disk but out of the corpus. The graph
+// then has no entry point, which must be reported rather than silently yielding
+// no findings.
+func TestInspectReportsMissingGraphRootWhenIndexIsIgnored(t *testing.T) {
+	root := t.TempDir()
+	b := &bundle.Bundle{Root: root, Dir: filepath.Join(root, "docs"), Output: "dist", Ignore: []string{"index.md"}}
+	writeFile(t, root, "docs/index.md", "---\nokf_version: \"0.1\"\n---\n# Docs\n")
+	writeFile(t, root, "docs/a.md", "---\ntype: note\nsources:\n  - resource: https://example.test/a\n---\n# A\n")
+
+	items, err := Current(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rootUnavailable bool
+	for _, item := range items {
+		if item.Signal == "graph_root" && item.Status == Unavailable {
+			rootUnavailable = true
+		}
+	}
+	if !rootUnavailable {
+		t.Errorf("an unindexed index.md leaves no graph root; got %+v", items)
+	}
+}
+
 func TestCurrentReportsUnavailableInputsWithoutMaskingFindings(t *testing.T) {
 	root := t.TempDir()
 	b := &bundle.Bundle{Root: root, Dir: filepath.Join(root, "docs"), Output: "dist"}

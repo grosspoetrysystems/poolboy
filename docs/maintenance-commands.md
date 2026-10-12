@@ -138,9 +138,10 @@ without rehearsing it first.
 - **Evidence commands never conclude.** `scan`, `drift` and `affected` report
   what the files say. None of them decides that a document is stale, and none
   advances the baseline without `scan --accept`.
-- **Exit status is stable.** `0` is success including an empty result, `1` is a
-  valid negative such as no match or check findings, and `2` is a usage,
-  configuration or I/O error. A script can branch on these without parsing text.
+- **Exit status is stable.** `0` is success including an empty result. `1` is a
+  valid negative such as no match or a failing check; warning-only `check`
+  output currently remains exit 0. `2` is a usage, configuration or I/O error.
+  A script can branch on these without parsing text.
 
 The one guarantee deliberately absent: nothing enforces the order in which you
 run these commands. Reviewing before accepting, and checking before building, is

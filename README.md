@@ -133,6 +133,15 @@ dist/
   **/*.md
   assets/**             # any additional safe files copied from landing.site_dir
 ```
+
+When a build cannot proceed, text and JSON report the same next action. With
+`--format json`, operational failures exit 2 as an object containing
+`code`, `status`, `detail`, and `next_action`: a missing companion names the
+path or `--renderer` remedy, a missing Node.js runtime names the PATH remedy,
+renderer failures preserve their kind/code and template diagnostics, and a
+foreign or occupied output names the preserved path. Validation failures keep
+their existing issue-array JSON and exit 1. Poolboy never deletes an output it
+cannot prove it owns.
 `poolboy build` is deterministic and keyless. The public deploy workflow signs
 the exact `graph.json` bytes with Sigstore and publishes
 `graph.json.sigstore.json`. For a private/local Ed25519 publication:
@@ -154,7 +163,12 @@ The landing page is a minimal, responsive agent handoff with a copyable prompt a
 
 `graph.llms` contains the exact byte size and SHA-256 of `llms.txt`.
 `graph.files` contains only canonical Markdown document identities, directed
-internal links, exact byte sizes and SHA-256 hashes. `graph.artifacts` is a
+internal links, exact byte sizes and SHA-256 hashes. Derived traversal lives in
+a separate `graph.nav` map so the identity map stays authored content:
+`backlinks` inverts the authored links, and `prev`/`next` follow the order the
+root `index.md` links documents. A document the index never links gets no
+sequence rather than an invented one, and `llms.txt` lists the same reading
+order. `graph.artifacts` is a
 separate map of every other owned non-Markdown publication file except
 `graph.json`, signature sidecars, and `poolboy.pub` (including `corpus.zip`,
 generated or copied `index.html`, and nested `site_dir` assets); each key is a
@@ -278,6 +292,113 @@ Private deployments use the host's existing authentication/network controls.
 Build does not publish automatically; signing and upload remain separate
 explicit steps.
 
+### Publish on GitHub Pages
+
+`poolboy publish` reports what publishing this corpus on GitHub Pages takes.
+It reads the configured output directory, derives the project-site URL from the
+repository's `origin` remote, and names the one admin action that enables
+Pages. It makes no network calls and changes nothing:
+
+```sh
+poolboy publish
+poolboy publish --format json
+```
+
+Enabling Pages requires repository admin: **Settings → Pages → Build and
+deployment → Source: GitHub Actions**. The report also gives the corresponding
+`gh api` command when it can resolve the GitHub remote.
+
+`poolboy publish --apply` writes that workflow, pinned to the Poolboy version
+selected by the command, uploading the `output` directory your `poolboy.toml`
+already configures. A release-shaped version is only a local syntax check:
+Poolboy does not claim that the package exists on npm. JSON plans expose the
+same bounded prerequisites as text (`step`, `status`, `owner`, `detail`, and
+`next_action`), including the local output/workflow state and branch source.
+Operational failures use JSON `code`, `status`, `detail`, and `next_action` and
+exit 2. It refuses to overwrite an existing workflow without `--force`, so a
+workflow you have tuned survives. Set `output` to a directory nothing else
+writes: `dist/` is already compiled output in many projects.
+
+The commands distinguish local blockers from external prerequisites:
+
+1. A missing companion is a local build prerequisite; install
+   `poolboy-knap.mjs` beside the binary or pass `--renderer`.
+2. A nonempty foreign or occupied output is refused and preserved; choose
+   another output or move it deliberately.
+3. A linked worktree or checkout without a resolvable GitHub remote has no
+   fabricated URL or `gh` command; resolve the owner/repository yourself.
+4. The trigger branch comes from local `origin/HEAD` when available; an assumed
+   `main` is marked unverified and must be checked before committing.
+5. Pages enablement and repository-admin access are GitHub-admin steps, not
+   Poolboy checks.
+6. Auto-merge policy belongs to the repository maintainer and is not queried or
+   changed.
+7. Branch protection and rulesets remain in force; Poolboy does not bypass them.
+8. Existing required CI is not inspected; maintainers must inspect/fix it before
+   merging.
+9. The exact Poolboy package version is written into the workflow, but npm
+   resolution is checked only by the workflow run, never inferred from syntax.
+
+Poolboy does not detect your hosting or pick a publication target. There is no
+fallback and no inference from `base_url`: `build` writes a directory and the
+workflow uploads it. `poolboy init` writes no CI, and `publish` without
+`--apply` writes nothing either. Poolboy also never commits, pushes, changes
+Pages settings, changes branch protection, enables auto-merge, or inspects
+remote CI.
+
+This is the cheapest public surface for a repository that has none: a CLI, a
+library, an internal utility. A project that already publishes documentation
+elsewhere should keep publishing it there.
+
+The project-site subpath needs no configuration. The generated landing links
+`index.md`, `graph.json`, `llms.txt` and `corpus.zip` relatively and derives its
+prompt base from `new URL('.', location.href)`, so `OWNER.github.io/REPO/`
+resolves correctly; `poolboy preview` serves the same bytes under its own path
+segment. Leave `base_url` unset for that; set it only to pin a canonical root.
+
+Serving the same corpus at your own domain is GitHub Pages
+[custom domain](https://docs.github.com/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
+setup, not a Poolboy or workflow setting. With Actions publishing, GitHub
+creates no `CNAME` file and **ignores one in the artifact**, so a domain written
+into the workflow or into the published output has no effect. Enter the domain
+under **Settings → Pages → Custom domain**, point DNS at it (`CNAME` to
+`OWNER.github.io` for a subdomain; `A`/`AAAA`/`ALIAS` for an apex), then enable
+**Enforce HTTPS**. Nothing in the corpus changes; the landing resolves its base
+from wherever it is served.
+
+Neither path is configuration-free, and both need repository admin. The
+project-site default needs the Pages source set to GitHub Actions and the
+`pages`/`id-token` permissions the generated workflow requests; a custom domain adds DNS and
+the domain setting. What you avoid is a hosting account, a server, and a build
+service.
+
+Pages is public hosting. A private repository publishes a public site unless the
+plan supports private Pages, so do not use this workflow for documentation that
+must stay internal.
+
+### Ship the corpus inside a binary
+
+A CLI runs in CI, sandboxes and air-gapped hosts where HTTP is unavailable or
+forbidden. Publication is for discovery; the released tool should answer for
+itself. `dist/` is deterministic and self-contained, so a Go tool embeds the
+same bytes it publishes:
+
+```go
+//go:embed all:dist
+var docs embed.FS // built by `poolboy build` before `go build`
+```
+
+Serve or print from that `embed.FS` for `tool docs`, and derive the embedded
+revision from the SHA-256 of the embedded `graph.json`—the same digest
+`poolboy approve` pins for the published corpus. Build the corpus before
+compiling in the same job that uploads the Pages artifact, and the binary and
+the site carry one revision.
+
+The rule that keeps it trustworthy: the binary never fetches. Normal commands
+read the embedded corpus only; the published site is opt-in enrichment a user or
+agent requests explicitly. Embed published documentation, never local working
+notes, telemetry or credentials.
+
 ### Deploy Poolboy's product site on Cloudflare
 
 The product site is separate from the generated docs landing and is only this
@@ -313,7 +434,7 @@ npx --yes wrangler@4.138.0 deploy
 
 After registering the domain, open **Workers & Pages → poolboy-site → Settings → Domains & Routes → Add → Custom Domain**. Add the actual hostname; Cloudflare provisions its DNS record and certificate. Apex and `www` are separate hostnames. See [Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
-The primary prompt starts from an agent session already open in the target repository. It creates a detached temporary worktree at committed `HEAD`, installs Poolboy from [GitHub](https://github.com/grosspoetrysystems/poolboy) only when needed, produces a real corpus there, and serves it through `poolboy preview` on a private loopback URL. The current checkout remains unchanged. If the user adopts Poolboy, the same worktree becomes the reviewed implementation instead of regenerating the work. Released binaries are not published yet. Building and previewing do not sign, upload, or publish; those remain explicit steps.
+The primary prompt starts from an agent session already open in the target repository. It creates a detached temporary worktree at committed `HEAD`, installs Poolboy from [GitHub](https://github.com/grosspoetrysystems/poolboy) only when needed, produces a real corpus there, and serves it through `poolboy preview` on a private loopback URL. The current checkout remains unchanged. If the user adopts Poolboy, the same worktree becomes the reviewed implementation instead of regenerating the work. Released binaries are published to npm as `@grosspoetrysystems/poolboy`. Building and previewing do not sign, upload, or publish; those remain explicit steps.
 
 ## Acknowledgements
 

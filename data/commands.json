@@ -29,11 +29,11 @@
       "source": "cmd/poolboy/product.go",
       "flags": [
         {"name": "--renderer PATH", "description": "Use a trusted Knap companion path."},
-        {"name": "--format text|json|csv|tsv", "description": "Choose result output format."}
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format; operational JSON failures contain code, status, detail, and next_action and exit 2."}
       ],
       "usage": "poolboy build [--renderer PATH] [--format text|json|csv|tsv]",
-      "effects": "Renders the configured corpus and writes the published output.",
-      "does_not": "Does not sign, approve, or verify the output; building does not imply review or established trust.",
+      "effects": "Renders the configured corpus and writes the published output. Missing companions, missing Node.js, renderer failures, and occupied output are reported as actionable operational failures in JSON when requested.",
+      "does_not": "Does not sign, approve, or verify the output; building does not imply review or established trust, and refused output is never deleted.",
       "verify_with": [],
       "related": ["preview", "sign", "scan", "drift"]
     },
@@ -52,6 +52,24 @@
       "does_not": "Does not publish the corpus or expose it beyond loopback.",
       "verify_with": [],
       "related": ["build"]
+    },
+    {
+      "name": "publish",
+      "summary": "Report what publishing the corpus on GitHub Pages requires; write the workflow only with --apply.",
+      "mutates": true,
+      "aliases": "none",
+      "source": "cmd/poolboy/publish.go",
+      "flags": [
+        {"name": "--apply", "description": "Write .github/workflows/poolboy-docs.yml with a release-shaped Poolboy version pin; npm resolution remains unverified offline."},
+        {"name": "--force", "description": "Overwrite an existing Poolboy publishing workflow."},
+        {"name": "--pin VERSION", "description": "Poolboy version the workflow runs; defaults to this build's version and checks only local release syntax."},
+        {"name": "--format text|json|csv|tsv", "description": "Choose result output format; JSON exposes local facts plus bounded prerequisites with step, status, owner, detail, and next_action."}
+      ],
+      "usage": "poolboy publish [--apply] [--force] [--pin VERSION] [--format text|json|csv|tsv]",
+      "effects": "Reports the corpus output, locally derived GitHub target and trigger branch, and bounded local/external prerequisites; with --apply writes only the publishing workflow.",
+      "does_not": "Makes no network calls, changes no repository settings, enables no Pages site, commits, pushes, merges, changes auto-merge or branch protection, or inspects CI; external Pages, npm, merge-policy, and required-CI facts remain unverified, and invalid version syntax or an existing workflow without --force refuse --apply.",
+      "verify_with": [["build"]],
+      "related": ["build", "preview"]
     },
     {
       "name": "scan",

@@ -70,8 +70,8 @@ Render and publish the configured corpus.
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
 - Usage: `poolboy build [--renderer PATH] [--format text|json|csv|tsv]`
-- Effects: Renders the configured corpus and writes the published output.
-- Deliberately does not: Does not sign, approve, or verify the output; building does not imply review or established trust.
+- Effects: Renders the configured corpus and writes the published output. Missing companions, missing Node.js, renderer failures, and occupied output are reported as actionable operational failures in JSON when requested.
+- Deliberately does not: Does not sign, approve, or verify the output; building does not imply review or established trust, and refused output is never deleted.
 
 
 ### Related commands
@@ -84,7 +84,7 @@ Render and publish the configured corpus.
 ### Flags and arguments
 
 - `--renderer PATH` — Use a trusted Knap companion path.
-- `--format text|json|csv|tsv` — Choose result output format.
+- `--format text|json|csv|tsv` — Choose result output format; operational JSON failures contain code, status, detail, and next_action and exit 2.
 ## `preview`
 
 Build and serve the configured corpus through a private loopback URL.
@@ -105,6 +105,32 @@ Build and serve the configured corpus through a private loopback URL.
 
 - `--port N` — Use a loopback port; 0 chooses an available port.
 - `--renderer PATH` — Use a trusted Knap companion path.
+## `publish`
+
+Report what publishing the corpus on GitHub Pages requires; write the workflow only with --apply.
+
+- Mutation: `true` — writes to disk; see Effects
+- Aliases: `none`
+- Source: `cmd/poolboy/publish.go`
+- Usage: `poolboy publish [--apply] [--force] [--pin VERSION] [--format text|json|csv|tsv]`
+- Effects: Reports the corpus output, locally derived GitHub target and trigger branch, and bounded local/external prerequisites; with --apply writes only the publishing workflow.
+- Deliberately does not: Makes no network calls, changes no repository settings, enables no Pages site, commits, pushes, merges, changes auto-merge or branch protection, or inspects CI; external Pages, npm, merge-policy, and required-CI facts remain unverified, and invalid version syntax or an existing workflow without --force refuse --apply.
+
+### Verify
+
+- `build`
+
+### Related commands
+
+- `build`
+- `preview`
+
+### Flags and arguments
+
+- `--apply` — Write .github/workflows/poolboy-docs.yml with a release-shaped Poolboy version pin; npm resolution remains unverified offline.
+- `--force` — Overwrite an existing Poolboy publishing workflow.
+- `--pin VERSION` — Poolboy version the workflow runs; defaults to this build's version and checks only local release syntax.
+- `--format text|json|csv|tsv` — Choose result output format; JSON exposes local facts plus bounded prerequisites with step, status, owner, detail, and next_action.
 ## `scan`
 
 Record a bounded source inventory baseline and summarize documentation health.

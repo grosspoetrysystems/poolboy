@@ -24,6 +24,7 @@ Commands:
   init          scaffold a documentation project (--force)
   build         render and publish the configured corpus
   preview       build and serve a private loopback preview (--port)
+  publish       report what GitHub Pages publishing needs; --apply writes the workflow
   keygen        generate a signing keypair (--out --force)
   sign          sign the published graph.json (--root --key)
   verify        verify the approved signed corpus; report unapproved changes
@@ -79,6 +80,7 @@ var commandRegistry = []cliCommand{
 	{"init", nil, cmdInit},
 	{"build", nil, cmdBuild},
 	{"preview", nil, cmdPreview},
+	{"publish", nil, cmdPublish},
 	{"scan", nil, cmdScan},
 	{"drift", nil, cmdDrift},
 	{"health", nil, cmdHealth},

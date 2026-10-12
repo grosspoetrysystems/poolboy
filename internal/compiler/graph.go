@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -20,6 +21,7 @@ type graph struct {
 	Root      string                   `json:"root"`
 	LLMS      graphArtifact            `json:"llms"`
 	Files     map[string]graphFile     `json:"files"`
+	Nav       map[string]graphNav      `json:"nav,omitempty"`
 	Artifacts map[string]graphArtifact `json:"artifacts,omitempty"`
 }
 
@@ -37,13 +39,24 @@ type graphFile struct {
 	Sources []map[string]any `json:"sources,omitempty"`
 }
 
+// graphNav is derived traversal, kept out of graphFile so document identity
+// stays authored content only.
+type graphNav struct {
+	Prev      string   `json:"prev,omitempty"`
+	Next      string   `json:"next,omitempty"`
+	Backlinks []string `json:"backlinks,omitempty"`
+}
+
 var (
 	referenceLink = regexp.MustCompile(`\]\s*\[[^\]]*\]`)
 	referenceDef  = regexp.MustCompile(`(?m)^\s{0,3}\[[^\]]+\]:\s*\S+`)
 	htmlHref      = regexp.MustCompile(`(?i)<\s*a\b[^>]*\bhref\s*=`)
 )
 
-func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string][]byte, llms []byte) ([]byte, error) {
+// buildGraph takes the reading order the caller already derived, so the
+// sequence in llms.txt and the sequence in nav are the same list by
+// construction — graph.llms hashes those exact llms.txt bytes.
+func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string][]byte, llms []byte, order []navDoc) ([]byte, error) {
 	if _, ok := docs["/index.md"]; !ok {
 		return nil, fmt.Errorf("corpus is missing required root /index.md")
 	}
@@ -99,7 +112,14 @@ func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string
 		}
 		artifactManifest[path] = graphArtifact{Bytes: len(data), SHA256: hashBytes(data)}
 	}
-	data, err := json.MarshalIndent(graph{Version: "0", Root: "/index.md", LLMS: graphArtifact{Bytes: len(llms), SHA256: hashBytes(llms)}, Files: files, Artifacts: artifactManifest}, "", "  ")
+	sequence := make([]string, 0, len(order))
+	for _, doc := range order {
+		if _, ok := files[doc.Path]; ok {
+			sequence = append(sequence, doc.Path)
+		}
+	}
+	nav := navigation(files, sequence)
+	data, err := json.MarshalIndent(graph{Version: "0", Root: "/index.md", LLMS: graphArtifact{Bytes: len(llms), SHA256: hashBytes(llms)}, Files: files, Nav: nav, Artifacts: artifactManifest}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("encode graph: %w", err)
 	}
@@ -107,6 +127,85 @@ func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string
 		return nil, fmt.Errorf("graph exceeds %d-byte limit", maxPublicationManifestBytes)
 	}
 	return append(data, '\n'), nil
+}
+
+// navigation derives traversal from what the corpus already states: backlinks
+// invert the authored links, and prev/next follow the sequence the root index
+// links. Nothing is inferred — a document the index never links has no
+// position, and derived edges stay out of the authored identity map.
+func navigation(files map[string]graphFile, sequence []string) map[string]graphNav {
+	nav := map[string]graphNav{}
+	for path, file := range files {
+		for _, link := range file.Links {
+			target := linkPath(link)
+			if target == path {
+				continue
+			}
+			if _, ok := files[target]; !ok {
+				continue
+			}
+			entry := nav[target]
+			entry.Backlinks = append(entry.Backlinks, path)
+			nav[target] = entry
+		}
+	}
+	for target, entry := range nav {
+		sort.Strings(entry.Backlinks)
+		entry.Backlinks = slices.Compact(entry.Backlinks)
+		nav[target] = entry
+	}
+	for i, path := range sequence {
+		entry := nav[path]
+		if i > 0 {
+			entry.Prev = sequence[i-1]
+		}
+		if i < len(sequence)-1 {
+			entry.Next = sequence[i+1]
+		}
+		nav[path] = entry
+	}
+	return nav
+}
+
+// navDoc is one step of the authored reading order.
+type navDoc struct {
+	Path  string
+	Title string
+}
+
+// readingOrder is the order the root index links documents: the authored
+// reading order, and the only sequence Poolboy claims. A document the index
+// never links has no position.
+func readingOrder(idx *index.Index) []navDoc {
+	titles := make(map[string]string, len(idx.Entries))
+	var root *index.Entry
+	for _, entry := range idx.Entries {
+		titles[entry.Path] = entry.Field("title")
+		if entry.Path == "/index.md" {
+			root = entry
+		}
+	}
+	if root == nil {
+		return nil
+	}
+	order := make([]navDoc, 0, len(root.Links))
+	seen := map[string]bool{"/index.md": true}
+	for _, link := range root.Links {
+		target := linkPath(link.Target)
+		if seen[target] || !idx.FileExists(target) {
+			continue
+		}
+		seen[target] = true
+		order = append(order, navDoc{Path: target, Title: titles[target]})
+	}
+	return order
+}
+
+func linkPath(target string) string {
+	if hash := strings.IndexByte(target, '#'); hash >= 0 {
+		return target[:hash]
+	}
+	return target
 }
 
 func validateIndex(idx *index.Index) error {
@@ -297,12 +396,39 @@ func frontmatterBlock(content string) string {
 	return rest[:end]
 }
 
-func renderLLMS(name string) []byte {
-	name = strings.NewReplacer("\r", " ", "\n", " ").Replace(strings.TrimSpace(name))
+func renderLLMS(name string, order []navDoc) []byte {
+	clean := strings.NewReplacer("\r", " ", "\n", " ")
+	name = clean.Replace(strings.TrimSpace(name))
 	if name == "" {
 		name = "Poolboy corpus"
 	}
-	return []byte(fmt.Sprintf("# %s\n\nAgent-native documentation corpus for %s.\n\n- [Start](index.md)\n- [Manifest](graph.json)\n", name, name))
+	var out strings.Builder
+	fmt.Fprintf(&out, "# %s\n\nAgent-native documentation corpus for %s.\n\n- [Start](index.md)\n- [Manifest](graph.json)\n", name, name)
+	if len(order) > 0 {
+		out.WriteString("\n## Reading order\n\n")
+		for _, doc := range order {
+			target := strings.TrimPrefix(doc.Path, "/")
+			label := linkLabel(clean.Replace(strings.TrimSpace(doc.Title)))
+			if label == "" {
+				label = linkLabel(target)
+			}
+			fmt.Fprintf(&out, "- [%s](%s)\n", label, linkTarget(target))
+		}
+	}
+	return []byte(out.String())
+}
+
+// linkLabel escapes the characters that would end a Markdown link label early.
+// An authored title is prose and may contain anything.
+var labelEscaper = strings.NewReplacer(`\`, `\\`, `[`, `\[`, `]`, `\]`)
+
+func linkLabel(title string) string { return labelEscaper.Replace(title) }
+
+// linkTarget percent-encodes a corpus path so spaces and parentheses — both
+// legal in filenames, both link-breaking — survive as one destination.
+func linkTarget(path string) string {
+	escaped := (&url.URL{Path: path}).EscapedPath()
+	return strings.NewReplacer("(", "%28", ")", "%29").Replace(escaped)
 }
 
 func stageIndex(b *bundle.Bundle, stage string) (*index.Index, error) {

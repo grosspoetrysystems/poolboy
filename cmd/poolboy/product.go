@@ -13,6 +13,7 @@ import (
 	"github.com/grosspoetrysystems/poolboy/internal/compiler"
 	"github.com/grosspoetrysystems/poolboy/internal/health"
 	"github.com/grosspoetrysystems/poolboy/internal/output"
+	"github.com/grosspoetrysystems/poolboy/internal/renderer"
 	"github.com/grosspoetrysystems/poolboy/internal/source"
 )
 
@@ -41,6 +42,99 @@ func productPartialBundle() (*bundle.Bundle, error) {
 	return bundle.DiscoverPartial(start)
 }
 
+type actionableStep struct {
+	Code        string                   `json:"code,omitempty"`
+	Step        string                   `json:"step,omitempty"`
+	Status      string                   `json:"status"`
+	Owner       string                   `json:"owner,omitempty"`
+	Path        string                   `json:"path,omitempty"`
+	Kind        string                   `json:"kind,omitempty"`
+	Detail      string                   `json:"detail"`
+	Diagnostics []renderer.TemplateError `json:"diagnostics,omitempty"`
+	NextAction  string                   `json:"next_action,omitempty"`
+}
+
+func productFailure(format string, failure actionableStep) int {
+	if format == "json" {
+		if code := productOutput(format, nil, failure); code != 0 {
+			return code
+		}
+		return 2
+	}
+	fmt.Fprintf(os.Stderr, "poolboy: %s (%s): %s\n", failure.Code, failure.Status, failure.Detail)
+	if failure.NextAction != "" {
+		fmt.Fprintln(os.Stderr, "next action:", failure.NextAction)
+	}
+	return 2
+}
+
+func classifyBuildFailure(err error) actionableStep {
+	var resolveErr *renderer.ResolveError
+	if errors.As(err, &resolveErr) {
+		return actionableStep{
+			Code:       resolveErr.Code,
+			Status:     "blocked",
+			Owner:      "poolboy",
+			Path:       resolveErr.Path,
+			Detail:     err.Error(),
+			NextAction: fmt.Sprintf("install the trusted companion at %s or rerun with --renderer PATH", resolveErr.Path),
+		}
+	}
+
+	var publicationErr *compiler.PublicationError
+	if errors.As(err, &publicationErr) {
+		return actionableStep{
+			Code:       publicationErr.Code,
+			Status:     "blocked",
+			Owner:      "poolboy",
+			Path:       publicationErr.Path,
+			Detail:     err.Error(),
+			NextAction: fmt.Sprintf("choose another output path or move %s aside; Poolboy will not delete it", publicationErr.Path),
+		}
+	}
+
+	var renderErr *renderer.RenderError
+	if errors.As(err, &renderErr) {
+		code := renderErr.Code
+		if code == "" && len(renderErr.Errors) > 0 {
+			code = renderErr.Errors[0].Code
+		}
+		if code == "" {
+			code = "RENDERER_FAILURE"
+		}
+		nextAction := "inspect the renderer failure and rerun the build"
+		switch renderErr.Code {
+		case "NODE_NOT_FOUND":
+			nextAction = "install Node.js and ensure node is available on PATH, then rerun the build"
+		case "TIMEOUT", "CANCELED":
+			nextAction = "reduce the renderer work or resolve the cancellation, then rerun the build"
+		case "PROCESS_EXIT", "MALFORMED_OUTPUT", "OVERSIZED_OUTPUT":
+			nextAction = "repair the renderer companion protocol or output, then rerun the build"
+		default:
+			if renderErr.Kind == renderer.KindTemplate {
+				nextAction = "fix the reported template diagnostics and rerun the build"
+			}
+		}
+		return actionableStep{
+			Code:        code,
+			Status:      "blocked",
+			Owner:       "poolboy",
+			Kind:        string(renderErr.Kind),
+			Detail:      err.Error(),
+			Diagnostics: renderErr.Errors,
+			NextAction:  nextAction,
+		}
+	}
+
+	return actionableStep{
+		Code:       "BUILD_FAILED",
+		Status:     "blocked",
+		Owner:      "poolboy",
+		Detail:     err.Error(),
+		NextAction: "fix the reported build error and rerun the build",
+	}
+}
+
 func productError(err error) int {
 	fmt.Fprintln(os.Stderr, "poolboy:", err)
 	return 2
@@ -61,18 +155,30 @@ func cmdBuild(args []string) int {
 		return code
 	}
 	if fs.NArg() != 0 {
-		return productError(errors.New("build accepts no positional arguments"))
+		return productFailure(*format, actionableStep{
+			Code:       "INVALID_ARGUMENT",
+			Status:     "blocked",
+			Owner:      "poolboy",
+			Detail:     "build accepts no positional arguments",
+			NextAction: "remove positional arguments and rerun the build",
+		})
 	}
 	b, err := productBundle()
 	if err != nil {
-		return productError(err)
+		return productFailure(*format, actionableStep{
+			Code:       "PROJECT_DISCOVERY_FAILED",
+			Status:     "blocked",
+			Owner:      "poolboy",
+			Detail:     err.Error(),
+			NextAction: "run the build from a Poolboy project root",
+		})
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	if err := compiler.Build(ctx, b, *renderer); err != nil {
 		var validationErr *compiler.ValidationError
 		if !errors.As(err, &validationErr) {
-			return productError(err)
+			return productFailure(*format, classifyBuildFailure(err))
 		}
 		lines := make([]string, len(validationErr.Issues))
 		for i, issue := range validationErr.Issues {
@@ -225,12 +331,12 @@ func healthSummary(items []health.Item) []string {
 		counts[item.Signal]++
 	}
 	lines := []string{"Documentation smell test:"}
-	for _, signal := range []string{"orphan", "missing_sources", "source_missing", "source_not_in_baseline", "source_changed"} {
+	for _, signal := range []string{"orphan", "unreachable", "missing_sources", "source_missing", "source_not_in_baseline", "source_changed"} {
 		if counts[signal] > 0 {
 			lines = append(lines, fmt.Sprintf("  %d %s", counts[signal], signal))
 		}
 	}
-	for _, signal := range []string{"corpus", "source_baseline"} {
+	for _, signal := range []string{"corpus", "source_baseline", "graph_root"} {
 		if counts[signal] > 0 {
 			lines = append(lines, fmt.Sprintf("  %s unavailable", signal))
 		}

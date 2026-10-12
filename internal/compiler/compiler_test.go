@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -210,7 +212,9 @@ func TestBuildRefusesUnknownExistingPublicationFiles(t *testing.T) {
 	if err := os.WriteFile(sentinel, []byte("keep\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "unknown file") {
+	err := Build(context.Background(), b, rendererPath)
+	var publicationErr *PublicationError
+	if err == nil || !strings.Contains(err.Error(), "unknown file") || !errors.As(err, &publicationErr) || publicationErr.Code != "OUTPUT_OCCUPIED" || publicationErr.Path != filepath.Join(root, "dist") {
 		t.Fatalf("unknown publication file error = %v", err)
 	}
 	got, err := os.ReadFile(sentinel)
@@ -317,6 +321,81 @@ func TestPortableContractFixture(t *testing.T) {
 			t.Fatalf("unknown version error = %v", err)
 		}
 	})
+}
+
+// One authored title or filename must not corrupt the agent entry point.
+func TestRenderLLMSEscapesLinks(t *testing.T) {
+	got := string(renderLLMS("Acme", []navDoc{
+		{Path: "/my doc (v2).md", Title: "Guide [draft] (part 1)"},
+		{Path: "/untitled.md"},
+	}))
+	for _, want := range []string{
+		`- [Guide \[draft\] (part 1)](my%20doc%20%28v2%29.md)`,
+		`- [untitled.md](untitled.md)`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("llms.txt missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// Navigation is derived, never invented: prev/next follow the order the root
+// index links documents, backlinks invert the authored links, and none of it
+// contaminates the authored identity map.
+func TestBuildDerivesNavigationFromTheCorpus(t *testing.T) {
+	root, b, rendererPath := fixture(t)
+	if err := Build(context.Background(), b, rendererPath); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "dist", "graph.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Files map[string]map[string]any `json:"files"`
+		Nav   map[string]struct {
+			Prev      string   `json:"prev"`
+			Next      string   `json:"next"`
+			Backlinks []string `json:"backlinks"`
+		} `json:"nav"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	// index.md links endpoints before architecture, so that is the sequence.
+	if got := manifest.Nav["/reference/endpoints.md"]; got.Prev != "" || got.Next != "/architecture.md" {
+		t.Errorf("endpoints prev/next = %q/%q", got.Prev, got.Next)
+	}
+	if got := manifest.Nav["/architecture.md"]; got.Prev != "/reference/endpoints.md" || got.Next != "" {
+		t.Errorf("architecture prev/next = %q/%q", got.Prev, got.Next)
+	}
+	if got, ok := manifest.Nav["/index.md"]; ok {
+		t.Errorf("root index should carry no derived navigation: %+v", got)
+	}
+	want := map[string][]string{
+		"/architecture.md":        {"/index.md", "/reference/endpoints.md"},
+		"/reference/endpoints.md": {"/architecture.md", "/index.md"},
+	}
+	for path, backlinks := range want {
+		if got := manifest.Nav[path].Backlinks; !slices.Equal(got, backlinks) {
+			t.Errorf("%s backlinks = %v, want %v", path, got, backlinks)
+		}
+	}
+	// graph.files stays authored identity: derived edges live only under nav.
+	for path, file := range manifest.Files {
+		for _, derived := range []string{"prev", "next", "backlinks"} {
+			if _, ok := file[derived]; ok {
+				t.Errorf("graph.files[%s] carries derived %q", path, derived)
+			}
+		}
+	}
+	llms, err := os.ReadFile(filepath.Join(root, "dist", "llms.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "## Reading order\n\n- [Endpoint reference](reference/endpoints.md)\n- [Architecture](architecture.md)\n"; !strings.Contains(string(llms), want) {
+		t.Errorf("llms.txt missing reading order:\n%s", llms)
+	}
 }
 
 func fixture(t *testing.T) (string, *bundle.Bundle, string) {

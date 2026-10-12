@@ -1,6 +1,6 @@
 .PHONY: build check fmt hooks site verify
 
-GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
 # SITE_URL absolutizes the product page's share-card and canonical URLs
 # (e.g. https://poolboy.example). Empty keeps them root-relative to the host.
@@ -18,6 +18,12 @@ check:
 	go test -race -cover ./...
 	$(GOLANGCI_LINT) run ./...
 	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+	# The workflow `poolboy publish` writes is shipped as Go source, so lint the
+	# real generated file rather than a copy that can drift from it.
+	tmp=$$(mktemp -d) && go run ./cmd/poolboy --root $$tmp init $$tmp >/dev/null \
+	  && go run ./cmd/poolboy --root $$tmp publish --apply --pin 0.0.0 >/dev/null \
+	  && go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 $$tmp/.github/workflows/poolboy-docs.yml \
+	  && rm -rf $$tmp
 	node .github/scripts/check-pr-contract.mjs --self-test
 	node scripts/check-command-docs.mjs
 	node scripts/generate-help-snapshot.mjs --self-test

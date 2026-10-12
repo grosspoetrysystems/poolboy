@@ -763,6 +763,48 @@ func (idx *Index) Orphans() []*Entry {
 	return out
 }
 
+// Unreachable returns entries the declared graph root cannot reach by following
+// internal links. Orphans answers a local question — does anything link here —
+// so a cluster of pages that link each other is never orphaned even when nothing
+// outside it points in. This answers the reader's question instead: starting at
+// the root index and clicking, what is never arrived at.
+//
+// The same exclusions apply as Orphans (log.md, poolboy.toml `ignore_orphans`),
+// because a deliberately parked document is not a navigation defect. A corpus
+// with no root index yields nil: there is no declared entry point to measure
+// from, which is a different finding than an unreachable page.
+//
+// Unresolved links are not followed and not reported here; a broken edge is
+// `unresolved`'s finding, and this query only reports where it leaves a page
+// stranded.
+func (idx *Index) Unreachable() []*Entry {
+	root, ok := idx.byPath["/index.md"]
+	if !ok {
+		return nil
+	}
+	seen := map[string]bool{root.Path: true}
+	for queue := []*Entry{root}; len(queue) > 0; {
+		e := queue[0]
+		queue = queue[1:]
+		for _, l := range e.Links {
+			next, ok := idx.byPath[l.Target]
+			if !ok || seen[next.Path] {
+				continue
+			}
+			seen[next.Path] = true
+			queue = append(queue, next)
+		}
+	}
+	var out []*Entry
+	for _, e := range idx.Entries {
+		if seen[e.Path] || e.base() == "log.md" || idx.orphanExempt(e.Path) {
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
+}
+
 // orphanExempt reports whether p is covered by a poolboy.toml `ignore_orphans`
 // glob (see matchGlob): an exact path, a `dir/**` subtree, or any `*`/`?`/`**`
 // pattern.
@@ -1285,10 +1327,32 @@ type Issue struct {
 	Msg   string `json:"msg"`
 }
 
-// Check reports conformance and health issues. Errors are genuine malformations
-// (a missing `type`, a present-but-invalid timestamp); everything else is an
-// advisory warning, including broken links — per OKF a broken link may be
-// not-yet-written knowledge, so it does not fail the lint (`unresolved` lists them).
+// validateFrontmatter delegates document-shape validation to the same OKF
+// validator used by the compiler. Check adds its bundle-specific vocabulary and
+// timestamp rules below.
+func validateFrontmatter(e *Entry) []Issue {
+	raw, err := e.Raw()
+	if err != nil {
+		return []Issue{{"error", e.Path, "read frontmatter: " + err.Error()}}
+	}
+	var issues []Issue
+	for _, violation := range parse.ValidateOKF(e.Path, raw) {
+		if violation.Level != "error" {
+			continue
+		}
+		msg := violation.Field + ": " + violation.Message
+		if violation.Field == "type" && violation.Message == "ordinary documents require a nonempty type" {
+			msg = "missing required `type` (or add this file to `ignore` in poolboy.toml if it is not a bundle entry)"
+		}
+		issues = append(issues, Issue{"error", e.Path, msg})
+	}
+	return issues
+}
+
+// Check reports conformance and health issues. Shared OKF frontmatter rules
+// come from parse.ValidateOKF, while the index adds bundle vocabulary,
+// timestamp, and graph advisories. Errors are genuine malformations; broken
+// links remain advisory because unresolved is the separate diagnostic.
 func (idx *Index) Check() []Issue {
 	var issues []Issue
 	// An unrecognized poolboy.toml key is silently inert otherwise (a typo, or a
@@ -1299,6 +1363,9 @@ func (idx *Index) Check() []Issue {
 	}
 	for _, e := range idx.Entries {
 		b := e.base()
+		if e.parseErr == nil {
+			issues = append(issues, validateFrontmatter(e)...)
+		}
 		switch {
 		case e.parseErr != nil:
 			issues = append(issues, Issue{"error", e.Path, "invalid YAML: " + e.parseErr.Error()})
@@ -1310,16 +1377,6 @@ func (idx *Index) Check() []Issue {
 				}
 			}
 		case b == "index.md" || b == "log.md":
-			// Reserved files (OKF §6/§7) are not concept documents: they carry no
-			// frontmatter (the bundle-root index.md may carry okf_version) and are
-			// exempt from the type requirement.
-			for k := range e.fm {
-				if e.Path == "/index.md" && k == "okf_version" {
-					continue
-				}
-				issues = append(issues, Issue{"warning", e.Path, "reserved file should carry no frontmatter"})
-				break
-			}
 			if b == "log.md" {
 				// OKF §7: log date headings use ISO YYYY-MM-DD.
 				for _, h := range e.Headings {
@@ -1329,10 +1386,7 @@ func (idx *Index) Check() []Issue {
 				}
 			}
 		default:
-			switch {
-			case e.Type == "":
-				issues = append(issues, Issue{"error", e.Path, "missing required `type` (or add this file to `ignore` in poolboy.toml if it is not a bundle entry)"})
-			case !idx.Bundle.KnownType(e.Type):
+			if e.Type != "" && !idx.Bundle.KnownType(e.Type) {
 				// A vocabulary is opt-in (KnownType is true when none is declared), so
 				// reaching here means poolboy.toml `types` is set and this type is not in it.
 				issues = append(issues, Issue{"error", e.Path, "type `" + e.Type + "` not in poolboy.toml `types`; add it there or fix the entry"})
@@ -1409,7 +1463,11 @@ func (idx *Index) Check() []Issue {
 			case want:
 				// in sync
 			case "":
-				issues = append(issues, Issue{"warning", root.Path, "missing okf_version (spec " + idx.Bundle.Spec + " embeds OKF " + want + ")"})
+				// A present-but-empty badge is a shared OKF error; only an
+				// absent badge remains the advisory version-sync warning.
+				if _, present := root.fm["okf_version"]; !present {
+					issues = append(issues, Issue{"warning", root.Path, "missing okf_version (spec " + idx.Bundle.Spec + " embeds OKF " + want + ")"})
+				}
 			default:
 				issues = append(issues, Issue{"warning", root.Path, "okf_version " + got + " out of sync (spec " + idx.Bundle.Spec + " embeds OKF " + want + ")"})
 			}
