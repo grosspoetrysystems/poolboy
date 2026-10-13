@@ -34,4 +34,4 @@ Give the user:
 
 Keep the preview process and worktree available while the user evaluates them.
 
-If the user rejects the trial, stop the preview and run `git worktree remove --force <preview-directory>` from the original repository. If the user wants to keep it, continue from the same worktree: create a branch only with explicit approval, leave the diff for review, and commit or merge only when explicitly requested. Never regenerate accepted trial work in the original checkout.
+If the user rejects the trial, stop the preview and run `git worktree remove --force <preview-directory>` from the original repository. If the user wants to keep it, continue from the same worktree in the [trial→adopt→improve workflow](start.md): create a branch only with explicit approval, leave the diff for review, and commit or merge only when explicitly requested. Never regenerate accepted trial work in the original checkout.
