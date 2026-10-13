@@ -184,6 +184,7 @@ For asynchronous editing, let the CLI create an ordinary Markdown checkout outsi
 ## Discover, then refresh
 
 Use the portable [`poolboy-discovery` Skill](skills/poolboy-discovery/SKILL.md) inside your coding agent. It reconciles existing documentation rather than regenerating it on each run.
+Accepted private trials continue in the same worktree through the [trial→adopt→improve handoff](https://poolboy.sh/start.md): website, consumer CLI, or both, guided by the user's request and existing project conventions.
 
 ```sh
 poolboy scan --format json
