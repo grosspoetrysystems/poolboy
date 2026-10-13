@@ -1,4 +1,4 @@
-# Start Poolboy in this repository
+# Adopt Poolboy for a website, CLI, or both
 
 Use the agent's current working directory as the project root. Follow a trial→adopt→improve path: produce one reviewable Poolboy corpus and deliver it where the user needs it—a published website, consumer CLI documentation and help, or both. A private trial ([try.md](try.md)) that the user accepts continues here; never regenerate accepted trial work somewhere else. The result stays local and reviewable until the user explicitly asks to commit, deploy, or release.
 
@@ -32,15 +32,15 @@ Inspect the repository and user's request for:
 
 1. Run `poolboy version`. If Poolboy is unavailable, follow the [installation guide](install.md), then return here.
 2. Inspect `poolboy.toml`, the configured corpus, `templates/`, `data/`, `.poolboy/`, and existing application/package build paths before deciding what the repository needs. Before building, ensure Poolboy's `output` is dedicated to the corpus and does not overlap other build artifacts; choose an unused path in `poolboy.toml` when the default `dist/` is already owned.
-   Before the first build, confirm `name` in `poolboy.toml` from the project's manifest, README, or existing CLI identity, preserving an intentional configured name. Set it explicitly when absent: otherwise Poolboy uses the checkout directory's basename, which may be a temporary name rather than the product's name.
 3. If `poolboy.toml` is absent, run `poolboy init`. Initialization adds missing starter files and Poolboy ignore rules while preserving existing files. Do not use `--force` unless the user explicitly requests overwrites. Review the selected corpus and any adoption report. Existing ordinary concept documents may need reviewed OKF metadata; add a suitable `type` only where frontmatter is missing, and repair malformed YAML in place. Preserve reserved index/log conventions: root `index.md` is not an ordinary typed document and may declare `okf_version: "0.2"`, not concept metadata. Root-level Markdown outside the selected corpus is not adopted automatically; init does not enumerate every nested directory outside it. Record which existing documents remain outside scope and why—do not silently ignore useful docs to obtain a clean check.
-4. If `.poolboy/sources.lock.json` is absent, run `poolboy scan --format json` to establish the bounded source inventory. Otherwise run `poolboy drift --format json` and review the reported changes without replacing the baseline.
-5. When the corpus may change concurrently, run `poolboy checkout CHECKOUT_DIR --format json` with a new directory outside the project root and edit Markdown only in the returned path. Otherwise edit the canonical corpus directly.
-6. Analyze the admitted sources progressively. Start with entry points, manifests, schemas, core types, and tests. Record actual architecture, domain concepts, interfaces, workflows, failure modes, and unresolved contradictions; do not generate one document per source file.
-7. Reconcile existing docs instead of replacing useful work. Write portable OKF Markdown with file-relative links and concrete `sources` references on ordinary concept documents. The root `index.md` link order defines the reading sequence. Keep repeated reference material in Knap templates and structured data.
-8. For a Poolboy checkout, run `poolboy checkin CHECKOUT_DIR --format json`. Read every variance and conflict field. Apply only an authorized plan with `poolboy checkin CHECKOUT_DIR --apply --format json` when `can_apply` is true. Check-in never accepts source evidence.
-9. Run `poolboy check`, resolve conformance errors, then run `poolboy build`. Build writes the configured output directory with the Markdown corpus, `graph.json`, `llms.txt`, `index.html`, and a deterministic `corpus.zip`.
-10. Re-run `poolboy drift --format json`. Advance an existing baseline with `poolboy scan --accept` only after every reported source change has been reviewed.
+4. For both existing and newly initialized configurations, confirm `name` in `poolboy.toml` from the project's manifest, README, or existing CLI identity. Preserve an intentional configured name; otherwise set the intended project name explicitly before building. An absent name falls back to the checkout directory's basename, which may be a temporary name rather than the product's name.
+5. If `.poolboy/sources.lock.json` is absent, run `poolboy scan --format json` to establish the bounded source inventory. Otherwise run `poolboy drift --format json` and review the reported changes without replacing the baseline.
+6. When the corpus may change concurrently, run `poolboy checkout CHECKOUT_DIR --format json` with a new directory outside the project root and edit Markdown only in the returned path. Otherwise edit the canonical corpus directly.
+7. Analyze the admitted sources progressively. Start with entry points, manifests, schemas, core types, and tests. Record actual architecture, domain concepts, interfaces, workflows, failure modes, and unresolved contradictions; do not generate one document per source file.
+8. Reconcile existing docs instead of replacing useful work. Write portable OKF Markdown with file-relative links and concrete `sources` references on ordinary concept documents. The root `index.md` link order defines the reading sequence. Keep repeated reference material in Knap templates and structured data.
+9. For a Poolboy checkout, run `poolboy checkin CHECKOUT_DIR --format json`. Read every variance and conflict field. Apply only an authorized plan with `poolboy checkin CHECKOUT_DIR --apply --format json` when `can_apply` is true. Check-in never accepts source evidence.
+10. Run `poolboy check`, resolve conformance errors, then run `poolboy build`. Build writes the configured output directory with the Markdown corpus, `graph.json`, `llms.txt`, `index.html`, and a deterministic `corpus.zip`.
+11. Re-run `poolboy drift --format json`. Advance an existing baseline with `poolboy scan --accept` only after every reported source change has been reviewed.
 
 ## Deliver the outcome
 
@@ -73,7 +73,7 @@ Verify by observable result, not by claim:
 
 - **Identity:** the generated index and landing page identify the intended project, not a temporary checkout directory.
 - **Installed CLI:** in an isolated environment without the source checkout and offline, the released tool answers documentation queries from its embedded bytes with no network access.
-- **Website:** the served `graph.json` and a real document load over HTTP and match the built revision.
+- **Website:** the served `graph.json` and a real document load over HTTP, and both match the built revision.
 - **Both:** the package and the deployed site carry byte-identical content for the same revision. Keep three facts distinct—the release version (package/tag), the corpus revision (`graph.json` SHA-256), and live freshness (established from release/source metadata when available, otherwise unknown).
 - Preserve explicit commit, deploy, and release permissions. A blocked external action reports the real next gate, never a success it did not achieve.
 
