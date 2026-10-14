@@ -164,7 +164,7 @@ func TestResolveResourcePath(t *testing.T) {
 }
 
 func TestReservedOutputRejected(t *testing.T) {
-	for _, reserved := range []string{".git", ".substrate", ".poolboy", "build/.git"} {
+	for _, reserved := range []string{".git", ".poolboy", "build/.git"} {
 		if _, err := loadConfig(t, "spec = \"0.2\"\noutput = \""+reserved+"\"\n"); err == nil {
 			t.Errorf("reserved output %q was accepted", reserved)
 		}

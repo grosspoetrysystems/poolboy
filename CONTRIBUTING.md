@@ -29,7 +29,7 @@ make verify   # check, build the site, verify generated files, and smoke-test th
 
 Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and Conventional Commit messages. Pre-push runs `make verify`. CI runs the same verification command on Linux, then compiles packages and tests and smoke-tests the CLI on Windows.
 
-Commit messages must be one-line [Conventional Commits](https://www.conventionalcommits.org/) headers, for example `fix(preview): reject non-loopback hosts`.
+Commit messages must use a [Conventional Commits](https://www.conventionalcommits.org/) header, for example `fix(preview): reject non-loopback hosts`, and include a `Signed-off-by` trailer. Use `git commit -s` to certify your right to contribute under the [Developer Certificate of Origin](https://developercertificate.org/). Local commitlint requires the trailer; the GitHub DCO check validates each commit's sign-off. An agent must not certify this on a human's behalf without that human's authorization.
 
 ## Pull request contract
 
@@ -67,10 +67,10 @@ own coding agent.
 
 Evaluation material is local working evidence and is deliberately absent. The
 benchmark harness and its retained results, dogfood records, trial narratives,
-captured foreign corpora, external-project notes, and personal agent tooling
-live under `.substrate/`, which is Git-ignored by a `.gitignore` containing `*`
-inside the directory itself. The same self-ignore pattern applies to any other
-local-only tree. A fresh clone will not have them, and that is intended.
+captured foreign corpora, and external-project notes live in each contributor's
+private workspace outside the checkout. Personal agent tooling kept inside the
+checkout is Git-ignored by a `.gitignore` containing `*` inside its own
+directory. A fresh clone will not have any of it, and that is intended.
 
 The test is whether someone using or building Poolboy needs the file. The
 discovery Skill ships because the product tells users to run it. A benchmark
@@ -79,8 +79,8 @@ survived capture does not ship, because it describes our evaluation of the
 product rather than the product.
 
 Two consequences worth stating plainly. Benchmark runs are not reproducible
-from a clone; replaying one needs the local harness. And a path under
-`.substrate/` is a provenance pointer, not retrievable evidence — when evidence
+from a clone; replaying one needs the local harness. And a path into a private
+workspace is a provenance pointer, not retrievable evidence — when evidence
 has to reach a reader, put the measured result in the issue or pull request
 rather than a link nobody else can open.
 

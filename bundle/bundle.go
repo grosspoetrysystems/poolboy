@@ -208,7 +208,7 @@ func load(projectRoot, cfgPath string, requireCorpus bool) (*Bundle, error) {
 	}
 	for _, part := range strings.Split(output, "/") {
 		switch part {
-		case ".git", ".substrate", ".poolboy":
+		case ".git", ".poolboy":
 			return nil, fmt.Errorf("output uses reserved project directory %q", part)
 		}
 	}
