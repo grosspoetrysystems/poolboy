@@ -64,9 +64,9 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 	writeTestFile(t, root, "src/leaked.txt", privateKey)
 	writeTestFile(t, root, "src/credentials.json", `{"token":"actual"}`)
 	writeTestFile(t, root, "src/blob.dat", "prefix\x00suffix")
+	writeTestFile(t, root, ".substrate/audit.md", "project notes\n")
 	writeTestFile(t, root, "vendor/lib.go", "package vendor\n")
 	writeTestFile(t, root, "node_modules/lib.js", "module.exports = {}\n")
-	writeTestFile(t, root, ".substrate/audit.md", "internal\n")
 	writeTestFile(t, root, "docs/index.md", "docs\n")
 	writeTestFile(t, root, "bin/tool.go", "package tool\n")
 	writeTestFile(t, root, "src/internal/build/keep.ts", "export const keep = true\n")
@@ -91,7 +91,7 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 		"src/debug.log", "src/nested/drop.txt", "ignored/keep.go", "custom/drop.go",
 		".env", "src/leaked.txt", "src/credentials.json",
 		"src/blob.dat", "src/oversized.txt", "src/link.go",
-		"vendor/lib.go", "node_modules/lib.js", ".substrate/audit.md",
+		"vendor/lib.go", "node_modules/lib.js",
 		"bin/tool.go", "build/generated.go", "docs/index.md", "dist/generated.md", "templates/reference.md.knap", "data/reference.json",
 	} {
 		if _, ok := inv.Files[excluded]; ok {
@@ -101,6 +101,7 @@ func TestScanFiltersBoundaryAndNestedIgnores(t *testing.T) {
 	for _, included := range []string{
 		".gitignore", "src/main.go", "src/bin/cli.ts", "src/internal/build/keep.ts", "src/nested/keep.txt", "custom/keep.go",
 		".environment.md", ".envoy.yaml", ".env.local.example", "tls/private.pem", "src/aws-real.go", "src/secret.go", "src/credentials/parser.ts", "notes/authentication.md", "notes/private-key-format.md",
+		".substrate/audit.md",
 	} {
 		if _, ok := inv.Files[included]; !ok {
 			t.Errorf("safe path missing from inventory: %s", included)

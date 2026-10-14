@@ -372,7 +372,7 @@ func reservedProjectPath(project, path string) bool {
 	}
 	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
 		switch part {
-		case ".git", ".substrate", ".poolboy":
+		case ".git", ".poolboy":
 			return true
 		}
 	}

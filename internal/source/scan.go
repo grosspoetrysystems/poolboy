@@ -421,7 +421,6 @@ func normalizeTrailingGlob(line string) string {
 
 var dependencyDirNames = map[string]bool{
 	".git":          true,
-	".substrate":    true,
 	".poolboy":      true,
 	"node_modules":  true,
 	"vendor":        true,

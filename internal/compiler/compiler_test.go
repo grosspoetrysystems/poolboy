@@ -180,7 +180,7 @@ func TestBuildRejectsMissingRootAndHandwrittenOverwrite(t *testing.T) {
 	}
 }
 func TestBuildProtectsReservedDirectories(t *testing.T) {
-	for _, name := range []string{".git", ".substrate", ".poolboy"} {
+	for _, name := range []string{".git", ".poolboy"} {
 		root, b, rendererPath := fixture(t)
 		path := filepath.Join(root, name, "sentinel")
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
