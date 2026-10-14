@@ -1,0 +1,37 @@
+name: Enhancement proposal
+description: Propose a considered improvement to Poolboy
+title: "[Enhancement]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or user need
+      description: Describe the observed need without assuming a particular solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Smallest useful change
+      description: State the proposed behavior, what is in scope, and what is out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Existing behavior and alternatives
+      description: Explain why existing features or a no-code/process change do not solve the need.
+    validations:
+      required: true
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact areas
+      options:
+        - label: Public API or user-visible behavior
+        - label: Dependency change
+        - label: Security, authentication, or authorization
+        - label: CI, build, release, policy, or agent instructions
+        - label: Large generated or mechanical change
+        - label: None of the above

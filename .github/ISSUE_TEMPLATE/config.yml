@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a Poolboy vulnerability
+    url: https://github.com/grosspoetrysystems/poolboy/security/advisories/new
+    about: Send security reports privately; do not include vulnerability details in an issue.
+  - name: Report conduct or abuse
+    url: https://support.github.com/contact/report-abuse
+    about: Include the relevant Poolboy URL.

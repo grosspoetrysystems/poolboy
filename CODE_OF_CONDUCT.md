@@ -1,5 +1,7 @@
 # Poolboy Code of Conduct
 
+This conduct policy follows the pinned Helicopter policy source (`57db0a75`), adapted to Poolboy's repository and community.
+
 ## Standard
 
 Be respectful, specific, and honest. Critique work and observable behavior, not a person's identity, writing style, experience, or presumed use of AI.
