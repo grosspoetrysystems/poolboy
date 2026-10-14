@@ -1,2 +1,28 @@
+# Poolboy currently has one maintainer. Add additional owners deliberately.
 * @thekidnamedkd
+
+# Governance and trusted intake
 /.github/ @thekidnamedkd
+/.github/workflows/ @thekidnamedkd
+/.github/CODEOWNERS @thekidnamedkd
+/scripts/validate_pr.py @thekidnamedkd
+/tests/test_validate_pr.py @thekidnamedkd
+/CONTRIBUTING.md @thekidnamedkd
+/MAINTAINERS.md @thekidnamedkd
+/SECURITY.md @thekidnamedkd
+/CODE_OF_CONDUCT.md @thekidnamedkd
+/NOTICE @thekidnamedkd
+
+# Dependencies, signing, release, and generated publication
+/go.mod @thekidnamedkd
+/go.sum @thekidnamedkd
+/companion/package.json @thekidnamedkd
+/companion/pnpm-lock.yaml @thekidnamedkd
+/.goreleaser.yaml @thekidnamedkd
+/.github/dependabot.yml @thekidnamedkd
+/.poolboy/ @thekidnamedkd
+
+# Security-sensitive implementation and shipped agent instructions
+/internal/ @thekidnamedkd
+/cmd/ @thekidnamedkd
+/skills/ @thekidnamedkd

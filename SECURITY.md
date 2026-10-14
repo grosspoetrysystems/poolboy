@@ -1,5 +1,7 @@
 # Poolboy security policy
 
+This response pattern follows the pinned Helicopter policy source (`57db0a75`), adapted to Poolboy's private GitHub reporting channel.
+
 ## Report privately
 
 Do not open a public issue for a suspected vulnerability, exposed credential, malicious dependency, compromised automation identity, or workflow/runner compromise.

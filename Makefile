@@ -1,6 +1,7 @@
 .PHONY: build check fmt hooks site verify
 
 GOLANGCI_LINT := go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+PYTHON ?= python3
 
 # SITE_URL absolutizes the product page's share-card and canonical URLs
 # (e.g. https://poolboy.example). Empty keeps them root-relative to the host.
@@ -24,7 +25,7 @@ check:
 	  && go run ./cmd/poolboy --root $$tmp publish --apply --pin 0.0.0 >/dev/null \
 	  && go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 $$tmp/.github/workflows/poolboy-docs.yml \
 	  && rm -rf $$tmp
-	node .github/scripts/check-pr-contract.mjs --self-test
+	$(PYTHON) tests/test_validate_pr.py
 	node scripts/check-command-docs.mjs
 	node scripts/generate-help-snapshot.mjs --self-test
 	pnpm --dir companion typecheck
