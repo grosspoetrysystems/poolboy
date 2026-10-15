@@ -45,7 +45,7 @@ If a source build cannot find the renderer, keep `bin/poolboy-knap.mjs` beside
 
 ## Build locally
 
-Prerequisites: Go 1.25+, Node 24+, and pnpm. Install the pnpm version declared in `companion/package.json`.
+Prerequisites: Go 1.26+, Node 24+, and pnpm. Install the pnpm version declared in `companion/package.json`.
 
 ```sh
 git clone https://github.com/grosspoetrysystems/poolboy.git
