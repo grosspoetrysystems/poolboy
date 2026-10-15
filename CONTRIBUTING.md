@@ -73,7 +73,7 @@ Poolboy requires the [Developer Certificate of Origin 1.1](https://developercert
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
-The accountable human makes the certification; an agent may mechanically add their trailer only with explicit authorization. The external DCO GitHub App (app `1861`) is active and validates identity and certification, but its `DCO` status is not a required branch-protection check. Local commitlint requires the trailer; nothing here exempts a contribution from required CI.
+The accountable human makes the certification; an agent may mechanically add their trailer only with explicit authorization. The external DCO GitHub App (app `1861`) validates identity and certification, and its `DCO` status is required by branch protection. Local commitlint also requires the trailer; nothing here exempts a contribution from required CI.
 
 ## Review
 
