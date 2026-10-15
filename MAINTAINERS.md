@@ -4,7 +4,7 @@ Poolboy's files express policy; GitHub settings enforce required CI and automati
 
 ## Current protection state
 
-The live default-branch protection currently requires `check`, `windows`, and `contract` (the existing status provider is app `15368`), has no `HELICOPTER_MODE` or `HELICOPTER_SOLO_MAINTAINER_ID` repository variables, and leaves administrator enforcement disabled. The external DCO GitHub App (app `1861`) is active, but its `DCO` status is not a required branch-protection check.
+The live default-branch protection requires `check`, `windows`, and `contract` from app `15368`, plus `DCO` from the external DCO GitHub App (app `1861`), with strict freshness. Repository variables set `HELICOPTER_MODE=solo` and `HELICOPTER_SOLO_MAINTAINER_ID=65736142` for `@thekidnamedkd`. Resolved conversations are required; force pushes and branch deletion are disabled. Administrator enforcement remains disabled.
 
 Do not run Helicopter's upstream `scripts/configure_repository.py` against Poolboy. Its required contexts are not Poolboy's and would clobber `check`, `windows`, or `contract`. Apply the activation sequence below explicitly, preserving Poolboy's separate check, Windows, release, and deploy workflows.
 
@@ -41,7 +41,7 @@ Use one actionable response for policy failures: one reason, one policy link, an
 
 ## Automation boundaries
 
-Dependabot is authorized repository automation. Its narrow metadata exemption requires the PR author and event sender to be the same `dependabot[bot]` Bot account with matching positive immutable IDs; updates sent by a human or another bot are refused. Exempt updates still require all required CI and maintainer review before merge; DCO validation is independent and is not currently a required branch-protection check. Dependabot may open weekly dependency updates for GitHub Actions, Go modules, and npm packages under `companion`; development dependencies are grouped as development tooling. Review the diff, release notes, lockfiles, and CI before merging.
+Dependabot is authorized repository automation. Its narrow metadata exemption requires the PR author and event sender to be the same `dependabot[bot]` Bot account with matching positive immutable IDs; updates sent by a human or another bot are refused. Exempt updates still require all required CI and maintainer review before merge; DCO validation is an independent required branch-protection check. Dependabot may open weekly dependency updates for GitHub Actions, Go modules, and npm packages under `companion`; development dependencies are grouped as development tooling. Review the diff, release notes, lockfiles, and CI before merging.
 
 GitHub Actions may validate pull requests, build, deploy, release, and attest artifacts only through the workflows in `.github/workflows/` and their declared permissions. The contract workflow runs on `pull_request_target`; keep it limited to protected-base files and event metadata, with read-only contents permission and no checkout or execution of contributor code. Build and test jobs remain separate `pull_request` jobs.
 
