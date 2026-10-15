@@ -18,6 +18,8 @@ updates:
       interval: weekly
     target-branch: main
     versioning-strategy: increase
+    cooldown:
+      default-days: 7
     groups:
       development-tooling:
         dependency-type: development
