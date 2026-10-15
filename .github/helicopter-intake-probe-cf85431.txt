@@ -1,0 +1,4 @@
+DISPOSABLE INTAKE VALIDATION — DO NOT MERGE
+This branch exists only to exercise the merged metadata workflow.
+PR metadata is explicitly synthetic test data, not human attestations.
+Close the PR and delete this branch after recording rejection and acceptance.
