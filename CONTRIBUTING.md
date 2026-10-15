@@ -6,7 +6,7 @@ Poolboy welcomes human-authored, AI-assisted, and agent-authored work when it is
 
 ## Prerequisites
 
-- Go version declared in `go.mod`
+- Go 1.26 or newer. `go.mod` declares the source minimum; automated CI, release, and deploy builds select the latest patch of the supported Go 1.26 line.
 - Node.js 24 or newer
 - Corepack
 - Python 3.10 or newer for the contribution validator and its tests. `make check` uses `python3` by default; select another interpreter with `make check PYTHON=python3.14`.
