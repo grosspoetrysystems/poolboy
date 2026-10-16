@@ -130,6 +130,10 @@ test, read the implementation and its callers, then choose a scenario that
 would catch a regression. Prefer a small assertion-rich test over a line-hit
 stub, wiring-only test, source/default snapshot, or tautological assertion.
 
+Git-backed fixtures must clear inherited `GIT_*` repository context before
+creating a temporary repository, and restore the test environment on cleanup.
+A passing pre-push test must leave the caller's `HEAD` and index unchanged.
+
 Coverage work must not inflate the score. Do not exclude production paths,
 weaken thresholds, alter production code solely to make a line reachable, or
 replace the aggregate profile with a narrower package run. Do not count the

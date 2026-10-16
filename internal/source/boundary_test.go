@@ -333,8 +333,18 @@ func TestScanRecordsGitRevision(t *testing.T) {
 	if err != nil {
 		t.Skip("git not available")
 	}
+	// Hook-local Git variables must not redirect the fixture or Scan to the caller's repository.
+	for _, variable := range os.Environ() {
+		name, _, _ := strings.Cut(variable, "=")
+		if strings.HasPrefix(name, "GIT_") {
+			t.Setenv(name, "")
+			if err := os.Unsetenv(name); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	root := t.TempDir()
-	run := func(args ...string) {
+	run := func(args ...string) string {
 		t.Helper()
 		cmd := exec.Command(git, args...)
 		cmd.Dir = root
@@ -342,21 +352,27 @@ func TestScanRecordsGitRevision(t *testing.T) {
 			"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,
 			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@e",
 			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@e")
-		if out, err := cmd.CombinedOutput(); err != nil {
+		out, err := cmd.CombinedOutput()
+		if err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
+		return strings.TrimSpace(string(out))
 	}
 	run("init")
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		t.Fatalf("git init escaped the fixture: %v", err)
+	}
 	writeTestFile(t, root, "src/main.go", "package main\n")
 	run("add", ".")
 	run("commit", "-m", "initial")
+	wantRevision := run("rev-parse", "HEAD")
 
 	inv, err := Scan(testBundle(root), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(inv.Revision) != 40 {
-		t.Errorf("revision = %q, want 40-char commit id", inv.Revision)
+	if inv.Revision != wantRevision {
+		t.Errorf("revision = %q, want fixture commit %q", inv.Revision, wantRevision)
 	}
 }
 
