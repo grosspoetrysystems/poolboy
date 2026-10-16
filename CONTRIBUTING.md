@@ -34,6 +34,22 @@ make verify   # check, build the site, verify generated files, and smoke-test th
 
 Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and command documentation. The commit-msg hook checks Conventional Commit subjects and requires a `Signed-off-by` trailer. Pre-push runs `make verify`. CI runs the same verification on Linux; Windows CI compiles packages and test binaries and smoke-tests the CLI. A separate metadata-only workflow validates the pull-request contract, including drafts.
 
+## Test coverage
+
+The [coverage gates concept](docs/coverage.md) defines the enforced contract:
+Go uses one aggregate statement profile across `./...` at 90%, while the
+companion requires 90% branches, functions, lines, and statements. The
+companion keeps its existing `src/bin/**` exclusion; the CLI smoke test is
+separate.
+
+Use `python3 tests/test_coverage_gate.py` for focused checker feedback,
+`make check` for the full coverage gate, and `make verify` for the pre-push/CI
+path that also builds and smoke-tests the CLI. Add meaningful
+consumer-visible, boundary, and error tests; do not lower thresholds, add
+exclusions, or write tests solely to inflate coverage. See the concept for
+exact integer gate behavior, hook recovery, and the distinction between an
+observed baseline and the 90% floor.
+
 ## Human accountability
 
 Every pull request needs an accountable human. By submitting one you confirm that you reviewed the complete diff, understand and can explain the change, personally verified the evidence it reports, can revise it under review, and have the right to submit it under Poolboy's license. AI assistance does not transfer those responsibilities to a model, provider, agent, bot, or tool.
