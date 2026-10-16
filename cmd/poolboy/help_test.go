@@ -131,3 +131,80 @@ func captureStderr(t *testing.T) (<-chan string, func()) {
 		result <- string(data)
 	}
 }
+
+func TestValidateHelpDocumentRejectsMismatches(t *testing.T) {
+	if err := validateHelpDocument([]byte("{"), ""); err == nil {
+		t.Fatal("malformed help document was accepted")
+	}
+	if err := validateHelpDocument([]byte(`{"schema":2,"cli_version":"dev","commands":[]}`), ""); err == nil {
+		t.Fatal("unsupported help schema was accepted")
+	}
+	if err := validateHelpDocument([]byte(`{"schema":1,"cli_version":"dev","commands":[]}`), ""); err == nil {
+		t.Fatal("empty help index was accepted")
+	}
+	if err := validateHelpDocument([]byte(`{"schema":1,"cli_version":"dev","name":"other","usage":"use"}`), "move"); err == nil {
+		t.Fatal("wrong command name was accepted")
+	}
+	if err := validateHelpDocument([]byte(`{"schema":1,"cli_version":"dev","name":"move"}`), "move"); err == nil {
+		t.Fatal("command without usage was accepted")
+	}
+	if err := validateHelpDocument([]byte(`{"schema":1,"cli_version":"dev","commands":[{}]}`), ""); err != nil {
+		t.Fatalf("valid help index rejected: %v", err)
+	}
+	if err := validateHelpDocument([]byte(`{"schema":1,"cli_version":"dev","name":"move","usage":"poolboy move"}`), "move"); err != nil {
+		t.Fatalf("valid help command rejected: %v", err)
+	}
+}
+
+func TestFetchHelpURLReturnsStatusAndBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/missing":
+			http.NotFound(w, r)
+		case "/ok":
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	body, status, err := fetchHelpURL(server.URL + "/missing")
+	if err != nil || status != http.StatusNotFound || body != nil {
+		t.Fatalf("missing response body=%q status=%d err=%v", body, status, err)
+	}
+	body, status, err = fetchHelpURL(server.URL + "/ok")
+	if err != nil || status != http.StatusOK || string(body) != `{"ok":true}` {
+		t.Fatalf("ok response body=%q status=%d err=%v", body, status, err)
+	}
+}
+
+func TestWriteHelpRejectsMalformedJSONAndCompareVersion(t *testing.T) {
+	if code := writeHelp([]byte("{")); code != 2 {
+		t.Fatalf("writeHelp malformed JSON exit=%d, want 2", code)
+	}
+	if got := compareVersion([3]int{1, 2, 4}, [3]int{1, 2, 3}); got != 1 {
+		t.Fatalf("greater compare=%d, want 1", got)
+	}
+	if got := compareVersion([3]int{1, 2, 3}, [3]int{1, 2, 3}); got != 0 {
+		t.Fatalf("equal compare=%d, want 0", got)
+	}
+	if got := compareVersion([3]int{1, 2, 2}, [3]int{1, 2, 3}); got != -1 {
+		t.Fatalf("less compare=%d, want -1", got)
+	}
+}
+
+func TestWarnUnsupportedHelpIgnoresUnsupportedIndex(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"schema":99,"minimum_supported":"0.1.0"}`)
+	}))
+	t.Cleanup(server.Close)
+	setHelpTestGlobals(t, "1.2.3", server.URL)
+
+	stderr, restore := captureStderr(t)
+	warnUnsupportedHelp()
+	restore()
+	if got := <-stderr; got != "" {
+		t.Fatalf("unsupported schema warning=%q, want empty", got)
+	}
+}

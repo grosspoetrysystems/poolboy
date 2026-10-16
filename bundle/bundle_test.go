@@ -374,6 +374,242 @@ func TestDiscoverPartialAllowsOnlyMissingCorpus(t *testing.T) {
 	}
 }
 
+func TestDecodeToolTypeError(t *testing.T) {
+	b := mustLoad(t, `
+[tool.example]
+count = "not an integer"
+`)
+	var cfg struct {
+		Count int `toml:"count"`
+	}
+	found, err := b.DecodeTool("example", &cfg)
+	if !found || err == nil || !strings.Contains(err.Error(), "[tool.example]") {
+		t.Fatalf("DecodeTool type mismatch: found=%v err=%v", found, err)
+	}
+}
+
+func TestDiscoverStartsAtFile(t *testing.T) {
+	root := t.TempDir()
+	writeTOML(t, root)
+	file := filepath.Join(root, "note.md")
+	if err := os.WriteFile(file, []byte("note"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Discover(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Root != realpath(t, root) {
+		t.Fatalf("Root = %q, want %q", b.Root, root)
+	}
+}
+
+func TestDiscoverRejectsUnsafeConfigEntries(t *testing.T) {
+	t.Run("symlink", func(t *testing.T) {
+		root := t.TempDir()
+		target := filepath.Join(root, "actual.toml")
+		if err := os.WriteFile(target, []byte("spec = \"0.2\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(target, filepath.Join(root, "poolboy.toml")); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "must not be a symlink") {
+			t.Fatalf("Discover symlink config error = %v", err)
+		}
+	})
+	t.Run("directory", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.Mkdir(filepath.Join(root, "poolboy.toml"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "is a directory") {
+			t.Fatalf("Discover directory config error = %v", err)
+		}
+	})
+}
+
+func TestConfigPathAndNameValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		toml string
+		want string
+	}{
+		{"absolute corpus", "corpus = \"/docs\"\n", "corpus must be project-relative"},
+		{"escaping corpus", "corpus = \"../docs\"\n", "corpus escapes the project"},
+		{"absolute output", "output = \"/dist\"\n", "output must be project-relative"},
+		{"escaping output", "output = \"../dist\"\n", "output escapes the project"},
+		{"path name", "name = \"docs/site\"\n", "name must be a plain project name"},
+		{"dot name", "name = \".\"\n", "name must be a plain project name"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := loadConfig(t, tc.toml); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("load error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestConfiguredRenderAndLandingPaths(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte(`
+spec = "0.2"
+name = "Acme"
+corpus = "docs"
+output = "dist"
+
+[[render]]
+template = "templates/page.knap"
+data = "data/page.json"
+output = "generated/page.md"
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "landing.toml"), []byte(`
+logo = "assets/logo.svg"
+site_dir = "site"
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Name != "Acme" || b.Output != "dist" || b.Dir != filepath.Join(realpath(t, root), "docs") {
+		t.Fatalf("bundle roots/config = name %q output %q dir %q", b.Name, b.Output, b.Dir)
+	}
+	if len(b.Renders) != 1 {
+		t.Fatalf("renders = %#v", b.Renders)
+	}
+	if got := b.Renders[0]; got.Template != "templates/page.knap" ||
+		got.Data != "data/page.json" || got.Output != "generated/page.md" {
+		t.Errorf("render = %+v", got)
+	}
+	if b.Landing.Logo == nil || *b.Landing.Logo != "assets/logo.svg" ||
+		b.Landing.SiteDir == nil || *b.Landing.SiteDir != "site" {
+		t.Errorf("landing paths = logo %v site_dir %v", b.Landing.Logo, b.Landing.SiteDir)
+	}
+}
+
+func TestRenderPathValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		render string
+		want   string
+	}{
+		{"empty template", "template = \"\"\ndata = \"data.json\"\noutput = \"out.md\"\n", "render[0].template must not be empty"},
+		{"empty data", "template = \"page.knap\"\ndata = \"\"\noutput = \"out.md\"\n", "render[0].data must not be empty"},
+		{"empty output", "template = \"page.knap\"\ndata = \"data.json\"\noutput = \"\"\n", "render[0].output must not be empty"},
+		{"template dot", "template = \".\"\ndata = \"data.json\"\noutput = \"out.md\"\n", "paths must name files"},
+		{"data dot", "template = \"page.knap\"\ndata = \".\"\noutput = \"out.md\"\n", "paths must name files"},
+		{"output dot", "template = \"page.knap\"\ndata = \"data.json\"\noutput = \".\"\n", "paths must name files"},
+		{"absolute template", "template = \"/page.knap\"\ndata = \"data.json\"\noutput = \"out.md\"\n", "render[0].template must be project-relative"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := loadConfig(t, "spec = \"0.2\"\n[[render]]\n"+tc.render)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("load error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestOutputAndCorpusTypeSafety(t *testing.T) {
+	t.Run("output file", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\noutput = \"dist\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "dist"), []byte("not a directory"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "output is not a directory") {
+			t.Fatalf("output file error = %v", err)
+		}
+	})
+	t.Run("corpus file", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\ncorpus = \"docs\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "docs"), []byte("not a directory"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "corpus is not a directory") {
+			t.Fatalf("corpus file error = %v", err)
+		}
+	})
+}
+
+func TestSymlinkedConfiguredPathsRejected(t *testing.T) {
+	t.Run("corpus", func(t *testing.T) {
+		root := t.TempDir()
+		outside := t.TempDir()
+		if err := os.Symlink(outside, filepath.Join(root, "docs")); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\ncorpus = \"docs\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "corpus must not contain symlink") {
+			t.Fatalf("corpus symlink error = %v", err)
+		}
+	})
+	t.Run("output", func(t *testing.T) {
+		root := t.TempDir()
+		outside := t.TempDir()
+		if err := os.Symlink(outside, filepath.Join(root, "dist")); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "output must not contain symlink") {
+			t.Fatalf("output symlink error = %v", err)
+		}
+	})
+}
+
+func TestLandingConfigError(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "landing.toml"), []byte("title = [\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "landing.toml:") {
+		t.Fatalf("landing parse error = %v", err)
+	}
+}
+
+func TestResolveResourceAbsoluteAndQuoted(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "project")
+	doc := filepath.Join(root, "docs", "note.md")
+	absolute := filepath.Join(root, "src", "main.go")
+	for _, raw := range []string{absolute, root} {
+		got, err := ResolveResourcePath(root, doc, raw)
+		if err != nil {
+			t.Fatalf("ResolveResourcePath(%q): %v", raw, err)
+		}
+		if got != filepath.Clean(raw) {
+			t.Errorf("ResolveResourcePath(%q) = %q, want %q", raw, got, filepath.Clean(raw))
+		}
+	}
+}
+
+func TestNormalizeResourceQuotes(t *testing.T) {
+	if got := NormalizeResource(`  "../internal\build.go"  `); got != "../internal/build.go" {
+		t.Errorf("NormalizeResource quoted = %q", got)
+	}
+	if got := NormalizeResource(` 'docs/index.md' `); got != "docs/index.md" {
+		t.Errorf("NormalizeResource single-quoted = %q", got)
+	}
+}
+
 func writeTOML(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, "poolboy.toml"), []byte("spec=\"0.1\"\ntypes=[\"note\"]\n"), 0o644); err != nil {
@@ -394,4 +630,44 @@ func realpath(t *testing.T, p string) string {
 	t.Helper()
 	r, _ := filepath.EvalSymlinks(p)
 	return r
+}
+
+func TestDiscoverRequiresCorpus(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\ncorpus = \"docs\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), "corpus directory does not exist") {
+		t.Fatalf("Discover missing corpus error = %v", err)
+	}
+}
+
+func TestLandingPathValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, landing, want string
+	}{
+		{"absolute logo", `logo = "/logo.svg"` + "\n", "landing.logo must be project-relative"},
+		{"escaping site directory", `site_dir = "../site"` + "\n", "landing.site_dir escapes the project"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("spec = \"0.2\"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, "landing.toml"), []byte(tc.landing), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Discover(root); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Discover error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestRelativePathRejectsUnsafeSpelling(t *testing.T) {
+	for _, value := range []string{"a\x00b", `\\server\share`} {
+		if _, err := relativePath("path", value); err == nil || !strings.Contains(err.Error(), "must be project-relative") {
+			t.Errorf("relativePath(%q) error = %v", value, err)
+		}
+	}
 }
