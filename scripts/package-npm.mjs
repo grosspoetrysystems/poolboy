@@ -130,7 +130,6 @@ writeJson(join(wrapperDir, "package.json"), {
   optionalDependencies,
   repository: { type: "git", url: "git+https://github.com/grosspoetrysystems/poolboy.git" },
   homepage: "https://poolboy.sh",
-  bugs: { url: "https://github.com/grosspoetrysystems/poolboy/issues" },
   publishConfig: { access: "public" },
 });
 manifest.push(pack(wrapperDir, `${scope}/poolboy`));
