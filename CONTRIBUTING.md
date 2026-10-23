@@ -75,7 +75,9 @@ Open unfinished work as a draft. Before requesting review, complete `.github/pul
 - a named accountable human with the agent provenance above when applicable; and
 - the human attestations, including that this is not an unattended agent submission.
 
-Discuss large features, migrations, dependencies, security-sensitive work, and architectural changes in an issue before implementation. A ready pull request must be focused enough to review as one change, pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval. The sole maintainer's own pull requests merge on passing required CI without a second approval, because GitHub does not allow a pull-request author to approve their own work; see `MAINTAINERS.md`.
+Poolboy tracks work in Linear, not GitHub Issues; GitHub Issues are disabled. Coordinate large features, migrations, dependencies, and architectural changes with `@thekidnamedkd` before implementation; maintainers track agreed work in Linear. Report security-sensitive concerns privately through [SECURITY.md](SECURITY.md), not a public pull request.
+
+A ready pull request must be focused enough to review as one change, pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval. The sole maintainer's own pull requests merge on passing required CI without a second approval, because GitHub does not allow a pull-request author to approve their own work; see `MAINTAINERS.md`.
 
 The sole-maintainer metadata exemption is configured through the `HELICOPTER_MODE` and `HELICOPTER_SOLO_MAINTAINER_ID` repository variables, not a hardcoded bypass. Unset or invalid configuration fails closed to the full contributor contract, and the exemption covers only the body template, never required CI.
 

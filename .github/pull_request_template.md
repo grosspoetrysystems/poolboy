@@ -5,8 +5,8 @@
 
 ## Issue or spec
 
-<!-- Use `Fixes #123`, an HTTPS URL, or `inline` when the acceptance criteria are the complete spec. -->
-#<issue-number-or-inline>
+<!-- Link a Linear work item or an HTTPS specification URL, or use `inline` when the acceptance criteria are the complete spec. GitHub Issues are disabled. -->
+<Linear-or-specification-URL-or-inline>
 
 ## Acceptance criteria
 
