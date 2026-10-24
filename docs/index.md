@@ -25,4 +25,5 @@ Start here, then follow the concept you need:
 - [Portable corpus and review contracts](portable-contracts.md) — publication identity, private workspace state, compatibility, and process boundaries.
 - [Versioned structured help](versioned-help.md) — how `help` is sourced, checked, snapshotted per release, and served with an embedded fallback.
 - [Security boundaries](security-boundaries.md) — the inspection boundary, scan safety limits, and the render boundary.
+- [Test coverage gates](coverage.md) — the project-wide Go statement floor, companion metrics, commands, and recovery paths.
 - [Command reference](reference/commands.md) — the generated, per-command CLI reference.

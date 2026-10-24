@@ -287,3 +287,114 @@ func TestPublishJSONPrerequisitesAndOfflineRefusals(t *testing.T) {
 		t.Fatal("refused invalid version created workflow files")
 	}
 }
+
+func TestPublishJSONReportsWorkflowPrerequisiteStates(t *testing.T) {
+	t.Cleanup(func() { rootDir = "" })
+	rootDir = ""
+
+	existingRoot := publishProject(t, "https://github.com/acme/widget")
+	existingWorkflow := filepath.Join(existingRoot, filepath.FromSlash(publishWorkflowPath))
+	if err := os.MkdirAll(filepath.Dir(existingWorkflow), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const existingContents = "name: hand-written workflow\n"
+	if err := os.WriteFile(existingWorkflow, []byte(existingContents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(existingRoot)
+	out, code := capture(t, func() int {
+		return cmdPublish([]string{"--format", "json", "--pin", "dev"})
+	})
+	if code != 0 {
+		t.Fatalf("existing-workflow plan exit = %d: %s", code, out)
+	}
+	var existingPlan publishPlan
+	if err := json.Unmarshal([]byte(out), &existingPlan); err != nil {
+		t.Fatalf("existing-workflow plan JSON: %v\n%s", err, out)
+	}
+	if !existingPlan.WorkflowExists || existingPlan.Written || existingPlan.VersionSyntaxValid {
+		t.Fatalf("existing-workflow plan = %+v", existingPlan)
+	}
+	var existingStep actionableStep
+	for _, step := range existingPlan.Prerequisites {
+		if step.Step == "workflow" {
+			existingStep = step
+			break
+		}
+	}
+	if existingStep.Status != "unverified" || existingStep.Owner != "poolboy" ||
+		!strings.Contains(existingStep.NextAction, "--pin VERSION") {
+		t.Fatalf("existing-workflow prerequisite = %+v", existingStep)
+	}
+	after, err := os.ReadFile(existingWorkflow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != existingContents {
+		t.Fatalf("plan changed existing workflow: %q", after)
+	}
+
+	readyRoot := publishProject(t, "https://github.com/acme/widget")
+	t.Chdir(readyRoot)
+	out, code = capture(t, func() int {
+		return cmdPublish([]string{"--format", "json", "--pin", "0.2.1"})
+	})
+	if code != 0 {
+		t.Fatalf("release-pin plan exit = %d: %s", code, out)
+	}
+	var readyPlan publishPlan
+	if err := json.Unmarshal([]byte(out), &readyPlan); err != nil {
+		t.Fatalf("release-pin plan JSON: %v\n%s", err, out)
+	}
+	if readyPlan.WorkflowExists || readyPlan.Written || !readyPlan.VersionSyntaxValid ||
+		readyPlan.Version != "0.2.1" {
+		t.Fatalf("release-pin plan = %+v", readyPlan)
+	}
+	var readyStep actionableStep
+	for _, step := range readyPlan.Prerequisites {
+		if step.Step == "workflow" {
+			readyStep = step
+			break
+		}
+	}
+	if readyStep.Status != "ready" || readyStep.Owner != "poolboy" {
+		t.Fatalf("release-pin prerequisite = %+v", readyStep)
+	}
+	if _, err := os.Stat(filepath.Join(readyRoot, filepath.FromSlash(publishWorkflowPath))); !os.IsNotExist(err) {
+		t.Fatalf("plan-only release pin created workflow: %v", err)
+	}
+}
+
+func TestPublishRejectsUsageAndWorkflowWriteFailure(t *testing.T) {
+	t.Cleanup(func() { rootDir = "" })
+	rootDir = ""
+	t.Chdir(t.TempDir())
+	out, code := capture(t, func() int {
+		return cmdPublish([]string{"--format", "json"})
+	})
+	if code != 2 || !strings.Contains(out, `"code": "PROJECT_DISCOVERY_FAILED"`) {
+		t.Fatalf("publish outside project=%q code=%d", out, code)
+	}
+
+	root := publishProject(t, "https://github.com/acme/widget")
+	t.Chdir(root)
+	out, code = capture(t, func() int {
+		return cmdPublish([]string{"--format", "json", "--pin", "0.2.1", "extra"})
+	})
+	if code != 2 || !strings.Contains(out, `"code": "INVALID_ARGUMENT"`) {
+		t.Fatalf("publish positional=%q code=%d", out, code)
+	}
+
+	if err := os.MkdirAll(filepath.Join(root, ".github"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".github", "workflows"), []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, code = capture(t, func() int {
+		return cmdPublish([]string{"--apply", "--pin", "0.2.1", "--format", "json"})
+	})
+	if code != 2 || (!strings.Contains(out, `"code": "WORKFLOW_INSPECTION_FAILED"`) && !strings.Contains(out, `"code": "WORKFLOW_WRITE_FAILED"`)) {
+		t.Fatalf("publish workflow failure=%q code=%d", out, code)
+	}
+}

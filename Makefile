@@ -16,7 +16,9 @@ build:
 	cp LICENSE companion/THIRD_PARTY_NOTICES bin/
 
 check:
-	go test -race -cover ./...
+	cover=$$(mktemp) && trap 'rm -f "$$cover"' EXIT && \
+	  go test -race -coverpkg=./... -coverprofile="$$cover" ./... && \
+	  $(PYTHON) scripts/coverage_gate.py "$$cover"
 	$(GOLANGCI_LINT) run ./...
 	go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 	# The workflow `poolboy publish` writes is shipped as Go source, so lint the
@@ -26,6 +28,7 @@ check:
 	  && go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 $$tmp/.github/workflows/poolboy-docs.yml \
 	  && rm -rf $$tmp
 	$(PYTHON) tests/test_validate_pr.py
+	$(PYTHON) tests/test_coverage_gate.py
 	node scripts/check-command-docs.mjs
 	node scripts/generate-help-snapshot.mjs --self-test
 	pnpm --dir companion typecheck
@@ -39,7 +42,7 @@ fmt:
 	pnpm --dir companion format
 
 hooks:
-	pnpm --dir companion exec lefthook install
+	./companion/node_modules/.bin/lefthook install
 
 site: build
 	./bin/poolboy build

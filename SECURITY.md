@@ -6,7 +6,7 @@ This response pattern follows the pinned Helicopter policy source (`57db0a75`), 
 
 Do not open a public issue for a suspected vulnerability, exposed credential, malicious dependency, compromised automation identity, or workflow/runner compromise.
 
-Use the repository's GitHub **Security** tab to report privately through GitHub private vulnerability reporting or a draft security advisory when that option is available. If GitHub does not offer a private report button, open a public issue only to request a maintainer-owned private channel; do not include vulnerability details there.
+Use the repository's [private vulnerability reporting form](https://github.com/grosspoetrysystems/poolboy/security/advisories/new). GitHub Issues are disabled; never use a public pull request to request a private reporting channel or disclose vulnerability details.
 
 Include what you can safely provide:
 

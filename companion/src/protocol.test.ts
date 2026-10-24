@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   exitCode,
+  internalFailure,
   MAX_REQUEST_BYTES,
   parseRequest,
   responseFromResult,
@@ -81,6 +82,54 @@ describe("renderer protocol", () => {
     });
     expect(JSON.stringify(response)).not.toContain("partial output");
     expect(exitCode(response)).toBe(1);
+  });
+
+  it("transforms renderer errors without leaking partial output", () => {
+    const response = responseFromResult({
+      errors: [
+        {
+          code: "RENDER_ERROR",
+          column: 1,
+          line: 1,
+          message: "render failed",
+        },
+      ],
+      output: "partial output",
+      warnings: [],
+    });
+
+    expect(response).toEqual({
+      errors: [
+        {
+          code: "RENDER_ERROR",
+          column: 1,
+          line: 1,
+          message: "render failed",
+        },
+      ],
+      kind: "template",
+      ok: false,
+      warnings: [],
+    });
+    expect(exitCode(response)).toBe(1);
+  });
+
+  it("rejects JSON primitives and maps internal failures to protocol errors", () => {
+    expect(parseRequest("null")).toMatchObject({
+      ok: false,
+      response: {
+        code: "INVALID_REQUEST",
+        kind: "protocol",
+      },
+    });
+
+    const failure = internalFailure();
+    expect(failure).toMatchObject({
+      code: "INTERNAL",
+      kind: "protocol",
+      ok: false,
+    });
+    expect(exitCode(failure)).toBe(2);
   });
 
   it("rejects malformed UTF-8 rather than rendering replacement characters", () => {

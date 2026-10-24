@@ -203,7 +203,7 @@ func TestList(t *testing.T) {
 }
 
 func TestStringStrings(t *testing.T) {
-	fm := map[string]any{"s": "v", "l": []string{"a", "b"}, "scalar": "solo"}
+	fm := map[string]any{"s": "v", "l": []string{"a", "b"}, "scalar": "solo", "empty": "", "mixed": []any{"x", 1, "y"}}
 	if String(fm, "s") != "v" || String(fm, "missing") != "" || String(fm, "l") != "" {
 		t.Errorf("String wrong")
 	}
@@ -213,8 +213,14 @@ func TestStringStrings(t *testing.T) {
 	if got := Strings(fm, "scalar"); !reflect.DeepEqual(got, []string{"solo"}) {
 		t.Errorf("Strings(scalar) = %#v, want [solo]", got)
 	}
-	if Strings(fm, "missing") != nil {
-		t.Errorf("Strings(missing) should be nil")
+	if Strings(fm, "missing") != nil || Strings(fm, "empty") != nil {
+		t.Errorf("Strings(missing/empty) should be nil")
+	}
+	if got := Strings(fm, "mixed"); !reflect.DeepEqual(got, []string{"x", "y"}) {
+		t.Errorf("Strings(mixed) = %#v, want [x y]", got)
+	}
+	if Strings(map[string]any{"number": 1}, "number") != nil {
+		t.Errorf("Strings(non-string) should be nil")
 	}
 }
 
@@ -356,5 +362,93 @@ func TestTablesNone(t *testing.T) {
 	}
 	if got := Tables("| a | b |\nnot a delimiter row\n"); len(got) != 0 {
 		t.Errorf("a pipe line without a delimiter row is not a table, got %+v", got)
+	}
+}
+
+// fieldSet collapses issues to their fields for order-independent comparison.
+func fieldSet(issues []Issue) map[string]bool {
+	s := map[string]bool{}
+	for _, i := range issues {
+		s[i.Field] = true
+	}
+	return s
+}
+
+func TestValidateOKF(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		path   string
+		doc    string
+		fields []string // expected error fields; empty means no issues
+	}{
+		{"ordinary no frontmatter", "/note.md", "body only\n", []string{"type"}},
+		{"reserved index no frontmatter", "/index.md", "welcome\n", nil},
+		{"reserved log no frontmatter", "/log.md", "entries\n", nil},
+		{"invalid yaml", "/note.md", "---\ntype: [unclosed\n---\nbody\n", []string{"frontmatter"}},
+		{"ordinary empty type", "/note.md", "---\ntype: \"\"\n---\nbody\n", []string{"type"}},
+		{"ordinary valid type", "/note.md", "---\ntype: note\n---\nbody\n", nil},
+		{"status invalid", "/note.md", "---\ntype: note\nstatus: shipped\n---\nb\n", []string{"status"}},
+		{"status draft ok", "/note.md", "---\ntype: note\nstatus: draft\n---\nb\n", nil},
+		{"status stable ok", "/note.md", "---\ntype: note\nstatus: stable\n---\nb\n", nil},
+		{"status deprecated ok", "/note.md", "---\ntype: note\nstatus: deprecated\n---\nb\n", nil},
+		{"index extra key", "/index.md", "---\nokf_version: \"0.2\"\ntitle: hi\n---\n", []string{"title"}},
+		{"index empty version", "/index.md", "---\nokf_version: \"\"\n---\n", []string{"okf_version"}},
+		{"index valid version", "/index.md", "---\nokf_version: \"0.2\"\n---\n", nil},
+		{"log with frontmatter", "/log.md", "---\ntype: note\n---\nb\n", []string{"frontmatter"}},
+		{"sources not list", "/note.md", "---\ntype: note\nsources: nope\n---\nb\n", []string{"sources"}},
+		{"source not mapping", "/note.md", "---\ntype: note\nsources:\n  - plain\n  - resource: /a.md\n---\nb\n", []string{"sources[0]"}},
+		{"source empty resource", "/note.md", "---\ntype: note\nsources:\n  - resource: \"\"\n---\nb\n", []string{"sources[0].resource"}},
+		{"source valid", "/note.md", "---\ntype: note\nsources:\n  - resource: /a.md\n---\nb\n", nil},
+		{"generated not mapping", "/note.md", "---\ntype: note\ngenerated: nope\n---\nb\n", []string{"generated"}},
+		{"generated missing by+at", "/note.md", "---\ntype: note\ngenerated:\n  note: x\n---\nb\n", []string{"generated.by", "generated.at"}},
+		{"generated bad at", "/note.md", "---\ntype: note\ngenerated:\n  by: tool\n  at: not-a-time\n---\nb\n", []string{"generated.at"}},
+		{"generated valid", "/note.md", "---\ntype: note\ngenerated:\n  by: tool\n  at: \"2024-01-02T03:04:05Z\"\n---\nb\n", nil},
+		{"verified list valid", "/note.md", "---\ntype: note\nverified:\n  - by: p\n    at: \"2024-01-02T03:04:05+02:00\"\n---\nb\n", nil},
+		{"verified list item not mapping", "/note.md", "---\ntype: note\nverified:\n  - plain\n  - by: p\n    at: \"2024-01-02T03:04:05Z\"\n---\nb\n", []string{"verified[0]"}},
+		{"verified single mapping", "/note.md", "---\ntype: note\nverified:\n  by: p\n  at: \"2024-01-02T03:04:05Z\"\n---\nb\n", nil},
+	} {
+		got := fieldSet(ValidateOKF(tc.path, tc.doc))
+		if len(got) != len(tc.fields) {
+			t.Errorf("%s: fields = %v, want %v", tc.name, got, tc.fields)
+			continue
+		}
+		for _, f := range tc.fields {
+			if !got[f] {
+				t.Errorf("%s: missing expected field %q in %v", tc.name, f, got)
+			}
+		}
+	}
+}
+
+func TestOffsetTimestamp(t *testing.T) {
+	for in, want := range map[string]bool{
+		"":                          false,
+		"not-a-time":                false,
+		"2024-01-02T03:04:05Z":      true,
+		"2024-01-02T03:04:05+02:00": true,
+		"2024-01-02T03:04:05-05:00": true,
+		"2024-01-02 03:04:05":       false,
+	} {
+		if got := offsetTimestamp(in); got != want {
+			t.Errorf("offsetTimestamp(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestFrontmatterBoundariesAndRootKinds(t *testing.T) {
+	if fm, body, err := Frontmatter("---\ntype: note\n---not-a-fence\nbody\n"); err != nil || len(fm) != 0 || body != "---\ntype: note\n---not-a-fence\nbody\n" {
+		t.Errorf("non-fence close: fm=%v body=%q err=%v", fm, body, err)
+	}
+	if fm, body, err := Frontmatter("---\ntype: note\n---"); err != nil || String(fm, "type") != "note" || body != "" {
+		t.Errorf("closing fence without newline: fm=%v body=%q err=%v", fm, body, err)
+	}
+	if fm, body, err := Frontmatter("---\n\n---\nbody\n"); err != nil || len(fm) != 0 || body != "body\n" {
+		t.Errorf("empty mapping: fm=%v body=%q err=%v", fm, body, err)
+	}
+	for _, root := range []string{"plain", "- one"} {
+		_, _, err := Frontmatter("---\n" + root + "\n---\n")
+		if err == nil || !strings.Contains(err.Error(), "frontmatter must be a YAML mapping") {
+			t.Errorf("root %q error = %v, want mapping error", root, err)
+		}
 	}
 }

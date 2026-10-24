@@ -34,6 +34,22 @@ make verify   # check, build the site, verify generated files, and smoke-test th
 
 Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and command documentation. The commit-msg hook checks Conventional Commit subjects and requires a `Signed-off-by` trailer. Pre-push runs `make verify`. CI runs the same verification on Linux; Windows CI compiles packages and test binaries and smoke-tests the CLI. A separate metadata-only workflow validates the pull-request contract, including drafts.
 
+## Test coverage
+
+The [coverage gates concept](docs/coverage.md) defines the enforced contract:
+Go uses one aggregate statement profile across `./...` at 90%, while the
+companion requires 90% branches, functions, lines, and statements. The
+companion keeps its existing `src/bin/**` exclusion; the CLI smoke test is
+separate.
+
+Use `python3 tests/test_coverage_gate.py` for focused checker feedback,
+`make check` for the full coverage gate, and `make verify` for the pre-push/CI
+path that also builds and smoke-tests the CLI. Add meaningful
+consumer-visible, boundary, and error tests; do not lower thresholds, add
+exclusions, or write tests solely to inflate coverage. See the concept for
+exact integer gate behavior, hook recovery, and the distinction between an
+observed baseline and the 90% floor.
+
 ## Human accountability
 
 Every pull request needs an accountable human. By submitting one you confirm that you reviewed the complete diff, understand and can explain the change, personally verified the evidence it reports, can revise it under review, and have the right to submit it under Poolboy's license. AI assistance does not transfer those responsibilities to a model, provider, agent, bot, or tool.
@@ -59,7 +75,9 @@ Open unfinished work as a draft. Before requesting review, complete `.github/pul
 - a named accountable human with the agent provenance above when applicable; and
 - the human attestations, including that this is not an unattended agent submission.
 
-Discuss large features, migrations, dependencies, security-sensitive work, and architectural changes in an issue before implementation. A ready pull request must be focused enough to review as one change, pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval. The sole maintainer's own pull requests merge on passing required CI without a second approval, because GitHub does not allow a pull-request author to approve their own work; see `MAINTAINERS.md`.
+Poolboy tracks work in Linear, not GitHub Issues; GitHub Issues are disabled. Coordinate large features, migrations, dependencies, and architectural changes with `@thekidnamedkd` before implementation; maintainers track agreed work in Linear. Report security-sensitive concerns privately through [SECURITY.md](SECURITY.md), not a public pull request.
+
+A ready pull request must be focused enough to review as one change, pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval. The sole maintainer's own pull requests merge on passing required CI without a second approval, because GitHub does not allow a pull-request author to approve their own work; see `MAINTAINERS.md`.
 
 The sole-maintainer metadata exemption is configured through the `HELICOPTER_MODE` and `HELICOPTER_SOLO_MAINTAINER_ID` repository variables, not a hardcoded bypass. Unset or invalid configuration fails closed to the full contributor contract, and the exemption covers only the body template, never required CI.
 
