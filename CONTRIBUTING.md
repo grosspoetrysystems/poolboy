@@ -1,8 +1,8 @@
 # Contributing to Poolboy
 
-Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) (revision `57db0a75`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy keeps Helicopter's canonical accountability, verification, risk, and AI/automation contract and adds its own acceptance-criteria and evidence requirements. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
+Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.1.0 (exact commit `cf83ae51567cd0801484cf6ead72cf599b58423a`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy adapts Helicopter's Change, Verification, Risk, authorization, review-ramp, and queue controls to its Linear-only intake and existing protected checks. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
 
-Poolboy welcomes human-authored, AI-assisted, and agent-authored work when it is useful, reviewable, and owned by an accountable human.
+Poolboy welcomes useful, reviewable work however it was produced.
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ make verify
 
 ```sh
 make fmt      # apply Go and TypeScript formatting
-make check    # tests, lint, types, coverage, dead-code, and the PR contract validator tests
+make check    # tests, lint, types, coverage, dead-code, and the PR contract/queue tests
 make verify   # check, build the site, verify generated files, and smoke-test the CLI
 ```
 
@@ -50,36 +50,39 @@ exclusions, or write tests solely to inflate coverage. See the concept for
 exact integer gate behavior, hook recovery, and the distinction between an
 observed baseline and the 90% floor.
 
-## Human accountability
+## Contributor responsibilities
 
-Every pull request needs an accountable human. By submitting one you confirm that you reviewed the complete diff, understand and can explain the change, personally verified the evidence it reports, can revise it under review, and have the right to submit it under Poolboy's license. AI assistance does not transfer those responsibilities to a model, provider, agent, bot, or tool.
+Poolboy expects every contributor to read the complete diff, understand and explain the change, verify the evidence they report, and revise the work in response to review. These responsibilities stay with the person submitting the contribution; AI tools, providers, agents, and bots do not take them over.
 
 ## AI and agent use
 
-AI assistance is welcome; unattended contributor submissions are not. Trivial autocomplete needs no disclosure; disclose AI use that materially shaped the implementation, tests, issue, or pull request. Choose exactly one origin in the template: human-authored, AI-assisted, agent-authored, or authorized automation.
+AI assistance is allowed, but unattended contributor submissions are not. Contributors do not need to declare how a change was produced by default. If a tool helped, the commit trailer it adds is welcome, for example the Linux kernel's `Assisted-by: AGENT_NAME:MODEL_VERSION`. Only a person certifies the DCO; an agent may mechanically add that person's sign-off only with explicit authorization. An agent must not impersonate a person, approve or merge its own contribution, bypass required checks or reviews, weaken policy or security controls to make its work pass, use repository or deployment secrets in untrusted contribution CI, or answer substantive review questions as though it were the responsible human.
 
-Materially agent-authored and authorized-automation pull requests record the agent identity, provider and exact model, an immutable run ID or sanitized trace, the protected base SHA, and the agent's capabilities as the exact JSON block in the template (`repository_write`, `command_execution`, `network`, `secrets`, `approve`, `merge`). Disclose MCP tools and servers separately from that JSON block rather than altering it. Do not publish raw transcripts that may contain secrets or restricted material. Evidence must report observed behavior, not merely that an agent or generated test claims success.
-
-An agent must not impersonate a human, approve or merge its own work, bypass checks or reviews, weaken project policy to make its pull request pass, use repository or deployment secrets in untrusted contribution CI, or answer substantive review questions as the accountable human's judgment. Pull-request changes to this policy or its validator do not govern that same pull request; intake validation runs the version from the protected base branch.
-
-Dependabot is authorized repository automation. Its generated pull requests are exempt from the human-authored body template, but not from required CI or maintainer review before merge. It is Poolboy's only pre-authorized unattended automation; Poolboy intentionally has no broad automation-delegation workflow or external-contributor pull-request cap.
+Never publish raw transcripts containing secrets, personal data, or restricted source material.
 
 ## Pull request contract
 
-Open unfinished work as a draft. Before requesting review, complete `.github/pull_request_template.md` with:
+Open unfinished work as a draft. Before requesting review, complete `.github/pull_request_template.md`. HTML comments do not count as required headings or section content:
 
-- `Outcome` and `Issue or spec`: state the user-visible result and link the issue/specification, or use `inline` for a small change;
-- the canonical `Human accountability`, `Verification`, `Risk`, and `AI / automation` sections;
-- `Acceptance criteria` and matching `Evidence`, with the exact command or scenario and observed result for every criterion;
-- `Scope` plus the Poolboy failure mode, rollback/mitigation, and reviewer-focus fields inside canonical `Risk`, including explicit non-goals;
-- a named accountable human with the agent provenance above when applicable; and
-- the human attestations, including that this is not an unattended agent submission.
+- `Change` states the problem, smallest solution, and user-visible effect. Include a Linear work item URL or write `inline`; the reference alone does not replace the change description. GitHub Issues are disabled.
+- `Verification` lists the commands or steps run and what they showed, or explains why verification does not apply.
+- `Risk` checks every area the change touches and records details and mitigations.
+- `Reviewer focus` is optional and names uncertain behavior or assumptions.
 
-Poolboy tracks work in Linear, not GitHub Issues; GitHub Issues are disabled. Coordinate large features, migrations, dependencies, and architectural changes with `@thekidnamedkd` before implementation; maintainers track agreed work in Linear. Report security-sensitive concerns privately through [SECURITY.md](SECURITY.md), not a public pull request.
+The contract has no per-pull-request origin, capability, provenance, or human-attestation form. A human's DCO sign-off remains the legal contribution mechanism on every commit, and human review remains required even when metadata admission passes.
+
+Each pull request should solve one coherent problem. Maintainers may ask for unrelated, generated, mechanical, or otherwise unreviewable changes to be split. Contributors without write access may have at most two non-draft pull requests open at once unless a maintainer grants an exception.
+
+Poolboy tracks work in Linear, not GitHub Issues. Coordinate large features, migrations, dependencies, and architectural changes with `@thekidnamedkd` before implementation; maintainers track agreed work in Linear. Report security-sensitive concerns privately through [SECURITY.md](SECURITY.md), not a public pull request.
 
 A ready pull request must be focused enough to review as one change, pass required CI on its latest commit, resolve every review conversation, and receive `@thekidnamedkd`'s approval. The sole maintainer's own pull requests merge on passing required CI without a second approval, because GitHub does not allow a pull-request author to approve their own work; see `MAINTAINERS.md`.
 
-The sole-maintainer metadata exemption is configured through the `HELICOPTER_MODE` and `HELICOPTER_SOLO_MAINTAINER_ID` repository variables, not a hardcoded bypass. Unset or invalid configuration fails closed to the full contributor contract, and the exemption covers only the body template, never required CI.
+The sole-maintainer metadata exemption is configured through the `HELICOPTER_MODE` and `HELICOPTER_SOLO_MAINTAINER_ID` repository variables, not a hardcoded bypass. Unset or invalid configuration fails closed to the full contributor contract, and the exemption covers only the body template, never required CI, DCO, review conversations, or security controls.
+
+## Review ramp
+
+When the optional review ramp is activated, admission is followed by one advisory first review only when `HELICOPTER_REVIEW_KEY` exists; missing keys skip that step without a fallback. The queue then labels whose turn it is, nudges after `HELICOPTER_QUEUE_NUDGE_HOURS` (default 168), and marks no-capacity after `HELICOPTER_QUEUE_PAUSE_HOURS` (default 504). Drafts are not queued, and the queue never checks out or executes contributor code.
+Dependabot is authorized repository automation. The trusted workflow defaults `HELICOPTER_AUTOMATION_LOGINS` to `dependabot[bot]`; other bot logins require explicit maintainer configuration. Admission requires Bot author and sender types, positive equal immutable IDs, and equal receiving, base, and head repository IDs. Dependabot updates must target `main`, use a supported dependency branch, and use a dependency-bump title; a human-triggered branch update remains refused. Authorized updates still require all required CI, DCO, and maintainer review before merge.
 
 ## Commits and sign-off
 
@@ -91,7 +94,7 @@ Poolboy requires the [Developer Certificate of Origin 1.1](https://developercert
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
-The accountable human makes the certification; an agent may mechanically add their trailer only with explicit authorization. The external DCO GitHub App (app `1861`) validates identity and certification, and its `DCO` status is required by branch protection. Local commitlint also requires the trailer; nothing here exempts a contribution from required CI.
+The accountable human makes each DCO certification; an agent may mechanically add their trailer only with explicit authorization. This deliberate Poolboy exception retains human certification without requiring manual command entry. The pull request form does not repeat the DCO certification or replace the external DCO GitHub App (app `1861`), whose `DCO` status is required by branch protection. Local commitlint also requires the trailer; nothing here exempts a contribution from required CI.
 
 ## Review
 

@@ -1,8 +1,8 @@
 Helicopter-derived governance material
 
-Poolboy includes governance material derived from Helicopter at revision
-57db0a75bd2521d9f0a728932f0ed05a31cc3ec9, including the contribution validator,
-its tests, pull-request contract structure, and associated policy material.
+Poolboy includes governance material derived from Helicopter v0.1.0 at exact
+commit `cf83ae51567cd0801484cf6ead72cf599b58423a`, including the contribution
+validator, its tests, pull-request contract structure, and associated policy material.
 Those portions retain the following MIT license and attribution:
 
 MIT License
@@ -30,3 +30,10 @@ SOFTWARE.
 Poolboy remains licensed as described in LICENSE. The upstream notice above is
 retained for Helicopter-derived material. Poolboy-specific additions and
 deliberate differences are described in CONTRIBUTING.md and MAINTAINERS.md.
+Poolboy's Linear-only intake makes Helicopter's GitHub-Issue-linked queue
+supersession behavior non-applicable; the existing whose-turn queue remains.
+No hosted activation has occurred in Poolboy, and Helicopter's hosted
+configurator, self-development, and release tooling are not shipped here.
+Poolboy also retains its explicitly authorized mechanical DCO-trailer exception:
+the human certifies the contribution; an agent may insert that human's trailer
+only with explicit authorization, rather than Helicopter's blanket prohibition.

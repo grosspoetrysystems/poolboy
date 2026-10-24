@@ -28,6 +28,7 @@ check:
 	  && go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 $$tmp/.github/workflows/poolboy-docs.yml \
 	  && rm -rf $$tmp
 	$(PYTHON) tests/test_validate_pr.py
+	$(PYTHON) tests/test_ramp.py
 	$(PYTHON) tests/test_coverage_gate.py
 	node scripts/check-command-docs.mjs
 	node scripts/generate-help-snapshot.mjs --self-test

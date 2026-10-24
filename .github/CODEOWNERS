@@ -6,6 +6,9 @@
 /.github/workflows/ @thekidnamedkd
 /.github/CODEOWNERS @thekidnamedkd
 /scripts/validate_pr.py @thekidnamedkd
+/scripts/pr_queue.py @thekidnamedkd
+/tests/test_ramp.py @thekidnamedkd
+/.pr_agent.toml @thekidnamedkd
 /tests/test_validate_pr.py @thekidnamedkd
 /CONTRIBUTING.md @thekidnamedkd
 /MAINTAINERS.md @thekidnamedkd
