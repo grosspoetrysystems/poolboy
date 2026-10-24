@@ -1,6 +1,6 @@
 # Poolboy Code of Conduct
 
-This conduct policy follows the pinned Helicopter policy source (`57db0a75`), adapted to Poolboy's repository and community.
+This conduct policy follows Helicopter v0.1.0 at exact commit (`cf83ae51567cd0801484cf6ead72cf599b58423a`), adapted to Poolboy's repository and community.
 
 ## Standard
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -17,90 +18,29 @@ from validate_pr import validate_body
 
 SCRIPT = ROOT / "scripts" / "validate_pr.py"
 
-VALID_HUMAN = """## Outcome
 
-Users receive a deterministic result.
+VALID = """## Change
 
-## Issue or spec
+Implement the requested behavior with the smallest reviewable change.
 
-inline
-
-## Acceptance criteria
-
-- AC-1: The validator reports the contribution metadata.
-
-## Evidence
-
-- AC-1 — command/scenario: `python3 tests/test_validate_pr.py`; observed: all assertions pass
-
-## Scope
-
-- In: pull-request contribution metadata
-- Out: deployment and branch protection settings
-
-## Human accountability
-
-Accountable contributor: @alice
-
-- [x] I am or represent the accountable human named above.
-- [x] I reviewed the complete diff.
-- [x] I understand and can explain the change.
-- [x] I verified the evidence below.
-- [x] I have the right to submit this contribution.
-- [x] This is not an unattended agent submission; I remain responsible for the contribution.
+Linear: inline
 
 ## Verification
 
-Ran the validator and inspected the resulting output.
+Ran the validator test module and inspected its output.
 
 ## Risk
 
-- Level: low
-- Failure mode: a valid description is rejected
-- Rollback/mitigation: revert the validator change
-- Reviewer focus: section parsing and trust checks
+- [x] GitHub Actions, build, release, policy, or agent instructions
 
-## AI / automation
+Details and mitigations:
 
-- [x] Human-authored
-- [ ] AI-assisted
-- [ ] Agent-authored
-- [ ] Authorized automation
-
-Agent identity: `none`
-Provider/model: `none`
-Run ID: `none`
-Base SHA: `none`
-MCP: `none`
-
-Capabilities:
-
-```json
-{
-  "repository_write": false,
-  "command_execution": false,
-  "network": "none",
-  "secrets": "none",
-  "approve": false,
-  "merge": false
-}
-```
+The trusted workflow still checks out only the protected base.
 """
 
 
 def codes(body: str) -> set[str]:
     return {refusal.code for refusal in validate_body(body)}
-
-
-def valid_agent() -> str:
-    return (
-        VALID_HUMAN.replace("- [x] Human-authored", "- [ ] Human-authored")
-        .replace("- [ ] Agent-authored", "- [x] Agent-authored")
-        .replace("Agent identity: `none`", "Agent identity: `poolboy-agent`")
-        .replace("Provider/model: `none`", "Provider/model: `anthropic/claude-opus-4-8`")
-        .replace("Run ID: `none`", "Run ID: `run-123`")
-        .replace("Base SHA: `none`", "Base SHA: `" + "a" * 40 + "`")
-    )
 
 
 def run_cli(event: Any, *arguments: str) -> subprocess.CompletedProcess[str]:
@@ -131,13 +71,14 @@ def owner_event(
     base_repository_id: int = 100,
     head_repository_id: int = 100,
     author_association: str = "OWNER",
+    body: str = "",
 ) -> dict[str, Any]:
     return {
         "repository": {"id": event_repository_id},
         "sender": {"id": sender_id, "type": sender_type},
         "pull_request": {
             "author_association": author_association,
-            "body": "",
+            "body": body,
             "user": {"id": author_id, "type": author_type},
             "base": {
                 "ref": "main",
@@ -155,18 +96,10 @@ def dependabot_event(**overrides: Any) -> dict[str, Any]:
     event: dict[str, Any] = {
         "action": "synchronize",
         "repository": {"id": 100},
-        "sender": {
-            "id": 49699333,
-            "login": "dependabot[bot]",
-            "type": "Bot",
-        },
+        "sender": {"id": 49699333, "login": "dependabot[bot]", "type": "Bot"},
         "pull_request": {
             "title": "chore(deps): bump actions/checkout from 4.1.0 to 4.2.0",
-            "user": {
-                "id": 49699333,
-                "login": "dependabot[bot]",
-                "type": "Bot",
-            },
+            "user": {"id": 49699333, "login": "dependabot[bot]", "type": "Bot"},
             "base": {"ref": "main", "repo": {"id": 100}},
             "head": {
                 "ref": "dependabot/github_actions/actions/checkout-4.2.0",
@@ -182,197 +115,146 @@ def dependabot_event(**overrides: Any) -> dict[str, Any]:
 
 
 class ValidateBodyTests(unittest.TestCase):
-    def test_valid_human_submission_passes(self) -> None:
-        self.assertEqual(codes(VALID_HUMAN), set())
+    def test_minimal_submission_passes(self) -> None:
+        self.assertEqual(codes(VALID), set())
 
-    def test_valid_agent_submission_passes(self) -> None:
-        self.assertEqual(codes(valid_agent()), set())
-
-    def test_unconfirmed_attestation_is_refused(self) -> None:
-        body = VALID_HUMAN.replace(
-            "- [x] I verified the evidence below.",
-            "- [ ] I verified the evidence below.",
+    def test_linear_reference_cannot_replace_change_description(self) -> None:
+        body = (
+            "## Change\nLinear: inline\n"
+            "## Verification\nLocal CLI smoke.\n"
+            "## Risk\n- [x] None of the above\n"
         )
-        self.assertIn("REFUSE_ACCOUNTABILITY_UNCONFIRMED", codes(body))
+        self.assertEqual(codes(body), {"REFUSE_CHANGE_EMPTY"})
 
-    def test_incomplete_ai_provenance_is_refused(self) -> None:
-        body = valid_agent().replace(
-            "Agent identity: `poolboy-agent`", "Agent identity: `none`"
-        ).replace(
-            "Provider/model: `anthropic/claude-opus-4-8`", "Provider/model: `none`"
-        ).replace("Run ID: `run-123`", "Run ID: `none`").replace(
-            "Base SHA: `" + "a" * 40 + "`", "Base SHA: `none`"
+    def test_real_template_requires_completion(self) -> None:
+        body = (ROOT / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+        self.assertEqual(
+            codes(body),
+            {"REFUSE_CHANGE_EMPTY", "REFUSE_VERIFICATION_EMPTY", "REFUSE_RISK_UNCHECKED"},
         )
-        refusal_codes = codes(body)
-        self.assertIn("REFUSE_AGENT_IDENTITY_UNKNOWN", refusal_codes)
-        self.assertIn("REFUSE_PROVIDER_MODEL_UNKNOWN", refusal_codes)
-        self.assertIn("REFUSE_PROVENANCE_INCOMPLETE", refusal_codes)
-
-    def test_invalid_capabilities_are_refused(self) -> None:
-        body = valid_agent().replace('"network": "none"', '"network": true')
-        self.assertIn("REFUSE_CAPABILITIES_INVALID", codes(body))
-
-    def test_unsafe_or_incomplete_agent_declarations_are_refused(self) -> None:
-        for original, replacement, refusal in (
-            ('"secrets": "none"', '"secrets": "write"', "REFUSE_SECRET_ACCESS"),
-            ('"approve": false', '"approve": true', "REFUSE_AGENT_SELF_APPROVAL"),
-            ('"merge": false', '"merge": true', "REFUSE_AGENT_SELF_APPROVAL"),
-            ("- [ ] AI-assisted", "- [x] AI-assisted", "REFUSE_AGENT_ORIGIN_AMBIGUOUS"),
-            ("- [x] Agent-authored", "- [ ] Agent-authored", "REFUSE_AGENT_ORIGIN_AMBIGUOUS"),
-            ("MCP: `none`", "", "REFUSE_MCP_DISCLOSURE_MISSING"),
+        for section, content in (
+            ("Change", "Reject a Linear reference without a change description.\nLinear: inline"),
+            ("Verification", "Ran the validator CLI; a reference-only Change was refused."),
         ):
-            with self.subTest(replacement=replacement, refusal=refusal):
-                self.assertIn(refusal, codes(valid_agent().replace(original, replacement)))
+            body = re.sub(
+                rf"(?ms)^## {section}[ \t]*\n.*?(?=^## |\Z)",
+                lambda match: f"## {section}\n\n{content}\n\n",
+                body,
+            )
+        body = body.replace("- [ ]", "- [x]", 1)
+        self.assertEqual(codes(body), set())
 
-    def test_acceptance_criteria_need_unique_ids_and_covered_evidence(self) -> None:
-        duplicate = VALID_HUMAN.replace(
-            "- AC-1: The validator reports the contribution metadata.",
-            "- AC-1: The validator reports the contribution metadata.\n- AC-1: The output is deterministic.",
+    def test_each_missing_section_is_named(self) -> None:
+        for section in ("Change", "Verification", "Risk"):
+            with self.subTest(section=section):
+                body = VALID.replace(f"## {section}", "## Other")
+                refusals = validate_body(body)
+                self.assertIn("REFUSE_TEMPLATE_INCOMPLETE", {r.code for r in refusals})
+                self.assertIn(f"## {section}", " ".join(r.message for r in refusals))
+
+    def test_empty_change_and_verification_are_refused(self) -> None:
+        body = "## Change\n\n## Verification\n\n## Risk\n- [x] None of the above\n"
+        self.assertEqual(
+            codes(body),
+            {"REFUSE_CHANGE_EMPTY", "REFUSE_VERIFICATION_EMPTY"},
         )
-        self.assertIn("REFUSE_ACCEPTANCE_CRITERIA_INVALID", codes(duplicate))
 
-        missing = VALID_HUMAN.replace(
-            "- AC-1 — command/scenario: `python3 tests/test_validate_pr.py`; observed: all assertions pass\n",
-            "",
+    def test_risk_requires_a_checked_area(self) -> None:
+        self.assertIn("REFUSE_RISK_UNCHECKED", codes(VALID.replace("- [x]", "- [ ]")))
+
+
+    def test_comments_cannot_satisfy_required_sections(self) -> None:
+        body = (
+            "## Change\n<!-- hidden -->\n"
+            "## Verification\nLocal CLI smoke.\n"
+            "## Risk\n- [x] None of the above\n"
         )
-        self.assertIn("REFUSE_EVIDENCE_INCOMPLETE", codes(missing))
+        self.assertIn("REFUSE_CHANGE_EMPTY", codes(body))
 
-        orphan = VALID_HUMAN.replace("- AC-1 —", "- AC-2 —")
-        self.assertIn("REFUSE_EVIDENCE_INCOMPLETE", codes(orphan))
-
-        blank_command = VALID_HUMAN.replace(
-            "- AC-1 — command/scenario: `python3 tests/test_validate_pr.py`; observed: all assertions pass",
-            "- AC-1 — command/scenario: ; observed: all assertions pass",
-        )
-        self.assertIn("REFUSE_EVIDENCE_INCOMPLETE", codes(blank_command))
-
-    def test_incomplete_rows_are_not_silently_ignored(self) -> None:
-        incomplete = VALID_HUMAN.replace(
-            "- AC-1: The validator reports the contribution metadata.",
-            "- AC-1: The validator reports the contribution metadata.\n- AC-2:",
-        )
-        self.assertIn("REFUSE_ACCEPTANCE_CRITERIA_INVALID", codes(incomplete))
-        self.assertIn("REFUSE_EVIDENCE_INCOMPLETE", codes(incomplete))
-        orphan = VALID_HUMAN.replace("## Scope", "- AC-2 —\n\n## Scope")
-        self.assertIn("REFUSE_EVIDENCE_INCOMPLETE", codes(orphan))
-
-    def test_placeholders_are_refused(self) -> None:
-        body = VALID_HUMAN.replace("Users receive a deterministic result.", "<pending outcome>")
-        self.assertIn("REFUSE_PLACEHOLDER_UNRESOLVED", codes(body))
-        agent_placeholder = valid_agent().replace(
-            "Agent identity: `poolboy-agent`", "Agent identity: `<agent>`"
-        )
-        self.assertIn("REFUSE_PLACEHOLDER_UNRESOLVED", codes(agent_placeholder))
-
-    def test_html_comments_cannot_satisfy_contract(self) -> None:
-        body = VALID_HUMAN.replace(
-            "- AC-1: The validator reports the contribution metadata.",
-            "<!-- - AC-1: The validator reports the contribution metadata. -->",
-        )
-        self.assertIn("REFUSE_ACCEPTANCE_CRITERIA_INVALID", codes(body))
-        self.assertIn("REFUSE_EVIDENCE_INCOMPLETE", codes(body))
+    def test_comments_cannot_hide_required_headings(self) -> None:
+        for closing in ("-->", ""):
+            with self.subTest(closing=closing):
+                body = (
+                    "## Change\n<!--\n"
+                    "## Verification\nHidden steps.\n"
+                    "## Risk\n- [x] None of the above\n" + closing
+                )
+                self.assertEqual(
+                    codes(body),
+                    {"REFUSE_CHANGE_EMPTY", "REFUSE_TEMPLATE_INCOMPLETE"},
+                )
 
 
 class ValidateCliTests(unittest.TestCase):
-    def test_cli_accepts_valid_human_event(self) -> None:
-        result = run_cli({"pull_request": {"body": VALID_HUMAN}})
+    def test_cli_accepts_valid_event(self) -> None:
+        result = run_cli({"pull_request": {"body": VALID}})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Human review is still required", result.stdout)
 
-    def test_supported_modes_and_fail_closed_configuration(self) -> None:
-        solo = run_cli(
-            owner_event(), "--mode", "solo", "--solo-maintainer-id", "1"
-        )
-        self.assertEqual(solo.returncode, 0, solo.stdout + solo.stderr)
+    def test_contributor_valid_body_is_accepted_without_metadata_exemption(self) -> None:
+        result = run_cli(owner_event(body=VALID), "--mode", "contributor")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Contribution metadata accepted", result.stdout)
 
-        invalid_flag_id = run_cli(
-            owner_event(), "--mode", "solo", "--solo-maintainer-id", "01"
-        )
-        self.assertEqual(
-            invalid_flag_id.returncode, 1, invalid_flag_id.stdout + invalid_flag_id.stderr
-        )
-        self.assertIn("REFUSE_HUMAN_ACCOUNTABILITY_MISSING", invalid_flag_id.stdout)
-        team = run_cli(
-            owner_event(owner_type="Organization", owner_id=200, author_association="MEMBER"),
-            "--mode",
-            "team",
-        )
-        self.assertEqual(team.returncode, 0, team.stdout + team.stderr)
 
-        for arguments in (
-            ("--mode", "contributor", "--solo-maintainer-id", "1"),
-            ("--mode", "solo"),
-            ("--mode", "unsupported", "--solo-maintainer-id", "1"),
-        ):
-            with self.subTest(arguments=arguments):
-                refused = run_cli(owner_event(), *arguments)
-                self.assertEqual(refused.returncode, 1, refused.stdout + refused.stderr)
-                self.assertIn("REFUSE_HUMAN_ACCOUNTABILITY_MISSING", refused.stdout)
+    def test_solo_mode_requires_configured_maintainer(self) -> None:
+        owner = owner_event()
+        enabled = ("--mode", "solo", "--solo-maintainer-id", "1")
+        cases = {
+            "personal owner": (owner, 0),
+            "organization maintainer": (
+                owner_event(owner_id=200, owner_type="Organization"),
+                0,
+            ),
+            "wrong account": (owner_event(author_id=2), 1),
+            "wrong repository": (owner_event(event_repository_id=101), 1),
+            "different sender": (owner_event(sender_id=2), 1),
+            "boolean author ID": (owner_event(author_id=True), 1),
+            "boolean sender ID": (owner_event(sender_id=True), 1),
+            "bot sender": (owner_event(sender_type="Bot"), 1),
+            "fork": (owner_event(head_repository_id=101), 1),
+        }
+        for name, (event, expected_code) in cases.items():
+            with self.subTest(name=name):
+                result = run_cli(event, *enabled)
+                self.assertEqual(expected_code, result.returncode, result.stdout + result.stderr)
 
-    def test_sender_fork_and_bot_do_not_get_solo_exemption(self) -> None:
-        cases = (
-            owner_event(sender_id=2),
-            owner_event(head_repository_id=101),
-            owner_event(author_type="Bot"),
-            owner_event(sender_type="Bot"),
-        )
-        for event in cases:
-            with self.subTest(event=event):
+        for invalid_id in ("", "0", "-1", "+1", "01", " 1 ", "owner"):
+            with self.subTest(invalid_id=invalid_id):
+                rejected = run_cli(owner, "--mode", "solo", "--solo-maintainer-id", invalid_id)
+                self.assertEqual(rejected.returncode, 1, rejected.stdout + rejected.stderr)
+
+    def test_contributor_mode_exempts_nobody(self) -> None:
+        for mode in ("contributor", "invalid"):
+            with self.subTest(mode=mode):
+                result = run_cli(owner_event(), "--mode", mode, "--solo-maintainer-id", "1")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+
+    def test_team_mode_exempts_trusted_same_repository_authors(self) -> None:
+        for association in ("OWNER", "MEMBER", "COLLABORATOR"):
+            with self.subTest(association=association):
                 result = run_cli(
-                    event, "--mode", "solo", "--solo-maintainer-id", "1"
+                    owner_event(
+                        author_association=association,
+                        owner_id=200,
+                        owner_type="Organization",
+                    ),
+                    "--mode",
+                    "team",
                 )
-                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-                self.assertIn("REFUSE_HUMAN_ACCOUNTABILITY_MISSING", result.stdout)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_dependabot_authorization_is_narrow(self) -> None:
-        accepted = run_cli(dependabot_event())
-        self.assertEqual(accepted.returncode, 0, accepted.stdout + accepted.stderr)
-
-        refused_events = (
-            dependabot_event(
-                sender={"id": 49699333, "login": "alice", "type": "User"}
-            ),
-            dependabot_event(
-                sender={"id": 49699333, "login": "other[bot]", "type": "Bot"}
-            ),
-            dependabot_event(
-                sender={"id": 42, "login": "dependabot[bot]", "type": "Bot"}
-            ),
-            dependabot_event(
-                sender={"id": "49699333", "login": "dependabot[bot]", "type": "Bot"}
-            ),
-            dependabot_event(
-                pull_request={
-                    "user": {
-                        "id": "49699333",
-                        "login": "dependabot[bot]",
-                        "type": "Bot",
-                    }
-                }
-            ),
-            dependabot_event(
-                pull_request={"user": {"login": "dependabot[bot]", "type": "User"}}
-            ),
-            dependabot_event(
-                pull_request={
-                    "head": {
-                        "ref": "dependabot/github_actions/actions/checkout-4.2.0",
-                        "repo": {"id": 101},
-                    }
-                }
-            ),
-            dependabot_event(
-                pull_request={
-                    "head": {"ref": "bot/refresh", "repo": {"id": 100}}
-                }
-            ),
+        refused = (
+            owner_event(author_association="NONE", owner_id=200, owner_type="Organization"),
+            owner_event(author_association="MEMBER", head_repository_id=101),
+            owner_event(author_association="MEMBER", sender_id=2),
+            owner_event(author_association="MEMBER", author_type="Bot"),
         )
-        for event in refused_events:
-            with self.subTest(event=event):
-                result = run_cli(event)
-                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-                self.assertIn("REFUSE_DEPENDABOT_UNAUTHORIZED", result.stdout)
+        for event in refused:
+            result = run_cli(event, "--mode", "team")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
 
-    def test_cli_malformed_input_and_event_shapes_are_refused(self) -> None:
+    def test_malformed_input_and_event_shapes_are_refused(self) -> None:
         malformed_json = run_raw_cli("{")
         self.assertEqual(malformed_json.returncode, 2, malformed_json.stdout + malformed_json.stderr)
         self.assertIn("REFUSE_EVENT_INVALID", malformed_json.stdout)
@@ -382,6 +264,78 @@ class ValidateCliTests(unittest.TestCase):
                 result = run_raw_cli(raw_event)
                 self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
                 self.assertIn("REFUSE_EVENT_INVALID", result.stdout)
+
+
+class AuthorizedAutomationTests(unittest.TestCase):
+    def bot_event(self, login: str = "dependabot[bot]", head_repository_id: int = 100) -> dict[str, Any]:
+        event = dependabot_event()
+        event["pull_request"]["body"] = VALID
+        event["pull_request"]["user"]["login"] = login
+        event["sender"]["login"] = login
+        event["pull_request"]["head"]["repo"]["id"] = head_repository_id
+        return event
+
+    def test_listed_bot_on_a_repository_branch_is_admitted(self) -> None:
+        result = run_cli(self.bot_event(), "--automation-logins", "dependabot[bot], renovate[bot]")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("Authorized automation", result.stdout)
+
+    def test_listed_bot_on_a_fork_is_refused_by_authorization(self) -> None:
+        result = run_cli(self.bot_event(head_repository_id=101), "--automation-logins", "dependabot[bot]")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
+
+    def test_listed_login_requires_bot_identity_and_sender_match(self) -> None:
+        human_author = owner_event(
+            author_type="Bot",
+            sender_type="User",
+            author_association="NONE",
+            body=VALID,
+        )
+        human_author["pull_request"]["user"]["login"] = human_author["sender"]["login"] = "dependabot[bot]"
+        result = run_cli(human_author, "--automation-logins", "dependabot[bot]")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
+
+        human_sender = self.bot_event()
+        human_sender["sender"] = {"id": 65736142, "login": "thekidnamedkd", "type": "User"}
+        result = run_cli(human_sender, "--automation-logins", "dependabot[bot]")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
+
+    def test_listed_bot_requires_positive_ids_and_same_event_repositories(self) -> None:
+        cases = []
+        invalid_author = self.bot_event()
+        invalid_author["pull_request"]["user"]["id"] = 0
+        cases.append(invalid_author)
+        invalid_sender = self.bot_event()
+        invalid_sender["sender"]["id"] = True
+        cases.append(invalid_sender)
+        mismatched_ids = self.bot_event()
+        mismatched_ids["sender"]["id"] = 7
+        cases.append(mismatched_ids)
+        mismatched_event_repository = self.bot_event()
+        mismatched_event_repository["repository"]["id"] = 101
+        cases.append(mismatched_event_repository)
+        mismatched_base_repository = self.bot_event()
+        mismatched_base_repository["pull_request"]["base"]["repo"]["id"] = 101
+        cases.append(mismatched_base_repository)
+        for event in cases:
+            with self.subTest(event=event):
+                result = run_cli(event, "--automation-logins", "dependabot[bot]")
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
+
+
+    def test_dependabot_target_branch_and_title_are_preserved(self) -> None:
+        for event in (
+            dependabot_event(pull_request={"base": {"ref": "develop", "repo": {"id": 100}}}),
+            dependabot_event(pull_request={"head": {"ref": "bot/refresh", "repo": {"id": 100}}}),
+            dependabot_event(pull_request={"title": "refresh dependencies"}),
+        ):
+            result = run_cli(event, "--automation-logins", "dependabot[bot]")
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("REFUSE_DEPENDABOT_UNAUTHORIZED", result.stdout)
 
 
 if __name__ == "__main__":

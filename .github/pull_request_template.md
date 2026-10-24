@@ -1,78 +1,33 @@
-## Outcome
+## Change
 
-<!-- State the user-visible or operator-visible result in one sentence, and why it matters. -->
-<what changes for users or operators and why>
+<!-- Problem, smallest solution, and user-visible effect. -->
 
-## Issue or spec
+<problem, smallest solution, and user-visible effect>
 
-<!-- Link a Linear work item or an HTTPS specification URL, or use `inline` when the acceptance criteria are the complete spec. GitHub Issues are disabled. -->
-<Linear-or-specification-URL-or-inline>
-
-## Acceptance criteria
-
-<!-- Every criterion must be an observable behavior or invariant. IDs are unique and each has matching evidence below. -->
-- AC-1: <observable behavior or invariant>
-
-## Evidence
-
-<!-- Cover every AC-N with the exact command or scenario and its observed result. IDs are unique. -->
-- AC-1 — command/scenario: <exact command or user path>; observed: <result>
-
-## Scope
-
-- In: <behavior, files, or subsystems included>
-- Out: <explicit non-goals, or none>
-
-## Human accountability
-
-Accountable contributor: @YOUR_GITHUB_USERNAME
-
-- [ ] I am or represent the accountable human named above.
-- [ ] I reviewed the complete diff.
-- [ ] I understand and can explain the change.
-- [ ] I verified the evidence below.
-- [ ] I have the right to submit this contribution.
-- [ ] This is not an unattended agent submission; I remain responsible for the contribution.
+Linear: <Linear work item URL or `inline`>
 
 ## Verification
 
-<!-- Describe the checks a human actually reviewed and exercised. CI verifies independently. -->
-<commands and concise observed results>
+Commands and results:
+
+```text
+<commands and concise result; project CI verifies independently>
+```
 
 ## Risk
 
-<!-- Keep the canonical Risk heading; complete every field. -->
-- Level: <low|medium|high>
-- Failure mode: <what could go wrong>
-- Rollback/mitigation: <revert, migration, containment, or not applicable>
-- Reviewer focus: <specific assumptions, files, or questions>
+Check every area this pull request changes:
 
-## AI / automation
+- [ ] Dependencies or lockfiles
+- [ ] Authentication, authorization, secrets, or other security-sensitive code
+- [ ] GitHub Actions, build, release, policy, or agent instructions
+- [ ] Generated, vendored, minified, or binary content
+- [ ] None of the above
 
-Select exactly one origin:
+Details and mitigations:
 
-- [ ] Human-authored
-- [ ] AI-assisted
-- [ ] Agent-authored
-- [ ] Authorized automation
+<!-- Explain checked risks, or write "None". -->
 
-For **AI-assisted**, **Agent-authored**, or **Authorized automation** work, provide the identity and exact provider/model. For **Agent-authored** or **Authorized automation** work, provide immutable run provenance, base SHA, capabilities, and separate MCP disclosure. Human-authored work may leave the defaults below.
+## Reviewer focus
 
-Agent identity: `none`
-Provider/model: `none`
-Run ID: `none`
-Base SHA: `none`
-MCP: `none`
-
-Capabilities:
-
-```json
-{
-  "repository_write": false,
-  "command_execution": false,
-  "network": "none",
-  "secrets": "none",
-  "approve": false,
-  "merge": false
-}
-```
+<!-- Optional: uncertain behavior or areas needing particular human attention. Keep it short. -->

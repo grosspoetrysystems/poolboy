@@ -1,6 +1,6 @@
 # Poolboy security policy
 
-This response pattern follows the pinned Helicopter policy source (`57db0a75`), adapted to Poolboy's private GitHub reporting channel.
+This response pattern follows Helicopter v0.1.0 at exact commit (`cf83ae51567cd0801484cf6ead72cf599b58423a`), adapted to Poolboy's private GitHub reporting channel.
 
 ## Report privately
 

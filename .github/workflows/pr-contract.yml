@@ -2,7 +2,7 @@ name: PR Contract
 
 on:
   pull_request_target:
-    types: [opened, edited, reopened, synchronize, ready_for_review]
+    types: [opened, edited, reopened, synchronize, ready_for_review, converted_to_draft]
 
 permissions:
   contents: read
@@ -10,12 +10,15 @@ permissions:
 env:
   HELICOPTER_MODE: ${{ vars.HELICOPTER_MODE || 'contributor' }}
   HELICOPTER_SOLO_MAINTAINER_ID: ${{ vars.HELICOPTER_SOLO_MAINTAINER_ID || '0' }}
+  HELICOPTER_AUTOMATION_LOGINS: ${{ vars.HELICOPTER_AUTOMATION_LOGINS || 'dependabot[bot]' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
+  # Required status check: keep the `contract` job name bound to Poolboy's
+  # existing branch protection. It runs only protected default-branch code.
   contract:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -26,12 +29,70 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: scripts
           persist-credentials: false
+          fetch-depth: 1
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.14'
       - name: Validate pull request contract
+        env:
+          EVENT_PATH: ${{ github.event_path }}
         run: >-
-          python3 scripts/validate_pr.py "$GITHUB_EVENT_PATH"
+          python3 scripts/validate_pr.py "$EVENT_PATH"
           --mode "$HELICOPTER_MODE"
           --solo-maintainer-id "$HELICOPTER_SOLO_MAINTAINER_ID"
+          --automation-logins "$HELICOPTER_AUTOMATION_LOGINS"
+
+  # Optional advisory review. It reads the pull request through the API and
+  # never checks out or executes contributor code. The step is skipped when no
+  # review key is configured; there is no fallback or fake key.
+  first-review:
+    needs: contract
+    if: ${{ needs.contract.result == 'success' && github.event.sender.type != 'Bot' && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    env:
+      HAS_REVIEW_KEY: ${{ secrets.HELICOPTER_REVIEW_KEY != '' }}
+    steps:
+      - name: Review pull request
+        if: ${{ env.HAS_REVIEW_KEY == 'true' }}
+        uses: docker://pragent/pr-agent@sha256:31b9aac6ab067bada9a0c1b001d30ebc500ea4487e00a93c18c59b9ef5fa66db # 0.47.0-github_action
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OPENROUTER__KEY: ${{ secrets.HELICOPTER_REVIEW_KEY }}
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "false"
+          github_action_config.auto_improve: "false"
+
+  # Queue state. This job holds a write token and no secret. It uses only the
+  # protected default branch's queue script and GitHub API metadata.
+  queue:
+    needs: [contract, first-review]
+    if: ${{ always() && needs.contract.result == 'success' && (needs.first-review.result == 'success' || needs.first-review.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      checks: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out queue from protected default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-base
+          persist-credentials: false
+          sparse-checkout: scripts
+          fetch-depth: 1
+      - name: Update queue state
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HELICOPTER_QUEUE_NUDGE_HOURS: ${{ vars.HELICOPTER_QUEUE_NUDGE_HOURS }}
+          HELICOPTER_QUEUE_PAUSE_HOURS: ${{ vars.HELICOPTER_QUEUE_PAUSE_HOURS }}
+        run: python3 trusted-base/scripts/pr_queue.py --pr "$PR_NUMBER"

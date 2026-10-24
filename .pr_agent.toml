@@ -1,0 +1,38 @@
+# Optional first review: PR-Agent on cheap inference.
+# This file is read from the protected default branch; contributor changes
+# cannot alter the review rules for their own pull request.
+
+[config]
+model = "openrouter/deepseek/deepseek-v4.1-flash"
+fallback_models = ["openrouter/deepseek/deepseek-v4.1-flash"]
+custom_model_max_tokens = 32000 # cost rail: larger pull requests are clipped to fit
+publish_output_progress = false # one comment, no "preparing review" placeholder
+
+[github_action_config]
+pr_actions = ["opened", "reopened", "ready_for_review"]
+handle_push_trigger = true # every push gets a fresh review in the same comment
+push_commands = ["/review"]
+
+[pr_reviewer]
+persistent_comment = true
+final_update_message = false
+num_max_findings = 3
+require_estimate_effort_to_review = true
+require_tests_review = true
+require_security_review = true
+require_merge_recommendation = true
+require_ticket_analysis_review = false
+enable_review_labels_effort = true
+enable_review_labels_security = true
+enable_help_text = false
+
+extra_instructions = """
+Admission has already checked the Change, Verification, and Risk sections.
+Do not comment on those metadata fields.
+Judge the change against the pull request's own claims:
+- Does the diff do what the Change section says? Report any mismatch as a key issue.
+- Is the Verification section's evidence plausible for this diff? Report changed behavior with no test or check.
+- Does the diff touch workflows, security, authentication, dependencies, release machinery, contribution policy, or agent instructions that the Risk section does not declare? Report each as a key issue.
+- Are unrelated changes bundled together? Say which parts belong in a separate pull request.
+Write to the contributor as a peer who may know this area better than we do: say what the change gets right in one specific sentence, then frame each issue as what to change to get it merged. No lecturing, no condescension.
+"""
