@@ -194,6 +194,14 @@ signature in `sig`, followed by a newline. `poolboy.pub` repeats that public key
 followed by a newline. Private keys are base64 Ed25519 seeds read from a 0600
 `--key` file or supplied through `POOLBOY_SIGNING_KEY`; they are never written
 into output.
+`poolboy keygen` refuses destinations in the corpus or publication directory of
+the project selected by `--root` or found from the working directory, and of
+the project containing the destination itself, through symlink and filesystem
+case aliases as well as direct paths. If a `poolboy.toml` is found but cannot
+be loaded, keygen
+refuses rather than skipping the check. The key's parent directory must exist;
+dangling symlink destinations are refused. These path checks do not protect
+against concurrent filesystem changes.
 
 External links are not graph nodes. Compiler-generated metadata avoids host
 paths and timestamps, but authored Markdown and frontmatter are preserved;

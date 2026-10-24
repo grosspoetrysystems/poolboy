@@ -124,6 +124,227 @@ func TestCmdKeygenRejectsKeyInsidePublication(t *testing.T) {
 	}
 }
 
+func TestCmdKeygenProtectsRootSelectedOrUnreadableProject(t *testing.T) {
+	for _, tc := range []struct{ name, mode string }{
+		{"--root from outside the project", "root"},
+		{"unreadable poolboy.toml", "broken"},
+		{"destination project from outside cwd", "destination"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() { rootDir = "" })
+			root := signProject(t)
+			switch tc.mode {
+			case "broken":
+				if err := os.WriteFile(filepath.Join(root, "poolboy.toml"), []byte("corpus = [\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				t.Chdir(root)
+			case "root":
+				t.Chdir(t.TempDir())
+				rootDir = root
+			default:
+				t.Chdir(t.TempDir())
+			}
+			target := filepath.Join(root, "docs", "k.key")
+			out, code := capture(t, func() int { return cmdKeygen([]string{"--out", target}) })
+			if code != 2 || out != "" {
+				t.Errorf("keygen exit=%d, public key emitted=%t; want refusal", code, out != "")
+			}
+			if _, err := os.Lstat(target); !os.IsNotExist(err) {
+				t.Fatalf("protected key target must remain absent, lstat error=%v", err)
+			}
+		})
+	}
+}
+
+func TestCmdKeygenRejectsSymlinkDestinationsInPublication(t *testing.T) {
+	for _, tc := range []struct {
+		name, linkTarget, suffix, protected string
+		force                               bool
+	}{
+		{"project alias into corpus", ".", "docs/new.key", "docs/new.key", false},
+		{"publication parent alias", "dist", "new.key", "dist/new.key", false},
+		{"forced publication leaf", "dist/graph.json", "", "dist/graph.json", true},
+		{"dangling corpus leaf", "docs/new.key", "", "docs/new.key", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := signProject(t)
+			t.Chdir(root)
+			target := filepath.Join(root, filepath.FromSlash(tc.protected))
+			before, beforeErr := os.ReadFile(target)
+			if beforeErr != nil && !os.IsNotExist(beforeErr) {
+				t.Fatal(beforeErr)
+			}
+			alias := filepath.Join(t.TempDir(), "alias")
+			if err := os.Symlink(filepath.Join(root, filepath.FromSlash(tc.linkTarget)), alias); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			args := []string{"--out", filepath.Join(alias, filepath.FromSlash(tc.suffix))}
+			if tc.force {
+				args = append(args, "--force")
+			}
+			out, code := capture(t, func() int { return cmdKeygen(args) })
+			if code != 2 || out != "" {
+				t.Errorf("keygen exit=%d, public key emitted=%t; want refusal without a public key", code, out != "")
+			}
+			after, err := os.ReadFile(target)
+			if beforeErr == nil {
+				if err != nil || string(after) != string(before) {
+					t.Fatal("keygen modified the protected publication file")
+				}
+			} else if !os.IsNotExist(err) {
+				t.Fatalf("protected key target must remain absent, read error=%v", err)
+			}
+		})
+	}
+}
+
+func TestCmdKeygenRejectsParentTraversalAfterSymlink(t *testing.T) {
+	root := signProject(t)
+	t.Chdir(root)
+	outside := t.TempDir()
+	if err := os.Mkdir(filepath.Join(outside, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(outside, "alias")
+	if err := os.Symlink(filepath.Join(root, "dist"), alias); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	// Preserve "..": the writer follows the symlink before traversing its parent.
+	keyPath := alias + string(filepath.Separator) + filepath.FromSlash("../docs/new.key")
+	out, code := capture(t, func() int { return cmdKeygen([]string{"--out", keyPath}) })
+	if code != 2 || out != "" {
+		t.Errorf("keygen exit=%d, public key emitted=%t; want refusal", code, out != "")
+	}
+	if _, err := os.Lstat(filepath.Join(root, "docs", "new.key")); !os.IsNotExist(err) {
+		t.Fatalf("protected key target must remain absent, lstat error=%v", err)
+	}
+}
+
+func TestCmdKeygenRejectsRelativePathFromSymlinkedCwd(t *testing.T) {
+	root := signProject(t)
+	alias := filepath.Join(t.TempDir(), "project")
+	if err := os.Symlink(root, alias); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	t.Chdir(alias)
+	t.Setenv("PWD", alias)
+	out, code := capture(t, func() int {
+		return cmdKeygen([]string{"--out", filepath.Join("docs", "new.key")})
+	})
+	if code != 2 || out != "" {
+		t.Errorf("keygen exit=%d, public key emitted=%t; want refusal", code, out != "")
+	}
+	if _, err := os.Lstat(filepath.Join(root, "docs", "new.key")); !os.IsNotExist(err) {
+		t.Fatalf("protected key target must remain absent, lstat error=%v", err)
+	}
+}
+
+func TestCmdKeygenAllowsUnpublishedDestinations(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		alias, cwdAlias bool
+	}{
+		{"relative leaf", false, false},
+		{"external parent alias", true, false},
+		{"parent path from aliased cwd", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := signProject(t)
+			t.Chdir(root)
+			keyPath := "poolboy.key"
+			target := filepath.Join(root, keyPath)
+			if tc.alias {
+				external := t.TempDir()
+				alias := filepath.Join(t.TempDir(), "alias")
+				if err := os.Symlink(external, alias); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+				keyPath = filepath.Join(alias, "poolboy.key")
+				target = filepath.Join(external, "poolboy.key")
+			}
+			if tc.cwdAlias {
+				external, err := filepath.EvalSymlinks(t.TempDir())
+				if err != nil {
+					t.Fatal(err)
+				}
+				target = filepath.Join(external, "poolboy.key")
+				keyPath, err = filepath.Rel(root, target)
+				if err != nil {
+					t.Fatal(err)
+				}
+				alias := filepath.Join(t.TempDir(), "project")
+				if err := os.Symlink(root, alias); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+				t.Chdir(alias)
+				t.Setenv("PWD", alias)
+			}
+			out, code := capture(t, func() int { return cmdKeygen([]string{"--out", keyPath}) })
+			if code != 0 {
+				t.Fatalf("keygen exit=%d, want 0", code)
+			}
+			priv, err := sign.LoadSeedFile(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.TrimSpace(out) != base64.StdEncoding.EncodeToString(priv.Public().(ed25519.PublicKey)) {
+				t.Fatal("printed public key does not match the persisted private key")
+			}
+			out, code = capture(t, func() int { return cmdKeygen([]string{"--out", keyPath}) })
+			if code != 2 || out != "" {
+				t.Fatalf("overwrite without --force exit=%d, public key emitted=%t", code, out != "")
+			}
+			after, err := sign.LoadSeedFile(target)
+			if err != nil || !priv.Equal(after) {
+				t.Fatal("refused overwrite changed the existing private key")
+			}
+		})
+	}
+}
+
+func TestCmdKeygenUsesFilesystemDirectoryIdentity(t *testing.T) {
+	for _, dir := range []string{"docs", "dist"} {
+		t.Run(dir, func(t *testing.T) {
+			root := signProject(t)
+			t.Chdir(root)
+			protected, err := os.Stat(filepath.Join(root, dir))
+			if err != nil {
+				t.Fatal(err)
+			}
+			alias := filepath.Join(root, strings.ToUpper(dir))
+			if err := os.Mkdir(alias, 0o755); err != nil && !os.IsExist(err) {
+				t.Fatal(err)
+			}
+			aliased, err := os.Stat(alias)
+			if err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(alias, "new.key")
+			out, code := capture(t, func() int { return cmdKeygen([]string{"--out", target}) })
+			if os.SameFile(protected, aliased) {
+				if code != 2 || out != "" {
+					t.Fatalf("aliased destination exit=%d, public key emitted=%t; want refusal", code, out != "")
+				}
+				if _, err := os.Lstat(target); !os.IsNotExist(err) {
+					t.Fatalf("protected key target must remain absent, lstat error=%v", err)
+				}
+				return
+			}
+			if code != 0 {
+				t.Fatalf("distinct destination exit=%d, want 0", code)
+			}
+			priv, err := sign.LoadSeedFile(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.TrimSpace(out) != base64.StdEncoding.EncodeToString(priv.Public().(ed25519.PublicKey)) {
+				t.Fatal("printed public key does not match the persisted private key")
+			}
+		})
+	}
+}
+
 func TestCmdSignSignsPublicationWithKeyAndEnv(t *testing.T) {
 	t.Cleanup(func() {
 		rootDir = ""
