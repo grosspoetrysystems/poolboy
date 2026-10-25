@@ -1,3 +1,7 @@
+# Keeps pinned action SHAs current. New versions wait 7 days before Dependabot
+# proposes them (GitHub's default is 3); security updates are never delayed.
+# The PR-Agent image is pinned by digest in pr-contract.yml and bumped by
+# hand (see the helicopter skill's references/operating.md), because Dependabot doesn't update `docker://` refs.
 version: 2
 updates:
   - package-ecosystem: github-actions

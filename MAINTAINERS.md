@@ -1,6 +1,6 @@
 # Maintaining Poolboy
 
-Poolboy's files express policy; GitHub settings enforce required CI and automation boundaries. Keep the written policy, CODEOWNERS, branch protection, and workflow permissions in sync. Poolboy's governance implementation is rooted in [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.1.0 (exact commit `cf83ae51567cd0801484cf6ead72cf599b58423a`); Vernacular is an existing adopter reference, not a source of Poolboy's product checks.
+Poolboy's files express policy; GitHub settings enforce required CI and automation boundaries. Keep the written policy, CODEOWNERS, branch protection, and workflow permissions in sync. Poolboy's governance implementation is rooted in [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.2.0 (exact commit `c16bcf26e44de77a4ebb532aabbd52c55b6679a7`); Vernacular is an existing adopter reference, not a source of Poolboy's product checks.
 
 ## Current protection state
 
@@ -48,7 +48,7 @@ Do not run `scripts/configure_repository.py` against Poolboy. Its upstream requi
 - Poolboy uses Linear-only intake, so the upstream GitHub issue forms, `Closes #` placeholder, and GitHub-Issue-linked `queue:possibly-superseded` behavior are not applicable. Poolboy keeps its explicit Linear references and existing whose-turn queue.
 - Poolboy keeps the existing `check`, `windows`, `contract`, and `DCO` status names and app bindings rather than upstream `test-validator` or `validate-metadata`.
 - Poolboy follows v0.1.0's voluntary `Assisted-by` attribution and human-only DCO certification; there is no workflow variable or template section for tool-origin reporting.
-- The upstream repository configurator, self-development checks, issue-form tests, and standalone development hooks are not imported; Poolboy's existing `make check` and 90% Lefthook standard remain authoritative.
+- The upstream repository configurator and its read-only checker (`scripts/check_install.py`), self-development checks, issue-form tests, and standalone development hooks are not imported; Poolboy's existing `make check` and 90% Lefthook standard remain authoritative.
 - The queue and advisory review workflows are present locally but have no hosted activation; no hosted setting, secret, label, or branch-protection mutation was performed.
 
 ## Review path
