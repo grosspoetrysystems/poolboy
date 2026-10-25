@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: weekly
     target-branch: main
+    groups:
+      workflow-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: gomod
     directory: /
