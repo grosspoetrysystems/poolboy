@@ -48,6 +48,8 @@ make verify   # check, build the site, verify generated files, and smoke-test th
 
 Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and command documentation. The commit-msg hook checks Conventional Commit subjects and requires a `Signed-off-by` trailer. Pre-push runs `make verify`. CI runs the same verification on Linux; Windows CI compiles packages and test binaries and smoke-tests the CLI. A separate metadata-only workflow validates the pull-request contract, including drafts.
 
+GitHub Actions version updates are grouped in `workflow-actions`; companion development tools remain in `development-tooling`. Review the tooling lockfile and security audit separately from release and deployment actions. Grouping does not bypass the pull-request contract, DCO, or required checks.
+
 ## Test coverage
 
 The [coverage gates concept](docs/coverage.md) defines the enforced contract:
