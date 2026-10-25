@@ -54,16 +54,68 @@ func refuseKeyInPublication(out string) error {
 	if err != nil {
 		return err
 	}
-	b, err := bundle.Discover(".")
-	if err != nil {
-		// Not inside a project: there is no corpus or output to protect.
+	// Partial discovery still protects a configured corpus that is not created yet.
+	// Outside any project, the destination's own project is still checked below.
+	b, err := productPartialBundle()
+	if err != nil && !errors.Is(err, bundle.ErrNotFound) {
+		return fmt.Errorf("cannot confirm the key destination is outside the corpus and publication: %w", err)
+	}
+	resolved, resolveErr := filepath.EvalSymlinks(out)
+	if resolveErr != nil {
+		// Only a missing leaf, not a dangling symlink, may use its resolved parent.
+		if _, err := os.Lstat(out); os.IsNotExist(err) {
+			// Split, unlike Dir, preserves ".." until after symlink resolution.
+			dir, leaf := filepath.Split(out)
+			if dir == "" {
+				dir = "."
+			}
+			if parent, err := filepath.EvalSymlinks(dir); err == nil {
+				resolved = filepath.Join(parent, leaf)
+				resolveErr = nil
+			}
+		}
+	}
+	if resolveErr == nil && !filepath.IsAbs(resolved) {
+		// Anchor relative results to the physical cwd, including per-drive cwd.
+		volume := filepath.VolumeName(resolved)
+		tail := resolved[len(volume):]
+		base := volume + "."
+		if len(tail) > 0 && os.IsPathSeparator(tail[0]) {
+			base = volume + string(filepath.Separator)
+		}
+		base, resolveErr = filepath.Abs(base)
+		if resolveErr == nil {
+			base, resolveErr = filepath.EvalSymlinks(base)
+		}
+		if resolveErr == nil {
+			resolved = filepath.Join(base, tail)
+		}
+	}
+	if b != nil {
+		if err := keyInsideBundle(b, abs, resolved, resolveErr == nil); err != nil {
+			return err
+		}
+	}
+	if resolveErr != nil {
+		return fmt.Errorf("cannot resolve --out destination %s: %w", out, resolveErr)
+	}
+	// The destination may belong to a different project than the selected one.
+	dest, err := bundle.DiscoverPartial(filepath.Dir(resolved))
+	if errors.Is(err, bundle.ErrNotFound) {
 		return nil
 	}
+	if err != nil {
+		return fmt.Errorf("cannot confirm the key destination is outside the corpus and publication: %w", err)
+	}
+	return keyInsideBundle(dest, resolved, resolved, true)
+}
+
+func keyInsideBundle(b *bundle.Bundle, abs, resolved string, checkResolved bool) error {
 	for label, dir := range map[string]string{
 		"corpus":      b.Dir,
 		"publication": filepath.Join(b.Root, filepath.FromSlash(b.Output)),
 	} {
-		if pathWithin(abs, dir) {
+		if pathWithin(abs, dir) || (checkResolved && pathWithin(resolved, dir)) {
 			return fmt.Errorf("refusing to write a private signing key inside the %s directory %s; write it outside the project with --out", label, dir)
 		}
 	}
@@ -75,7 +127,24 @@ func pathWithin(path, dir string) bool {
 	if err != nil {
 		return false
 	}
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return true
+	}
+	// Case and Unicode aliases depend on filesystem identity, not string folding.
+	protected, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+	for parent := filepath.Dir(path); ; {
+		if info, err := os.Stat(parent); err == nil && os.SameFile(protected, info) {
+			return true
+		}
+		next := filepath.Dir(parent)
+		if next == parent {
+			return false
+		}
+		parent = next
+	}
 }
 
 func cmdSign(args []string) int {
