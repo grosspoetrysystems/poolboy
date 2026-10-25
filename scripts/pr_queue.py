@@ -16,6 +16,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -29,6 +30,10 @@ LABELS = {
     "paused": "queue:no-capacity",
 }
 NOTICE_MARKER = "<!-- helicopter:queue {kind} since={since} -->"
+HELICOPTER = "grosspoetrysystems/helicopter"
+UPDATE_MARKER = "<!-- helicopter:update to={version} -->"
+# Written by the helicopter skill; the queue checks it out alongside scripts/.
+VERSION_FILE = Path(__file__).resolve().parent.parent / ".github/helicopter/version.json"
 
 
 @dataclass(frozen=True)
@@ -222,6 +227,49 @@ def reconcile(
     print(f"#{number}: {want or 'no label'}; {state}{'; ' + due if due else ''}")
 
 
+def numbers(version: str) -> tuple[int, ...]:
+    return tuple(int(n) for n in re.findall(r"[0-9]+", version))
+
+
+def update_notice(github: GitHub, installed: str, latest: dict[str, Any]) -> str | None:
+    """Open one issue per newer Helicopter release. Closing it skips that release; nothing reopens it."""
+    version = latest["version"]
+    if numbers(version) <= numbers(installed):
+        return None
+    title = f"Helicopter {version} is available"
+    # ponytail: search lags a minute or so, far inside the hourly sweep; it finds closed issues too.
+    query = f'repo:{github.repository} is:issue author:app/github-actions in:title "{title}"'
+    found = github.request("GET", f"{API}/search/issues?q={quote(query)}")
+    if any(item["title"] == title for item in (found or {}).get("items", [])):
+        return None
+    steps = latest.get("action_required") or 0
+    body = (
+        f"{UPDATE_MARKER.format(version=version)}\n"
+        f"This repository runs Helicopter {installed}. [{version}](https://github.com/{HELICOPTER}/releases/tag/{version}) is out"
+        + (f", with {steps} Action required step{'s' if steps != 1 else ''} in its release notes.\n\n" if steps else ".\n\n")
+        + "To update, ask your agent to update Helicopter with the `helicopter` skill "
+        f"(`npx skills add {HELICOPTER}`). It opens one pull request for you to review. Close this issue to skip {version}."
+    )
+    github.request("POST", "issues", {"title": title, "body": body})
+    return version
+
+
+def check_for_update(github: GitHub) -> None:
+    """Never fails the queue: an unreachable release or a missing marker just skips the check."""
+    if not VERSION_FILE.is_file():
+        return
+    try:
+        installed = json.loads(VERSION_FILE.read_text(encoding="utf-8"))["version"]
+        url = f"https://github.com/{HELICOPTER}/releases/latest/download/helicopter.json"
+        with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310 (fixed https URL)
+            latest = json.loads(response.read())
+    except (OSError, ValueError, KeyError) as error:
+        print(f"Update check skipped: {error}")
+        return
+    opened = update_notice(github, installed, latest)
+    print(f"Helicopter {installed}: " + (f"opened an issue for {opened}" if opened else "up to date or already notified"))
+
+
 def queued(pr: dict[str, Any], team: bool, automation: frozenset[str] = frozenset()) -> bool:
     """Open pull requests from outside contributors are queued; in team mode, everyone's.
 
@@ -268,6 +316,8 @@ def main() -> int:
         require_labels(github, set(LABELS.values()))
     for pr in work:
         reconcile(github, pr, now, nudge_hours, pause_hours, ignored)
+    if not args.pr:
+        check_for_update(github)
     return 0
 
 

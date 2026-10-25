@@ -1,6 +1,6 @@
 # Contributing to Poolboy
 
-Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.2.0 (exact commit `c16bcf26e44de77a4ebb532aabbd52c55b6679a7`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy adapts Helicopter's Change, Verification, Risk, authorization, review-ramp, and queue controls to its Linear-only intake and existing protected checks. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
+Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.3.0 (exact commit `2431c194cd57aa90964d55148bf9861ef99bd6fa`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy adapts Helicopter's Change, Verification, Risk, authorization, review-ramp, and queue controls to its Linear-only intake and existing protected checks. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
 
 Poolboy welcomes useful, reviewable work however it was produced.
 

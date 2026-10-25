@@ -2,6 +2,7 @@ name: contribution-queue
 
 # Keeps queue state current between pull request events: comments, maintainer
 # reviews on fork pull requests, and the passage of time for nudges and pauses.
+# The hourly sweep also opens one issue when a newer Helicopter release is out.
 on:
   # Privileged by design: labels and comments need a write token. Only trusted
   # default-branch code runs; scripts/check_install.py checks that.
@@ -39,7 +40,9 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           path: trusted-base
           persist-credentials: false
-          sparse-checkout: scripts
+          sparse-checkout: |
+            scripts
+            .github/helicopter
           fetch-depth: 1
       # Security invariant: read pull request metadata and timelines only; never
       # check out or execute pull request code.
