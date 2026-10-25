@@ -195,6 +195,45 @@ def validate_body(body: str) -> list[Refusal]:
     return refusals
 
 
+def _commit_pages(commits: list[Any]) -> list[dict[str, Any]]:
+    """Accept the commits endpoint's array, or `gh api --paginate --slurp` pages of it."""
+    return [commit for item in commits for commit in (item if isinstance(item, list) else [item])]
+
+
+def validate_signoff(commits: list[Any]) -> list[Refusal]:
+    """Every non-merge commit carries a `Signed-off-by` with its author's email (DCO 1.1)."""
+    unsigned = []
+    for commit in _commit_pages(commits):
+        if len(commit.get("parents") or []) > 1:
+            continue  # merge commits, such as GitHub's "Update branch", carry no sign-off
+        details = commit.get("commit") or {}
+        email = ((details.get("author") or {}).get("email") or "").lower()
+        signers = re.findall(r"^Signed-off-by: .*<([^>]+)>\s*$", details.get("message") or "", re.MULTILINE | re.IGNORECASE)
+        if not email or email not in {signer.lower() for signer in signers}:
+            unsigned.append(str(commit.get("sha") or "?")[:7])
+    if not unsigned:
+        return []
+    return [
+        Refusal(
+            "REFUSE_SIGNOFF_MISSING",
+            f"Commits without a `Signed-off-by` matching their author's email: {', '.join(unsigned)}. "
+            "Run `git rebase --signoff` on your branch and force-push.",
+        )
+    ]
+
+
+def validate_open_prs(open_prs: int, limit: int) -> list[Refusal]:
+    if limit <= 0 or open_prs <= limit:
+        return []
+    return [
+        Refusal(
+            "REFUSE_OPEN_PR_LIMIT",
+            f"You have {open_prs} open non-draft pull requests here; the limit is {limit}. "
+            "Convert one to a draft or close it, then edit this description to re-run the check.",
+        )
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("event", type=Path, help="GitHub pull request event JSON")
@@ -208,6 +247,22 @@ def main() -> int:
         "--automation-logins",
         default="",
         help="maintainer-authorized bot logins (HELICOPTER_AUTOMATION_LOGINS), comma or space separated",
+    )
+    parser.add_argument(
+        "--commits",
+        type=Path,
+        help="JSON from the pull request commits endpoint; checks DCO sign-off when given",
+    )
+    parser.add_argument(
+        "--open-prs",
+        type=int,
+        default=0,
+        help="the author's open non-draft pull requests in this repository, this one included",
+    )
+    parser.add_argument(
+        "--open-pr-limit",
+        default="2",
+        help="most open non-draft pull requests an outside contributor may have; 0 disables",
     )
     args = parser.parse_args()
 
@@ -249,13 +304,28 @@ def main() -> int:
         print(f"{mode.capitalize()}-mode metadata exemption accepted for the trusted maintainer.")
         return 0
 
-    body = pull_request.get("body") or ""
-    refusals = validate_body(body)
+    if author.get("type") == "Bot":
+        print(
+            "REFUSE_BOT_UNAUTHORIZED: bots need maintainer authorization before opening pull requests. "
+            "Their operator requests it with the Automation authorization issue form."
+        )
+        return 1
+
+    refusals = validate_body(pull_request.get("body") or "")
+    if args.commits:
+        try:
+            commits = json.loads(args.commits.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"REFUSE_EVENT_INVALID: commits: {error}")
+            return 2
+        refusals += validate_signoff(commits)
+    if pull_request.get("author_association") not in {"OWNER", "MEMBER", "COLLABORATOR"}:
+        limit = int(args.open_pr_limit) if re.fullmatch(r"[0-9]+", args.open_pr_limit) else 2
+        refusals += validate_open_prs(args.open_prs, limit)
     if refusals:
         print("Contribution intake refused:")
         for refusal in refusals:
             print(f"{refusal.code}: {refusal.message}")
-        print("\nUpdate the pull request description from the repository template.")
         return 1
 
     print("Contribution metadata accepted. Human review is still required.")

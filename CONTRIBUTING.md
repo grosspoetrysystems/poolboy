@@ -1,8 +1,22 @@
 # Contributing to Poolboy
 
-Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.1.0 (exact commit `cf83ae51567cd0801484cf6ead72cf599b58423a`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy adapts Helicopter's Change, Verification, Risk, authorization, review-ramp, and queue controls to its Linear-only intake and existing protected checks. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
+Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.2.0 (exact commit `c16bcf26e44de77a4ebb532aabbd52c55b6679a7`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy adapts Helicopter's Change, Verification, Risk, authorization, review-ramp, and queue controls to its Linear-only intake and existing protected checks. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
 
 Poolboy welcomes useful, reviewable work however it was produced.
+
+## What's checked
+
+| Rule | Enforced by | Refusal code |
+| --- | --- | --- |
+| The description has **Change**, **Verification**, and **Risk** sections, each filled in | `validate-metadata` (required check) | `REFUSE_TEMPLATE_INCOMPLETE`, `REFUSE_CHANGE_EMPTY`, `REFUSE_VERIFICATION_EMPTY`, `REFUSE_RISK_UNCHECKED` |
+| Every commit carries `Signed-off-by` with its author's email ([DCO](#legal)); merge commits are skipped | `validate-metadata` | `REFUSE_SIGNOFF_MISSING` |
+| A bot can open pull requests only when a maintainer has listed it in `HELICOPTER_AUTOMATION_LOGINS` | `validate-metadata` | `REFUSE_BOT_UNAUTHORIZED` |
+| Contributors without write access have at most two open non-draft pull requests (drafts don't count) | `validate-metadata` | `REFUSE_OPEN_PR_LIMIT` |
+| Merging needs the required checks to pass and the reviews your mode requires; nobody can force-push or delete the default branch | Branch protection | — |
+| Changes to workflows, security, dependencies, release machinery, policy, or agent instructions need the owners in `.github/CODEOWNERS` (contributor and team modes) | Branch protection (code-owner review) | — |
+| Poolboy reruns its own checks; your report of what you ran is context, not evidence | Project CI | — |
+
+Each refusal says how to fix it. After fixing, push or edit the description to re-run the check.
 
 ## Prerequisites
 

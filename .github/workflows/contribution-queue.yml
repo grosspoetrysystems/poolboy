@@ -3,7 +3,9 @@ name: contribution-queue
 # Keeps queue state current between pull request events: comments, maintainer
 # reviews on fork pull requests, and the passage of time for nudges and pauses.
 on:
-  issue_comment:
+  # Privileged by design: labels and comments need a write token. Only trusted
+  # default-branch code runs; scripts/check_install.py checks that.
+  issue_comment: # zizmor: ignore[dangerous-triggers]
     types: [created]
   schedule:
     - cron: "17 * * * *"
