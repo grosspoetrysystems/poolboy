@@ -1,6 +1,6 @@
 # Maintaining Poolboy
 
-Poolboy's files express policy; GitHub settings enforce required CI and automation boundaries. Keep the written policy, CODEOWNERS, branch protection, and workflow permissions in sync. Poolboy's governance implementation is rooted in [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.2.0 (exact commit `c16bcf26e44de77a4ebb532aabbd52c55b6679a7`); Vernacular is an existing adopter reference, not a source of Poolboy's product checks.
+Poolboy's files express policy; GitHub settings enforce required CI and automation boundaries. Keep the written policy, CODEOWNERS, branch protection, and workflow permissions in sync. Poolboy's governance implementation is rooted in [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.3.0 (exact commit `2431c194cd57aa90964d55148bf9861ef99bd6fa`); Vernacular is an existing adopter reference, not a source of Poolboy's product checks.
 
 ## Current protection state
 

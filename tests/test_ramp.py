@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from pr_queue import LABELS as QUEUE_LABELS, notice, plan, queued, turn
+from pr_queue import LABELS as QUEUE_LABELS, notice, plan, queued, turn, update_notice
 
 NOW = datetime(2026, 10, 30, tzinfo=timezone.utc)
 
@@ -147,6 +147,31 @@ class QueueScopeTests(unittest.TestCase):
         self.assertFalse(queued(pr, team=False, automation=bots))
         self.assertTrue(queued(pr, team=True, automation=bots))
         self.assertTrue(queued(pr, team=False))
+
+
+
+class UpdateNoticeTests(unittest.TestCase):
+    class Recorder:
+        def __init__(self, titles=()):
+            self.repository, self.titles, self.posted = "o/r", list(titles), []
+
+        def request(self, method, path, body=None):
+            if method == "GET":
+                return {"items": [{"title": title} for title in self.titles]}
+            self.posted.append(body)
+
+    def test_newer_release_opens_one_issue_naming_its_action_steps(self):
+        github = self.Recorder()
+        self.assertEqual(update_notice(github, "v0.2.0", {"version": "v0.10.0", "action_required": 2}), "v0.10.0")
+        issue, = github.posted
+        self.assertEqual(issue["title"], "Helicopter v0.10.0 is available")
+        self.assertIn("2 Action required steps", issue["body"])
+
+    def test_current_or_already_notified_does_nothing(self):
+        for installed, titles in (("v0.3.0", ()), ("v0.4.0", ()), ("v0.2.0", ("Helicopter v0.3.0 is available",))):
+            github = self.Recorder(titles)
+            self.assertIsNone(update_notice(github, installed, {"version": "v0.3.0"}))
+            self.assertEqual(github.posted, [])
 
 
 if __name__ == "__main__":
