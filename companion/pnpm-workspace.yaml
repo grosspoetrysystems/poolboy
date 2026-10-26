@@ -1,3 +1,6 @@
+overrides:
+  vite: 8.3.3
+
 allowBuilds:
   esbuild: true
   lefthook: true
