@@ -50,6 +50,8 @@ Pre-commit checks formatting, Go lint, Biome, TypeScript, Knip, and command docu
 
 GitHub Actions version updates are grouped in `workflow-actions`; companion development tools remain in `development-tooling`. Review the tooling lockfile and security audit separately from release and deployment actions. Grouping does not bypass the pull-request contract, DCO, or required checks.
 
+Lockfile audits do not inspect inlined dependency code; review bundled tools separately before claiming remediation. Vite is declared directly as Vitest's required peer so grouped development-tool updates can track it.
+
 ## Test coverage
 
 The [coverage gates concept](docs/coverage.md) defines the enforced contract:
