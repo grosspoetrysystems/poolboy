@@ -74,8 +74,11 @@ must be rejected rather than partially interpreted.
 
 The additive `external_references` field is optional in graph v0. Each entry
 has a canonical HTTPS `url` ending in `graph.json`, the fetched graph
-`sha256`, declared `root` (`/index.md`), and local declaring `from`, `line`,
-and `origin` (`corpus` or `source`). Entries are deterministically ordered.
+`sha256`, declared `root` (`/index.md`), and the local `from`, `line`, and
+`origin` (`corpus` or `source`) of the link where discovery started. A
+publication reached through another publication keeps that starting link; it
+does not mean the local file names this URL. Entries are deterministically
+ordered.
 They are references, not graph nodes: external documents remain outside
 `files`, `artifacts`, archives, and output. `llms.txt` may list the matching
 remote `llms.txt` entry point and graph digest for ordinary agent traversal.

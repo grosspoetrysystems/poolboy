@@ -115,8 +115,9 @@ Missing, unsupported, unsafe or over-budget targets produce stderr diagnostics
 and partial discovery results; cancelling the build still stops publication.
 These limits bound best-effort discovery, not an exhaustive crawl.
 
-Accepted `graph.external_references` entries retain the local declaring
-path/line, the remote manifest URL and its exact SHA-256. The builder checks
+Accepted `graph.external_references` entries retain the local path/line where
+discovery started (also for publications reached through another
+publication), the remote manifest URL and its exact SHA-256. The builder checks
 the graph's v0 declarations and matching llms/root bytes, not every remote
 document. `llms.txt` exposes the remote entrypoints; files, artifacts and ZIPs
 remain local. References do not establish publisher trust or prompt safety.
