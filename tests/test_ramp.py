@@ -2,6 +2,7 @@
 
 import sys
 import unittest
+import urllib.error
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -159,6 +160,14 @@ class UpdateNoticeTests(unittest.TestCase):
             if method == "GET":
                 return {"items": [{"title": title} for title in self.titles]}
             self.posted.append(body)
+
+    def test_issues_turned_off_skips_without_failing_the_sweep(self):
+        class IssuesOff:
+            repository = "o/r"
+
+            def request(self, method, path, body=None):
+                raise urllib.error.HTTPError(path, 410, "Gone", {}, None)
+        self.assertIsNone(update_notice(IssuesOff(), "v0.2.0", {"version": "v0.3.0"}))
 
     def test_newer_release_opens_one_issue_naming_its_action_steps(self):
         github = self.Recorder()
