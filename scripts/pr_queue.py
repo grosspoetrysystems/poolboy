@@ -239,7 +239,12 @@ def update_notice(github: GitHub, installed: str, latest: dict[str, Any]) -> str
     title = f"Helicopter {version} is available"
     # ponytail: search lags a minute or so, far inside the hourly sweep; it finds closed issues too.
     query = f'repo:{github.repository} is:issue author:app/github-actions in:title "{title}"'
-    found = github.request("GET", f"{API}/search/issues?q={quote(query)}")
+    try:
+        found = github.request("GET", f"{API}/search/issues?q={quote(query)}")
+    except urllib.error.HTTPError as error:
+        # 410 Gone: the repository has issues turned off, so there's nowhere to post. Never fail the sweep for it.
+        print(f"Update check skipped: {'issues are turned off' if error.code == 410 else error}")
+        return None
     if any(item["title"] == title for item in (found or {}).get("items", [])):
         return None
     steps = latest.get("action_required") or 0
@@ -250,7 +255,11 @@ def update_notice(github: GitHub, installed: str, latest: dict[str, Any]) -> str
         + "To update, ask your agent to update Helicopter with the `helicopter` skill "
         f"(`npx skills add {HELICOPTER}`). It opens one pull request for you to review. Close this issue to skip {version}."
     )
-    github.request("POST", "issues", {"title": title, "body": body})
+    try:
+        github.request("POST", "issues", {"title": title, "body": body})
+    except urllib.error.HTTPError as error:
+        print(f"Update check skipped: {'issues are turned off' if error.code == 410 else error}")
+        return None
     return version
 
 
