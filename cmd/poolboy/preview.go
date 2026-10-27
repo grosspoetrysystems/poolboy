@@ -38,7 +38,7 @@ func cmdPreview(args []string) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := compiler.Build(ctx, b, *renderer); err != nil {
+	if err := compiler.Build(ctx, b, *renderer, compiler.BuildOptions{}); err != nil {
 		return productError(err)
 	}
 

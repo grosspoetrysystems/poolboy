@@ -150,6 +150,7 @@ func productOutput(format string, lines []string, value any) int {
 func cmdBuild(args []string) int {
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
 	renderer := fs.String("renderer", "", "trusted Knap companion path (default: poolboy-knap.mjs beside poolboy)")
+	discoverExternal := fs.Bool("discover", false, "discover validated external Poolboy publications from explicit links")
 	format := fs.String("format", "text", "output format: text|json|csv|tsv")
 	if code := productFlags(fs, args); code >= 0 {
 		return code
@@ -175,7 +176,7 @@ func cmdBuild(args []string) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	if err := compiler.Build(ctx, b, *renderer); err != nil {
+	if err := compiler.Build(ctx, b, *renderer, compiler.BuildOptions{Discover: *discoverExternal, Diagnostics: os.Stderr}); err != nil {
 		var validationErr *compiler.ValidationError
 		if !errors.As(err, &validationErr) {
 			return productFailure(*format, classifyBuildFailure(err))

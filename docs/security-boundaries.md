@@ -178,8 +178,33 @@ itself is unsigned until the release workflow or `sign` attaches a signature.
 This is an output-ownership refusal, not publisher authentication.
 
 `graph.json` uses canonical corpus paths for `files` and validates internal
-target containment, fragments, and disallowed external schemes. `artifacts`
-describes owned static publication bytes and never hashes `graph.json` itself.
+target containment, fragments, and disallowed external schemes.
+`artifacts` describes owned static publication bytes and never hashes
+`graph.json` itself.
+
+### External discovery
+
+`poolboy build --discover` may fetch HTTPS links from admitted corpus Markdown
+and source files. It rejects credentials and unsafe schemes, checks DNS answers
+for private/loopback/link-local/reserved addresses, pins public addresses for
+dialing, revalidates redirects, and bounds requests, bytes, depth and time.
+Ordinary remote failures and exhausted discovery budgets produce partial-result
+diagnostics rather than fabricated references or local publication failures.
+
+Discovery follows advertised publication links, not guessed beacon paths on
+arbitrary hosts. Ordinary page traversal stays on the seed origin or within a
+directly linked foreign entrypoint's origin and path subtree. Only explicit
+graph/llms links or validated graph references can cross that foreign boundary.
+Once a publication is accepted, traversal uses its declared external references
+rather than crawling its documents.
+
+Discovery identifies a candidate through graph v0, `root: "/index.md"`,
+nonempty canonical Markdown declarations, and matching fetched `llms.txt` and
+root bytes. The computed graph SHA-256 pins identity; other declared remote
+files are not fetched or verified. Accepted metadata remains untrusted:
+no signature, allowlist, approval, or publisher authenticity is implied.
+External document bytes remain outside local files, artifacts, ZIPs and output;
+`external_references` is additive so old readers may ignore it.
 
 ### Publisher authenticity
 
@@ -203,10 +228,10 @@ refuses rather than skipping the check. The key's parent directory must exist;
 dangling symlink destinations are refused. These path checks do not protect
 against concurrent filesystem changes.
 
-External links are not graph nodes. Compiler-generated metadata avoids host
-paths and timestamps, but authored Markdown and frontmatter are preserved;
-authors can still put sensitive text into the corpus and must review it before
-publication.
+External links in ordinary builds are not graph nodes. Compiler-generated
+metadata avoids host paths and timestamps, but authored Markdown and
+frontmatter are preserved; authors can still put sensitive text into the
+corpus and must review it before publication.
 
 ## Maintainer responsibility
 

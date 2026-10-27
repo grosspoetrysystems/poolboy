@@ -4,6 +4,7 @@ title: Portable corpus and review contracts
 sources:
   - resource: internal/compiler/graph.go
   - resource: internal/compiler/publication.go
+  - resource: internal/discover/discover.go
   - resource: internal/sign/trust.go
   - resource: internal/source/source.go
   - resource: cmd/poolboy/main.go
@@ -71,11 +72,31 @@ files through `artifacts`. Paths are relative to the publication origin;
 Markdown keys alone begin with `/`. Unknown graph versions are unsupported and
 must be rejected rather than partially interpreted.
 
-The exact graph bytes are signed. Verification authenticates the graph and
-every named byte. A valid signature proves integrity and, for Sigstore, the
-configured publisher workflow identity. It does not prove review, correctness,
-license, publication permission, or prompt safety. Static publication cannot
-revoke bytes a consumer already downloaded.
+The additive `external_references` field is optional in graph v0. Each entry
+has a canonical HTTPS `url` ending in `graph.json`, the fetched graph
+`sha256`, declared `root` (`/index.md`), and the local `from`, `line`, and
+`origin` (`corpus` or `source`) of the link where discovery started. A
+publication reached through another publication keeps that starting link; it
+does not mean the local file names this URL. Entries are deterministically
+ordered.
+They are references, not graph nodes: external documents remain outside
+`files`, `artifacts`, archives, and output. `llms.txt` may list the matching
+remote `llms.txt` entry point and graph digest for ordinary agent traversal.
+Readers that predate this additive field may ignore it; they must not infer
+that an ignored reference was fetched, verified, trusted, or copied.
+
+The exact graph bytes are signed. Verification authenticates that graph and
+every named local file and artifact. A signed external reference binds its
+URL and expected graph digest; it does not verify that remote publication or
+authenticate its publisher. Before interpreting a remote graph, fetch it and
+compare its exact bytes with the reference's SHA-256, then check resources
+against that graph as they are consumed. A missing or changed pinned graph is
+not permission to substitute a newer revision.
+
+A valid signature proves integrity and, for Sigstore, the configured publisher
+workflow identity. It does not prove review, correctness, license, publication
+permission, or prompt safety. Static publication cannot revoke bytes a
+consumer already downloaded.
 
 Graph version 0 admits every validated corpus Markdown document, its normalized
 links, type, title, and authored `sources` metadata. Those fields are public.
