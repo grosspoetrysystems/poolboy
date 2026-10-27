@@ -44,7 +44,7 @@ Inspect the repository and user's request for:
 
 ## Deliver the outcome
 
-The build output is host-agnostic, deterministic, and self-contained. The same `poolboy build` feeds every destination, so a given corpus revision produces the same exact bytes wherever it is delivered. See [build and render](docs/build-and-render.md) for artifact format and publication semantics, and [portable corpus and review contracts](docs/portable-contracts.md) for graph versioning, logical locators, and content revisions. Use those contracts as authority; model only consumed fields when needed, without mirroring the full schema.
+The default build output is host-agnostic, deterministic, and self-contained. The same `poolboy build` feeds every destination, so a given corpus revision produces the same exact bytes wherever it is delivered. Opt in to `poolboy build --discover` only when the user requests linked-publication discovery; it records remote revisions without importing remote documents. See [build and render](docs/build-and-render.md) for limits and publication semantics, and [portable corpus and review contracts](docs/portable-contracts.md) for graph versioning, logical locators, and content revisions. Use those contracts as authority; model only consumed fields when needed, without mirroring the full schema.
 
 ### Website
 
@@ -58,6 +58,8 @@ A released tool answers documentation queries for itself with no Poolboy runtime
 Reuse the consumer's existing docs/help entry point when present; otherwise add a small idiomatic documentation entry point to the existing tool, not a separate reader application.
 
 Preserve the tool's own authoritative command help; Poolboy documentation is an addition, never a replacement for the real `--help` output. Report the packaged release version and the embedded corpus revision separately: the release version is the package or tag; the corpus revision is the SHA-256 of the embedded `graph.json`. Readers resolve Markdown through the graph's `files`, `llms.txt` through `llms`, and other static files through `artifacts`; they must reject an unknown graph version and resolve only contained document paths. Simple artifact reading is enough—do not reimplement the full manifest model or navigation.
+
+Optional `external_references` are separate-publication handoffs, never contained document paths. When network traversal is requested, compare each referenced graph's exact bytes with its pinned SHA-256 before interpreting it, then verify consumed resources against that supported graph. Missing or changed bytes are stale input; do not silently use the latest or treat the remote publisher as trusted. An offline CLI reports the remote handoff as unavailable rather than adding a live fallback.
 
 ### Both
 

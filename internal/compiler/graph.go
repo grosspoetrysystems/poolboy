@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	pathpkg "path"
 	"regexp"
 	"slices"
 	"sort"
@@ -17,12 +18,22 @@ import (
 )
 
 type graph struct {
-	Version   string                   `json:"version"`
-	Root      string                   `json:"root"`
-	LLMS      graphArtifact            `json:"llms"`
-	Files     map[string]graphFile     `json:"files"`
-	Nav       map[string]graphNav      `json:"nav,omitempty"`
-	Artifacts map[string]graphArtifact `json:"artifacts,omitempty"`
+	Version            string                   `json:"version"`
+	Root               string                   `json:"root"`
+	LLMS               graphArtifact            `json:"llms"`
+	Files              map[string]graphFile     `json:"files"`
+	Nav                map[string]graphNav      `json:"nav,omitempty"`
+	Artifacts          map[string]graphArtifact `json:"artifacts,omitempty"`
+	ExternalReferences []graphExternalReference `json:"external_references,omitempty"`
+}
+
+type graphExternalReference struct {
+	URL    string `json:"url"`
+	SHA256 string `json:"sha256"`
+	Root   string `json:"root"`
+	From   string `json:"from"`
+	Line   int    `json:"line"`
+	Origin string `json:"origin"`
 }
 
 type graphArtifact struct {
@@ -56,7 +67,7 @@ var (
 // buildGraph takes the reading order the caller already derived, so the
 // sequence in llms.txt and the sequence in nav are the same list by
 // construction — graph.llms hashes those exact llms.txt bytes.
-func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string][]byte, llms []byte, order []navDoc) ([]byte, error) {
+func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string][]byte, llms []byte, order []navDoc, references ...graphExternalReference) ([]byte, error) {
 	if _, ok := docs["/index.md"]; !ok {
 		return nil, fmt.Errorf("corpus is missing required root /index.md")
 	}
@@ -119,7 +130,23 @@ func buildGraph(idx *index.Index, docs map[string]document, artifacts map[string
 		}
 	}
 	nav := navigation(files, sequence)
-	data, err := json.MarshalIndent(graph{Version: "0", Root: "/index.md", LLMS: graphArtifact{Bytes: len(llms), SHA256: hashBytes(llms)}, Files: files, Nav: nav, Artifacts: artifactManifest}, "", "  ")
+	external := append([]graphExternalReference(nil), references...)
+	sort.SliceStable(external, func(i, j int) bool {
+		if external[i].From != external[j].From {
+			return external[i].From < external[j].From
+		}
+		if external[i].Line != external[j].Line {
+			return external[i].Line < external[j].Line
+		}
+		if external[i].URL != external[j].URL {
+			return external[i].URL < external[j].URL
+		}
+		return external[i].Origin < external[j].Origin
+	})
+	if err := validateExternalReferences(external); err != nil {
+		return nil, err
+	}
+	data, err := json.MarshalIndent(graph{Version: "0", Root: "/index.md", LLMS: graphArtifact{Bytes: len(llms), SHA256: hashBytes(llms)}, Files: files, Nav: nav, Artifacts: artifactManifest, ExternalReferences: external}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("encode graph: %w", err)
 	}
@@ -396,7 +423,7 @@ func frontmatterBlock(content string) string {
 	return rest[:end]
 }
 
-func renderLLMS(name string, order []navDoc) []byte {
+func renderLLMS(name string, order []navDoc, references ...graphExternalReference) []byte {
 	clean := strings.NewReplacer("\r", " ", "\n", " ")
 	name = clean.Replace(strings.TrimSpace(name))
 	if name == "" {
@@ -415,7 +442,39 @@ func renderLLMS(name string, order []navDoc) []byte {
 			fmt.Fprintf(&out, "- [%s](%s)\n", label, linkTarget(target))
 		}
 	}
+	if len(references) > 0 {
+		external := append([]graphExternalReference(nil), references...)
+		sort.SliceStable(external, func(i, j int) bool {
+			if external[i].From != external[j].From {
+				return external[i].From < external[j].From
+			}
+			if external[i].Line != external[j].Line {
+				return external[i].Line < external[j].Line
+			}
+			return external[i].URL < external[j].URL
+		})
+		out.WriteString("\n## External references\n\n")
+		for _, reference := range external {
+			fmt.Fprintf(&out, "- [External publication](<%s>) (graph: <%s>, sha256: `%s`)\n", externalLLMSTarget(reference.URL), reference.URL, reference.SHA256)
+		}
+	}
 	return []byte(out.String())
+}
+
+func externalLLMSTarget(graphURL string) string {
+	u, err := url.Parse(graphURL)
+	if err != nil {
+		return graphURL
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	dir := pathpkg.Dir(u.Path)
+	if dir == "/" || dir == "." {
+		u.Path = "/llms.txt"
+	} else {
+		u.Path = dir + "/llms.txt"
+	}
+	return u.String()
 }
 
 // linkLabel escapes the characters that would end a Markdown link label early.

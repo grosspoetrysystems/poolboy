@@ -21,7 +21,7 @@ import (
 
 func TestBuildDeterministicAndMaterializesGeneratedCorpus(t *testing.T) {
 	root, b, rendererPath := fixture(t)
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	first := snapshot(t, filepath.Join(root, "dist"))
@@ -32,7 +32,7 @@ func TestBuildDeterministicAndMaterializesGeneratedCorpus(t *testing.T) {
 	if !strings.Contains(string(generated), "type: Reference") {
 		t.Fatalf("generated Markdown was not materialized: %s", generated)
 	}
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	second := snapshot(t, filepath.Join(root, "dist"))
@@ -55,7 +55,7 @@ func TestBuildDefaultDirectCorpusExcludesPublicationSubtree(t *testing.T) {
 	write("index.md", "---\nokf_version: \"0.2\"\n---\n# Direct\n\n[Architecture](architecture.md)\n")
 	write("architecture.md", "---\ntype: Concept\n---\n# Architecture\n\n[Home](index.md)\n")
 	b := &bundle.Bundle{Root: root, Dir: root, Name: "Direct", Output: "dist", Spec: "0.2"}
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "dist", "graph.json"))
@@ -76,7 +76,7 @@ func TestBuildIgnoresUnsupportedSyntaxInCode(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(b.Dir, "syntax.md"), []byte(code), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatalf("code examples rejected: %v", err)
 	}
 
@@ -84,7 +84,7 @@ func TestBuildIgnoresUnsupportedSyntaxInCode(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(b.Dir, "actual.md"), []byte(actual), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil ||
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil ||
 		!strings.Contains(err.Error(), "unsupported reference-style Markdown link") {
 		t.Fatalf("prose reference link error = %v", err)
 	}
@@ -92,7 +92,7 @@ func TestBuildIgnoresUnsupportedSyntaxInCode(t *testing.T) {
 
 func TestBuildFailurePreservesPreviousPublication(t *testing.T) {
 	root, b, rendererPath := fixture(t)
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	before := snapshot(t, filepath.Join(root, "dist"))
@@ -103,7 +103,7 @@ printf '%s\n' '{"ok":true,"output":"---\ntitle: Missing type\n---\n# bad\n","war
 	if err := os.WriteFile(rendererPath, []byte(bad), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil {
 		t.Fatal("invalid rendered OKF unexpectedly built")
 	}
 	after := snapshot(t, filepath.Join(root, "dist"))
@@ -122,7 +122,7 @@ func TestBuildRejectsHiddenGeneratedTargetWithoutOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	b.Renders[0].Output = ".drafts/endpoints.md"
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "hidden") {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "hidden") {
 		t.Fatalf("hidden output error = %v", err)
 	}
 	after, err := os.ReadFile(hidden)
@@ -139,7 +139,7 @@ func TestBuildRejectsEscapingLinksBeforeNormalization(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(b.Dir, "escape.md"), []byte("---\ntype: Concept\n---\n[escape](../../outside.md)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "escapes corpus") {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "escapes corpus") {
 		t.Fatalf("escaping link error = %v", err)
 	}
 }
@@ -149,12 +149,12 @@ func TestBuildRejectsSymlinkAndOverlappingOutput(t *testing.T) {
 	if err := os.Symlink(filepath.Join(b.Dir, "index.md"), filepath.Join(b.Dir, "alias.md")); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "symlink") {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "symlink") {
 		t.Fatalf("symlink error = %v", err)
 	}
 	_, overlap, overlapRenderer := fixture(t)
 	overlap.Output = "docs"
-	if err := Build(context.Background(), overlap, overlapRenderer); err == nil || !strings.Contains(err.Error(), "contains corpus") {
+	if err := Build(context.Background(), overlap, overlapRenderer, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "contains corpus") {
 		t.Fatalf("overlap error = %v", err)
 	}
 }
@@ -162,7 +162,7 @@ func TestBuildRejectsSymlinkAndOverlappingOutput(t *testing.T) {
 func TestBuildRejectsMissingRootAndHandwrittenOverwrite(t *testing.T) {
 	root, b, rendererPath := fixture(t)
 	b.Root = filepath.Join(root, "missing")
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "project root") {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "project root") {
 		t.Fatalf("missing root error = %v", err)
 	}
 	root, b, rendererPath = fixture(t)
@@ -175,7 +175,7 @@ func TestBuildRejectsMissingRootAndHandwrittenOverwrite(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(b.Dir, "reference", "endpoints.md"), []byte("---\ntype: Handwritten\n---\n# owned\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "handwritten") {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "handwritten") {
 		t.Fatalf("handwritten overwrite error = %v", err)
 	}
 }
@@ -190,7 +190,7 @@ func TestBuildProtectsReservedDirectories(t *testing.T) {
 			t.Fatal(err)
 		}
 		b.Output = name
-		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "reserved") {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "reserved") {
 			t.Fatalf("%s output error = %v", name, err)
 		}
 		got, err := os.ReadFile(path)
@@ -205,14 +205,14 @@ func TestBuildProtectsReservedDirectories(t *testing.T) {
 
 func TestBuildRefusesUnknownExistingPublicationFiles(t *testing.T) {
 	root, b, rendererPath := fixture(t)
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	sentinel := filepath.Join(root, "dist", "sentinel.txt")
 	if err := os.WriteFile(sentinel, []byte("keep\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err := Build(context.Background(), b, rendererPath)
+	err := Build(context.Background(), b, rendererPath, BuildOptions{})
 	var publicationErr *PublicationError
 	if err == nil || !strings.Contains(err.Error(), "unknown file") || !errors.As(err, &publicationErr) || publicationErr.Code != "OUTPUT_OCCUPIED" || publicationErr.Path != filepath.Join(root, "dist") {
 		t.Fatalf("unknown publication file error = %v", err)
@@ -228,21 +228,21 @@ func TestBuildRefusesUnknownExistingPublicationFiles(t *testing.T) {
 
 func TestBuildRefusesTamperedLLMS(t *testing.T) {
 	root, b, rendererPath := fixture(t)
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(root, "dist", "llms.txt")
 	if err := os.WriteFile(path, []byte("tampered\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "llms.txt") {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "llms.txt") {
 		t.Fatalf("tampered llms error = %v", err)
 	}
 }
 
 func TestBuildReplacesSignedPublication(t *testing.T) {
 	root, b, rendererPath := fixture(t)
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"graph.json.sig", "graph.json.sigstore.json", "poolboy.pub"} {
@@ -250,7 +250,7 @@ func TestBuildReplacesSignedPublication(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatalf("replace signed publication: %v", err)
 	}
 }
@@ -266,7 +266,7 @@ func TestPortableContractFixture(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(privateDir, "private.md"), []byte(privateMarker), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, rendererPath); err != nil {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 			t.Fatal(err)
 		}
 
@@ -298,14 +298,14 @@ func TestPortableContractFixture(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(root, "dist", "architecture.md"), stale, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "does not own architecture.md") {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "does not own architecture.md") {
 			t.Fatalf("stale publication error = %v", err)
 		}
 	})
 
 	t.Run("unknown graph version", func(t *testing.T) {
 		root, b, rendererPath := fixture(t)
-		if err := Build(context.Background(), b, rendererPath); err != nil {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 			t.Fatal(err)
 		}
 		path := filepath.Join(root, "dist", "graph.json")
@@ -317,7 +317,7 @@ func TestPortableContractFixture(t *testing.T) {
 		if err := os.WriteFile(path, data, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "incompatible graph.json") {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "incompatible graph.json") {
 			t.Fatalf("unknown version error = %v", err)
 		}
 	})
@@ -344,7 +344,7 @@ func TestRenderLLMSEscapesLinks(t *testing.T) {
 // contaminates the authored identity map.
 func TestBuildDerivesNavigationFromTheCorpus(t *testing.T) {
 	root, b, rendererPath := fixture(t)
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "dist", "graph.json"))
@@ -470,7 +470,7 @@ func TestBuildLandingInterpolatesTitleSafely(t *testing.T) {
 	root, b := landingProject(t)
 	title := `Acme <b data-note="quoted">Docs</b>`
 	b.Landing.Title = &title
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))
@@ -507,14 +507,14 @@ func landingProject(t *testing.T) (string, *bundle.Bundle) {
 func TestBuildLandingZIPUsesPortableEpoch(t *testing.T) {
 	root, b := landingProject(t)
 	zipPath := filepath.Join(root, "dist", "corpus.zip")
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	first, err := os.ReadFile(zipPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	second, err := os.ReadFile(zipPath)
@@ -583,7 +583,7 @@ func TestBuildLandingAppliesConfiguredText(t *testing.T) {
 		DownloadFilename:     value("acme-docs.zip"),
 		Mark:                 value("🩳"),
 	}
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))
@@ -603,7 +603,7 @@ func TestBuildLandingAppliesConfiguredText(t *testing.T) {
 
 func TestBuildLandingLinksPoolboyAttribution(t *testing.T) {
 	root, b := landingProject(t)
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))
@@ -627,7 +627,7 @@ func TestBuildLandingEmitsShareCardTags(t *testing.T) {
 	// only when base_url is configured.
 	root, b := landingProject(t)
 	b.Landing = bundle.Landing{Title: value("Acme"), Description: value("Ask an agent."), BaseURL: value("https://docs.example.com/guide")}
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	page, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))
@@ -649,7 +649,7 @@ func TestBuildLandingEmitsShareCardTags(t *testing.T) {
 	// Without base_url, og:url is omitted rather than emitted empty or relative.
 	root, b = landingProject(t)
 	b.Landing = bundle.Landing{Title: value("Acme")}
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	page, err = os.ReadFile(filepath.Join(root, "dist", "index.html"))
@@ -672,7 +672,7 @@ func TestBuildRejectsInvalidLandingConfigBeforeWriting(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root, b := landingProject(t)
 			b.Landing = landing
-			if err := Build(context.Background(), b, ""); err == nil {
+			if err := Build(context.Background(), b, "", BuildOptions{}); err == nil {
 				t.Fatal("expected invalid landing configuration to fail the build")
 			}
 			if _, err := os.Stat(filepath.Join(root, "dist")); !os.IsNotExist(err) {
@@ -701,7 +701,7 @@ func TestBuildCustomSiteDirReplacesGeneratedLanding(t *testing.T) {
 	}
 	value := "website"
 	b.Landing = bundle.Landing{SiteDir: &value}
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))

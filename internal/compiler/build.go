@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,7 +16,9 @@ import (
 
 	"github.com/grosspoetrysystems/poolboy/bundle"
 	"github.com/grosspoetrysystems/poolboy/index"
+	"github.com/grosspoetrysystems/poolboy/internal/discover"
 	"github.com/grosspoetrysystems/poolboy/internal/renderer"
+	"github.com/grosspoetrysystems/poolboy/internal/source"
 	"github.com/grosspoetrysystems/poolboy/parse"
 )
 
@@ -39,11 +42,20 @@ func (e *ValidationError) Error() string {
 	return "invalid OKF:\n" + strings.Join(lines, "\n")
 }
 
+// BuildOptions controls opt-in work that is otherwise absent from a normal
+// offline build. Diagnostics are bounded discovery observations and are
+// written only when a sink is supplied.
+type BuildOptions struct {
+	Discover    bool
+	Diagnostics io.Writer
+}
+
 // Build validates and publishes b into its configured output directory. All
 // validation and rendering happens before authoring files or the existing
 // publication are changed. A failed build leaves the previous publication
 // untouched and never returns partial generated Markdown.
-func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr error) {
+func Build(ctx context.Context, b *bundle.Bundle, rendererPath string, options BuildOptions) (buildErr error) {
+	buildOptions := options
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -145,8 +157,15 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 		return err
 	}
 	order := readingOrder(stagedIndex)
-	llmsBytes := renderLLMS(b.Name, order)
-	graphBytes, err := buildGraph(stagedIndex, candidate, artifacts, llmsBytes, order)
+	var external []graphExternalReference
+	if buildOptions.Discover {
+		external, err = discoverExternal(ctx, b, candidate, buildOptions.Diagnostics)
+		if err != nil {
+			return err
+		}
+	}
+	llmsBytes := renderLLMS(b.Name, order, external...)
+	graphBytes, err := buildGraph(stagedIndex, candidate, artifacts, llmsBytes, order, external...)
 	if err != nil {
 		return err
 	}
@@ -224,6 +243,68 @@ func Build(ctx context.Context, b *bundle.Bundle, rendererPath string) (buildErr
 	_ = swap.commit()
 	committed = true
 	return nil
+}
+
+func discoverExternal(ctx context.Context, b *bundle.Bundle, docs map[string]document, diagnostics io.Writer) ([]graphExternalReference, error) {
+	var candidates []discover.Candidate
+	paths := make([]string, 0, len(docs))
+	for path := range docs {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		for _, link := range parse.Links(string(docs[path].data)).External {
+			candidates = append(candidates, discover.Candidate{
+				URL:    link.Target,
+				From:   path,
+				Line:   link.Line,
+				Origin: "corpus",
+			})
+		}
+	}
+	sourceLinks, err := source.DiscoveryLinks(b)
+	if err != nil {
+		writeDiscoveryDiagnostic(diagnostics, discover.Diagnostic{Detail: fmt.Sprintf("source link scan: %v", err)})
+	} else {
+		for _, link := range sourceLinks {
+			candidates = append(candidates, discover.Candidate{
+				URL:    link.URL,
+				From:   link.Path,
+				Line:   link.Line,
+				Origin: "source",
+			})
+		}
+	}
+	references, observations, err := discover.Discover(ctx, candidates, discover.Options{})
+	for _, observation := range observations {
+		writeDiscoveryDiagnostic(diagnostics, observation)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("external discovery: %w", err)
+	}
+	out := make([]graphExternalReference, 0, len(references))
+	for _, reference := range references {
+		out = append(out, graphExternalReference{
+			URL:    reference.URL,
+			SHA256: reference.SHA256,
+			Root:   reference.Root,
+			From:   reference.From,
+			Line:   reference.Line,
+			Origin: reference.Origin,
+		})
+	}
+	return out, nil
+}
+
+func writeDiscoveryDiagnostic(w io.Writer, observation discover.Diagnostic) {
+	if w == nil {
+		return
+	}
+	if observation.URL == "" {
+		_, _ = fmt.Fprintf(w, "poolboy: discovery: %s\n", observation.Detail)
+		return
+	}
+	_, _ = fmt.Fprintf(w, "poolboy: discovery: %s: %s\n", observation.URL, observation.Detail)
 }
 
 func renderDocuments(ctx context.Context, b *bundle.Bundle, companion string) ([]rendered, error) {

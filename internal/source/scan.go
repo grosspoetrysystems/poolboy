@@ -38,6 +38,7 @@ type scanner struct {
 	entries       map[string]Entry
 	quarantined   map[string]Exclusion
 	traversed     int
+	onFile        func(path string, data []byte)
 }
 
 // Current computes the bounded source inventory without reading or writing the
@@ -225,6 +226,9 @@ func (s *scanner) addFile(path string, rel []string) error {
 		Type:   sourceType(pathKey),
 		Bytes:  int64(len(data)),
 		SHA256: fmt.Sprintf("%x", digest[:]),
+	}
+	if s.onFile != nil {
+		s.onFile(pathKey, data)
 	}
 	return nil
 }

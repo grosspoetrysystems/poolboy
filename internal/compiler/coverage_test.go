@@ -1409,7 +1409,7 @@ func TestBuildRejectsBrokenAndForbiddenLinks(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(b.Dir, "broken.md"), []byte("---\ntype: Concept\n---\n[gone](nowhere.md)\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "broken link") {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "broken link") {
 			t.Fatalf("broken link error = %v", err)
 		}
 	})
@@ -1418,7 +1418,7 @@ func TestBuildRejectsBrokenAndForbiddenLinks(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(b.Dir, "evil.md"), []byte("---\ntype: Concept\n---\n[x](javascript:alert(1))\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "forbidden") {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "forbidden") {
 			t.Fatalf("forbidden scheme error = %v", err)
 		}
 	})
@@ -1427,7 +1427,7 @@ func TestBuildRejectsBrokenAndForbiddenLinks(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(b.Dir, "abs.md"), []byte("---\ntype: Concept\n---\n[x](/root.md)\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "root-relative") {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "root-relative") {
 			t.Fatalf("root-relative error = %v", err)
 		}
 	})
@@ -1441,7 +1441,7 @@ func TestBuildEmbedsConfiguredLogo(t *testing.T) {
 	}
 	logo := "logo.png"
 	b.Landing = bundle.Landing{Logo: &logo}
-	if err := Build(context.Background(), b, ""); err != nil {
+	if err := Build(context.Background(), b, "", BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "dist", "index.html"))
@@ -1455,7 +1455,7 @@ func TestBuildEmbedsConfiguredLogo(t *testing.T) {
 
 func TestBuildRebuildRemovesStaleGenerated(t *testing.T) {
 	root, b, rendererPath := fixture(t)
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	generated := filepath.Join(root, "docs", "reference", "endpoints.md")
@@ -1471,7 +1471,7 @@ func TestBuildRebuildRemovesStaleGenerated(t *testing.T) {
 		t.Fatal(err)
 	}
 	b.Renders = nil
-	if err := Build(context.Background(), b, rendererPath); err != nil {
+	if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(generated); !os.IsNotExist(err) {
@@ -1480,27 +1480,27 @@ func TestBuildRebuildRemovesStaleGenerated(t *testing.T) {
 }
 
 func TestBuildInputBoundaries(t *testing.T) {
-	if err := Build(context.Background(), nil, ""); err == nil {
+	if err := Build(context.Background(), nil, "", BuildOptions{}); err == nil {
 		t.Error("nil bundle should be rejected")
 	}
 	t.Run("unsupported spec", func(t *testing.T) {
 		_, b, rendererPath := fixture(t)
 		b.Spec = "0.1"
-		if err := Build(context.Background(), b, rendererPath); err == nil || !strings.Contains(err.Error(), "unsupported Poolboy spec") {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "unsupported Poolboy spec") {
 			t.Fatalf("unsupported spec error = %v", err)
 		}
 	})
 	t.Run("unknown settings are sorted", func(t *testing.T) {
 		_, b, rendererPath := fixture(t)
 		b.Unknown = []string{"zeta", "alpha"}
-		err := Build(context.Background(), b, rendererPath)
+		err := Build(context.Background(), b, rendererPath, BuildOptions{})
 		if err == nil || !strings.Contains(err.Error(), "alpha, zeta") {
 			t.Fatalf("unknown settings error = %v", err)
 		}
 	})
 	t.Run("background context", func(t *testing.T) {
 		_, b, rendererPath := fixture(t)
-		if err := Build(context.Background(), b, rendererPath); err != nil {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err != nil {
 			t.Fatalf("nil context build errored: %v", err)
 		}
 	})
@@ -1510,7 +1510,7 @@ func TestBuildFailureTransitions(t *testing.T) {
 		_, b, rendererPath := fixture(t)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		if err := Build(ctx, b, rendererPath); err == nil {
+		if err := Build(ctx, b, rendererPath, BuildOptions{}); err == nil {
 			t.Error("canceled build should fail before validation")
 		}
 	})
@@ -1523,13 +1523,13 @@ func TestBuildFailureTransitions(t *testing.T) {
 			t.Fatal(err)
 		}
 		b.Renders = nil
-		if err := Build(context.Background(), b, rendererPath); err == nil {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil {
 			t.Error("non-Poolboy output should be rejected")
 		}
 	})
 	t.Run("missing renderer companion", func(t *testing.T) {
 		root, b, _ := fixture(t)
-		if err := Build(context.Background(), b, filepath.Join(root, "missing-renderer")); err == nil {
+		if err := Build(context.Background(), b, filepath.Join(root, "missing-renderer"), BuildOptions{}); err == nil {
 			t.Error("missing renderer should be rejected")
 		}
 	})
@@ -1543,7 +1543,7 @@ func TestBuildFailureTransitions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, relative); err == nil || !strings.Contains(err.Error(), "must be absolute") {
+		if err := Build(context.Background(), b, relative, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "must be absolute") {
 			t.Errorf("relative renderer error = %v", err)
 		}
 	})
@@ -1553,7 +1553,7 @@ func TestBuildFailureTransitions(t *testing.T) {
 		if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 1\n"), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, path); err == nil {
+		if err := Build(context.Background(), b, path, BuildOptions{}); err == nil {
 			t.Error("renderer process failure should abort build")
 		}
 	})
@@ -1564,7 +1564,7 @@ func TestBuildFailureTransitions(t *testing.T) {
 		if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := Build(context.Background(), b, path); err == nil || !strings.Contains(err.Error(), "invalid OKF output") {
+		if err := Build(context.Background(), b, path, BuildOptions{}); err == nil || !strings.Contains(err.Error(), "invalid OKF output") {
 			t.Errorf("invalid renderer output error = %v", err)
 		}
 	})
@@ -1572,7 +1572,7 @@ func TestBuildFailureTransitions(t *testing.T) {
 		_, b, rendererPath := fixture(t)
 		b.Renders = nil
 		writeLedger(t, b.Root, "{not json")
-		if err := Build(context.Background(), b, rendererPath); err == nil {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil {
 			t.Error("invalid generated ledger should abort build")
 		}
 	})
@@ -1582,7 +1582,7 @@ func TestBuildFailureTransitions(t *testing.T) {
 			t.Skipf("symlinks unavailable: %v", err)
 		}
 		b.Renders = nil
-		if err := Build(context.Background(), b, rendererPath); err == nil {
+		if err := Build(context.Background(), b, rendererPath, BuildOptions{}); err == nil {
 			t.Error("corpus symlink should abort build")
 		}
 	})

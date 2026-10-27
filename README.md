@@ -173,9 +173,21 @@ separate map of every other owned non-Markdown publication file except
 `graph.json`, signature sidecars, and `poolboy.pub` (including `corpus.zip`,
 generated or copied `index.html`, and nested `site_dir` assets); each key is a
 clean publication-relative path and each value contains only `bytes` and
-SHA-256 `sha256`. The graph does not hash itself. External URLs are not graph
-nodes. Unsigned build output excludes wall-clock timestamps and host paths.
-Identical inputs produce identical output bytes.
+SHA-256 `sha256`. The graph does not hash itself. External documents are not
+copied into `graph.files`, `graph.artifacts`, `corpus.zip`, or the output
+directory. With the opt-in `poolboy build --discover`, validated remote
+Poolboy publications are instead listed in additive `graph.external_references`
+entries containing their canonical `graph.json` URL, fetched graph SHA-256,
+declared root, and the local declaring path/line. `llms.txt` adds each remote
+publication's `llms.txt` entry point (and graph digest) so a fresh agent can
+traverse it. These references identify untrusted remote pointers; discovery
+does not establish publisher or content trust, and older readers may ignore
+the additive field. Unsigned build output excludes wall-clock timestamps and
+host paths.
+Without `--discover`, identical local inputs produce identical output bytes
+and builds stay offline. Opted-in builds pin the remote revisions observed
+during that run. See [external publication discovery](docs/build-and-render.md#external-publication-discovery)
+for link admission, traversal boundaries, fixed limits and partial-result behavior.
 
 Generated documents are materialized in the working corpus so editors and maintenance commands can read them. Edit their template/data sources; the generated-file ledger rejects conflicting handwritten changes. Commit generated Markdown with `.poolboy/generated.json` so ownership survives a fresh Git checkout, and retain `.poolboy/sources.lock.json` so the evidence baseline survives too. The inventory contains paths and hashes, not source contents. Do not delete `.poolboy/` to force an overwrite or reset drift. Validation failures leave the previous publication intact.
 

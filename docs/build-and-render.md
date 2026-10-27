@@ -11,6 +11,8 @@ sources:
   - resource: ../cmd/poolboy/signing.go
   - resource: ../internal/compiler/build.go
   - resource: ../internal/compiler/graph.go
+  - resource: ../internal/discover/discover.go
+  - resource: ../internal/source/discover.go
   - resource: ../internal/compiler/ledger.go
   - resource: ../internal/compiler/validate.go
   - resource: ../internal/sign/sign.go
@@ -82,6 +84,47 @@ facts; JSON uses exit 2 and the fields `code`, `status`, `detail`, and
 template/protocol/process failures are classified without matching error
 strings. A foreign or occupied output is reported with its path and preserved
 without deletion. Validation failures remain the issue array with exit 1.
+
+## External publication discovery
+
+```sh
+poolboy build --discover
+```
+
+This opt-in build reads links in corpus Markdown and literal HTTPS URLs in
+currently admitted source files. It uses the source scanner's exclusions and
+does not accept or write a source baseline. A project-page URL is enough when
+ordinary links lead to a Poolboy landing or its advertised `graph.json` or
+`llms.txt`; source templates and client-side JavaScript are not executed.
+
+Ordinary traversal stays on the seed origin. A directly linked foreign
+entrypoint permits its own origin and path subtree, not unrelated site
+navigation or further ordinary foreign links. Explicit graph/llms links and
+validated graph references can cross that boundary. Discovery does not guess
+beacon paths on arbitrary hosts. Once a publication is accepted, its declared
+external references replace ordinary document crawling.
+
+| CLI discovery boundary | Maximum |
+| --- | --- |
+| Network stage | 30 seconds total; 10 seconds per resource fetch |
+| Fetches and redirects | 64 resource fetches; 5 redirects per fetch |
+| Fetched body bytes | 64 MiB total; 32 MiB per graph; 2 MiB per page or llms; 8 MiB for the root document |
+| Traversal | 3 link hops; 32 publications; 256 accepted links per page |
+
+Missing, unsupported, unsafe or over-budget targets produce stderr diagnostics
+and partial discovery results; cancelling the build still stops publication.
+These limits bound best-effort discovery, not an exhaustive crawl.
+
+Accepted `graph.external_references` entries retain the local declaring
+path/line, the remote manifest URL and its exact SHA-256. The builder checks
+the graph's v0 declarations and matching llms/root bytes, not every remote
+document. `llms.txt` exposes the remote entrypoints; files, artifacts and ZIPs
+remain local. References do not establish publisher trust or prompt safety.
+
+Without `--discover`, builds stay offline and deterministic. Opted-in builds
+capture the remote revisions observed during that run; rebuilding may update
+their pins. Consumers must check those pins before traversing a publication,
+as described in [Portable contracts](portable-contracts.md#publication-discovery-and-compatibility).
 
 ## Published files
 

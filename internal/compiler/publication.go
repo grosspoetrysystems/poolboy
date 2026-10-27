@@ -7,13 +7,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 	"unicode"
 )
 
-const maxPublicationManifestBytes = 32 << 20
+const (
+	maxPublicationManifestBytes = 32 << 20
+	maxExternalReferences       = 32
+)
 
 // PublicationError reports output that cannot be safely replaced. The
 // underlying detail remains in Error while Code and Path let callers choose a
@@ -106,6 +111,9 @@ func validateExistingPublication(output string) error {
 		if declaredBytes > maxCorpusBytes {
 			return fmt.Errorf("existing publication graph exceeds %d bytes", maxCorpusBytes)
 		}
+	}
+	if err := validateExternalReferences(manifest.ExternalReferences); err != nil {
+		return fmt.Errorf("existing publication external references: %w", err)
 	}
 	if len(manifest.Artifacts) > maxLandingFiles {
 		return fmt.Errorf("existing publication graph exceeds %d artifacts", maxLandingFiles)
@@ -260,6 +268,65 @@ func validateExistingPublication(output string) error {
 	for artifactPath := range manifest.Artifacts {
 		if !seenArtifact[artifactPath] {
 			return fmt.Errorf("existing publication is missing %s", artifactPath)
+		}
+	}
+	return nil
+}
+
+func validateExternalReferences(references []graphExternalReference) error {
+	if len(references) > maxExternalReferences {
+		return fmt.Errorf("too many references: %d", len(references))
+	}
+	seen := make(map[string]bool, len(references))
+	for i, reference := range references {
+		if reference.URL == "" || reference.Root != "/index.md" {
+			return fmt.Errorf("reference %d has an invalid URL or root", i)
+		}
+		u, err := url.Parse(reference.URL)
+		if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Fragment != "" || u.RawQuery != "" {
+			return fmt.Errorf("reference %d has a non-canonical publication URL", i)
+		}
+		u.Scheme = strings.ToLower(u.Scheme)
+		u.Host = strings.ToLower(u.Host)
+		u.RawPath = ""
+		if u.Path == "" || u.Path != pathpkg.Clean(u.Path) || !strings.HasSuffix(strings.ToLower(u.Path), "/graph.json") {
+			return fmt.Errorf("reference %d has a non-canonical graph URL", i)
+		}
+		if u.String() != reference.URL {
+			return fmt.Errorf("reference %d has a non-canonical publication URL", i)
+		}
+		if seen[reference.URL] {
+			return fmt.Errorf("reference %d duplicates publication URL", i)
+		}
+		seen[reference.URL] = true
+		if len(reference.SHA256) != sha256.Size*2 || strings.ToLower(reference.SHA256) != reference.SHA256 {
+			return fmt.Errorf("reference %d has an invalid graph hash", i)
+		}
+		if _, err := hex.DecodeString(reference.SHA256); err != nil {
+			return fmt.Errorf("reference %d has an invalid graph hash: %w", i, err)
+		}
+		if reference.From == "" || strings.ContainsAny(reference.From, `\\`) || strings.Contains(reference.From, "..") {
+			return fmt.Errorf("reference %d has invalid declaring provenance", i)
+		}
+		for _, r := range reference.From {
+			if unicode.IsControl(r) {
+				return fmt.Errorf("reference %d has invalid declaring provenance", i)
+			}
+		}
+		if reference.Origin != "corpus" && reference.Origin != "source" {
+			return fmt.Errorf("reference %d has invalid declaring origin", i)
+		}
+		if reference.Line < 1 {
+			return fmt.Errorf("reference %d has invalid declaring line", i)
+		}
+		if i > 0 {
+			prior := references[i-1]
+			if prior.From > reference.From ||
+				(prior.From == reference.From && prior.Line > reference.Line) ||
+				(prior.From == reference.From && prior.Line == reference.Line && prior.URL > reference.URL) ||
+				(prior.From == reference.From && prior.Line == reference.Line && prior.URL == reference.URL && prior.Origin > reference.Origin) {
+				return fmt.Errorf("references are not deterministically ordered")
+			}
 		}
 	}
 	return nil

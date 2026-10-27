@@ -69,9 +69,9 @@ Render and publish the configured corpus.
 - Mutation: `true` — writes to disk; see Effects
 - Aliases: `none`
 - Source: `cmd/poolboy/product.go`
-- Usage: `poolboy build [--renderer PATH] [--format text|json|csv|tsv]`
-- Effects: Renders the configured corpus and writes the published output. Missing companions, missing Node.js, renderer failures, and occupied output are reported as actionable operational failures in JSON when requested.
-- Deliberately does not: Does not sign, approve, or verify the output; building does not imply review or established trust, and refused output is never deleted.
+- Usage: `poolboy build [--renderer PATH] [--discover] [--format text|json|csv|tsv]`
+- Effects: Renders and publishes the configured corpus; with --discover, bounded HTTPS discovery adds validated external publication references to graph.json and llms.txt without copying remote documents.
+- Deliberately does not: Without --discover it makes no discovery network requests and keeps existing output bytes; discovery does not sign, approve, or establish trust in external publishers/content, and refused output is never deleted.
 
 
 ### Related commands
@@ -84,6 +84,7 @@ Render and publish the configured corpus.
 ### Flags and arguments
 
 - `--renderer PATH` — Use a trusted Knap companion path.
+- `--discover` — Opt in to bounded HTTPS discovery of validated external Poolboy publications from explicit corpus/source links; unreachable links remain diagnostics.
 - `--format text|json|csv|tsv` — Choose result output format; operational JSON failures contain code, status, detail, and next_action and exit 2.
 ## `preview`
 
