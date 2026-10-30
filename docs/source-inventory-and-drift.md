@@ -54,6 +54,10 @@ directories such as `.git`, `.poolboy`, `node_modules`, `vendor`,
 Build/output names `target`, `build`, `dist`, `out`, `bin`, `obj`, and
 `coverage` are excluded only at the project root, so source directories such
 as `src/bin`, `src/internal`, and `src/build` remain inspectable.
+Compiler stages and previous-output backups named `.poolboy-corpus-build-*`,
+`.poolboy-publication-*`, or `.poolboy-output-old-*` are reserved internal
+output and excluded at any depth. Other hidden source directories remain
+inspectable unless another exclusion applies.
 
 Traversal and inventory caps are hard errors: reaching 1,000,000 traversed
 entries or 100,000 admitted files aborts the whole scan rather than producing

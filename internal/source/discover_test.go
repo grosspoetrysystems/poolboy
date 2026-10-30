@@ -108,3 +108,63 @@ func TestDiscoveryLinksReportsProvenanceWithoutTouchingBaseline(t *testing.T) {
 		t.Errorf("discovery wrote the accepted baseline: %v", err)
 	}
 }
+
+func TestDiscoveryLinksExcludesCorpusStagingTrees(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "src/app.ts", "const api = \"https://api.example/v1/\"\n")
+	writeTestFile(t, root, ".github/workflows/ci.yml", "run: curl https://ci.example/hook/\n")
+	writeTestFile(t, root, "docs/index.md", "[remote](https://corpus.example/docs/)\n")
+	writeTestFile(t, root, ".poolboy-corpus-build-live/index.md", "[remote](https://staged-corpus.example/docs/)\n")
+	writeTestFile(t, root, ".poolboy-publication-live/index.md", "[remote](https://staged-publication.example/docs/)\n")
+	writeTestFile(t, root, ".poolboy-output-old-live/index.md", "[remote](https://staged-output.example/docs/)\n")
+	writeTestFile(t, root, "src/.poolboy-corpus-build-stale/index.md", "[remote](https://staged-corpus-nested.example/docs/)\n")
+	writeTestFile(t, root, "src/.poolboy-publication-stale/index.md", "[remote](https://staged-publication-nested.example/docs/)\n")
+	writeTestFile(t, root, "src/.poolboy-output-old-stale/index.md", "[remote](https://staged-output-nested.example/docs/)\n")
+
+	links, err := DiscoveryLinks(&bundle.Bundle{Root: root, Dir: "docs", Output: "dist"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []DiscoveryLink{
+		{URL: "https://ci.example/hook/", Path: ".github/workflows/ci.yml", Line: 1},
+		{URL: "https://api.example/v1/", Path: "src/app.ts", Line: 1},
+	}
+	if len(links) != len(want) {
+		t.Fatalf("links = %#v, want %#v", links, want)
+	}
+	for i, expected := range want {
+		if links[i] != expected {
+			t.Errorf("link %d = %#v, want %#v", i, links[i], expected)
+		}
+	}
+}
+
+func TestDiscoveryLinksEmitsLiteralDelimitedURLsAndSkipsInterpolation(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "src/notes.md", ""+
+		"Plain https://keep.example/ok link.\n"+
+		"Code inline (`https://back.example/tick`).\n"+
+		"Quote \u201chttps://curly.example/q\u201dfollow.\n"+
+		"Template https://tmpl.example/{HELICOPTER}/doc here.\n"+
+		"Interp https://interp.example/${name} here.\n"+
+		"Encoded https://enc.example/a%20b?q=1&r=2 ok.\n")
+
+	links, err := DiscoveryLinks(&bundle.Bundle{Root: root, Dir: "docs", Output: "dist"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []DiscoveryLink{
+		{URL: "https://keep.example/ok", Path: "src/notes.md", Line: 1},
+		{URL: "https://back.example/tick", Path: "src/notes.md", Line: 2},
+		{URL: "https://curly.example/q", Path: "src/notes.md", Line: 3},
+		{URL: "https://enc.example/a%20b?q=1&r=2", Path: "src/notes.md", Line: 6},
+	}
+	if len(links) != len(want) {
+		t.Fatalf("links = %#v, want %#v", links, want)
+	}
+	for i, expected := range want {
+		if links[i] != expected {
+			t.Errorf("link %d = %#v, want %#v", i, links[i], expected)
+		}
+	}
+}
