@@ -1,6 +1,6 @@
 # Contributing to Poolboy
 
-Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.3.0 (exact commit `2431c194cd57aa90964d55148bf9861ef99bd6fa`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy adapts Helicopter's Change, Verification, Risk, authorization, review-ramp, and queue controls to its Linear-only intake and existing protected checks. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
+Poolboy's contribution governance is adopted from [Helicopter](https://github.com/grosspoetrysystems/helicopter) v0.9.1 (exact commit `b6511f85b8cdd6605ae87343bcfa23e4a564e407`), the policy pack Poolboy shares with other adopters such as Vernacular. Poolboy adapts Helicopter's Change, Verification, Risk, authorization, review-ramp, and queue controls to its Linear-only intake and existing protected checks. Poolboy ships under GPLv3 (see `LICENSE`); the governance tooling copied from Helicopter keeps its upstream MIT notice (see `NOTICE`) and does not relicense the product.
 
 Poolboy welcomes useful, reviewable work however it was produced.
 
@@ -8,10 +8,12 @@ Poolboy welcomes useful, reviewable work however it was produced.
 
 | Rule | Enforced by | Refusal code |
 | --- | --- | --- |
-| The description has **Change**, **Verification**, and **Risk** sections, each filled in | `validate-metadata` (required check) | `REFUSE_TEMPLATE_INCOMPLETE`, `REFUSE_CHANGE_EMPTY`, `REFUSE_VERIFICATION_EMPTY`, `REFUSE_RISK_UNCHECKED` |
-| Every commit carries `Signed-off-by` with its author's email ([DCO](#legal)); merge commits are skipped | `validate-metadata` | `REFUSE_SIGNOFF_MISSING` |
-| A bot can open pull requests only when a maintainer has listed it in `HELICOPTER_AUTOMATION_LOGINS` | `validate-metadata` | `REFUSE_BOT_UNAUTHORIZED` |
-| Contributors without write access have at most two open non-draft pull requests (drafts don't count) | `validate-metadata` | `REFUSE_OPEN_PR_LIMIT` |
+| The description has **Change**, **Verification**, and **Risk** sections, each filled in | `contract` (required check) | `REFUSE_TEMPLATE_INCOMPLETE`, `REFUSE_CHANGE_EMPTY`, `REFUSE_VERIFICATION_EMPTY`, `REFUSE_RISK_UNCHECKED` |
+| Every commit carries `Signed-off-by` with its author's email ([DCO](#legal)); merge commits are skipped | `contract` | `REFUSE_SIGNOFF_MISSING` |
+| A bot opens pull requests only from a branch of this repository, which needs write access an administrator grants | `contract` (required check) | `REFUSE_BOT_UNAUTHORIZED` |
+| Contributors without write access have at most two open non-draft pull requests (drafts don't count) | `contract` | `REFUSE_OPEN_PR_LIMIT` |
+| Contributors without write access target the default branch | `contract` | `REFUSE_BASE_BRANCH` |
+| Contributors without write access change at most 5,000 lines and 300 files per pull request | `contract` | `REFUSE_TOO_LARGE` |
 | Merging needs the required checks to pass and the reviews your mode requires; nobody can force-push or delete the default branch | Branch protection | — |
 | Changes to workflows, security, dependencies, release machinery, policy, or agent instructions need the owners in `.github/CODEOWNERS` (contributor and team modes) | Branch protection (code-owner review) | — |
 | Poolboy reruns its own checks; your report of what you ran is context, not evidence | Project CI | — |
@@ -76,11 +78,19 @@ Poolboy expects every contributor to read the complete diff, understand and expl
 
 AI assistance is allowed, but unattended contributor submissions are not. Contributors do not need to declare how a change was produced by default. If a tool helped, the commit trailer it adds is welcome, for example the Linux kernel's `Assisted-by: AGENT_NAME:MODEL_VERSION`. Only a person certifies the DCO; an agent may mechanically add that person's sign-off only with explicit authorization. An agent must not impersonate a person, approve or merge its own contribution, bypass required checks or reviews, weaken policy or security controls to make its work pass, use repository or deployment secrets in untrusted contribution CI, or answer substantive review questions as though it were the responsible human.
 
+Use a draft pull request while work is incomplete; the checks above wait until you mark it ready for review. When you've addressed review, push your changes and reply, or press **Re-request review**. Either one hands the pull request back to a maintainer. Labels show whose turn it is: `queue:awaiting-author` is yours, `queue:awaiting-reviewer` is ours. An automated review may comment on your change first; it's advisory and can't approve.
+
 Never publish raw transcripts containing secrets, personal data, or restricted source material.
 
 ## Pull request contract
 
 Open unfinished work as a draft. Before requesting review, complete `.github/pull_request_template.md`. HTML comments do not count as required headings or section content:
+
+- Solve one coherent problem per pull request. Maintainers may ask you to split unrelated, generated, mechanical, or otherwise unreviewable changes.
+- Read the whole diff and be ready to explain and revise it, whoever or whatever wrote it.
+- Don't post substantive answers as though they were the accountable person's judgment when a tool wrote them.
+- Maintainers moderate observable behavior and policy violations, not guesses that writing "looks AI-generated."
+- Autonomous agents work through a person's account. That person signs off the agent's pull requests, verifies them, and answers for its issues, reviews, and comments too.
 
 - `Change` states the problem, smallest solution, and user-visible effect. Include a Linear work item URL or write `inline`; the reference alone does not replace the change description. GitHub Issues are disabled.
 - `Verification` lists the commands or steps run and what they showed, or explains why verification does not apply.
@@ -100,7 +110,7 @@ The sole-maintainer metadata exemption is configured through the `HELICOPTER_MOD
 ## Review ramp
 
 When the optional review ramp is activated, admission is followed by one advisory first review only when `HELICOPTER_REVIEW_KEY` exists; missing keys skip that step without a fallback. The queue then labels whose turn it is, nudges after `HELICOPTER_QUEUE_NUDGE_HOURS` (default 168), and marks no-capacity after `HELICOPTER_QUEUE_PAUSE_HOURS` (default 504). Drafts are not queued, and the queue never checks out or executes contributor code.
-Dependabot is authorized repository automation. The trusted workflow defaults `HELICOPTER_AUTOMATION_LOGINS` to `dependabot[bot]`; other bot logins require explicit maintainer configuration. Admission requires Bot author and sender types, positive equal immutable IDs, and equal receiving, base, and head repository IDs. Dependabot updates must target `main`, use a supported dependency branch, and use a dependency-bump title; a human-triggered branch update remains refused. Authorized updates still require all required CI, DCO, and maintainer review before merge.
+Dependabot is authorized when GitHub reports the bot author and sender with matching positive IDs and the receiving, base, and head repositories all match. Admission also requires `main` as the target, a supported dependency branch, and a dependency-bump title; a human-triggered branch update remains refused. Authorized updates still require all required CI, DCO, and maintainer review before merge.
 
 ## Commits and sign-off
 

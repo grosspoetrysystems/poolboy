@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -14,7 +15,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from validate_pr import validate_body, validate_signoff
+from validate_pr import _metadata_exempt, validate_body, validate_signoff
 
 SCRIPT = ROOT / "scripts" / "validate_pr.py"
 
@@ -51,11 +52,15 @@ def run_raw_cli(event: str, *arguments: str) -> subprocess.CompletedProcess[str]
     with tempfile.TemporaryDirectory() as directory:
         event_path = Path(directory) / "event.json"
         event_path.write_text(event, encoding="utf-8")
+        env = os.environ.copy()
+        env.pop("GITHUB_TOKEN", None)
+        env.pop("GITHUB_REPOSITORY", None)
         return subprocess.run(
             [sys.executable, str(SCRIPT), str(event_path), *arguments],
             check=False,
             capture_output=True,
             text=True,
+            env=env,
         )
 
 
@@ -63,6 +68,7 @@ def owner_event(
     *,
     author_id: int = 1,
     author_type: str = "User",
+    author_login: str = "alice",
     owner_type: str = "User",
     owner_id: int = 1,
     sender_id: int = 1,
@@ -79,7 +85,7 @@ def owner_event(
         "pull_request": {
             "author_association": author_association,
             "body": body,
-            "user": {"id": author_id, "type": author_type},
+            "user": {"id": author_id, "login": author_login, "type": author_type},
             "base": {
                 "ref": "main",
                 "repo": {
@@ -87,7 +93,7 @@ def owner_event(
                     "owner": {"id": owner_id, "type": owner_type},
                 },
             },
-            "head": {"ref": "feature/change", "repo": {"id": head_repository_id}},
+            "head": {"ref": "feature/change", "repo": {"id": head_repository_id}}
         },
     }
 
@@ -230,29 +236,32 @@ class ValidateCliTests(unittest.TestCase):
                 result = run_cli(owner_event(), "--mode", mode, "--solo-maintainer-id", "1")
                 self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
 
-    def test_team_mode_exempts_trusted_same_repository_authors(self) -> None:
-        for association in ("OWNER", "MEMBER", "COLLABORATOR"):
+    def test_team_mode_uses_permission_lookup_not_author_association(self) -> None:
+        lookup = lambda login: login == "alice"
+        for association in ("OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"):
             with self.subTest(association=association):
-                result = run_cli(
-                    owner_event(
-                        author_association=association,
-                        owner_id=200,
-                        owner_type="Organization",
-                    ),
-                    "--mode",
-                    "team",
+                event = owner_event(
+                    author_association=association,
+                    owner_id=200,
+                    owner_type="Organization",
                 )
-                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertTrue(_metadata_exempt(event, "team", 0, lookup))
+
+        outsider = owner_event(
+            author_association="CONTRIBUTOR",
+            owner_id=200,
+            owner_type="Organization",
+            author_login="outsider",
+        )
+        self.assertFalse(_metadata_exempt(outsider, "team", 0, lookup))
 
         refused = (
-            owner_event(author_association="NONE", owner_id=200, owner_type="Organization"),
             owner_event(author_association="MEMBER", head_repository_id=101),
             owner_event(author_association="MEMBER", sender_id=2),
             owner_event(author_association="MEMBER", author_type="Bot"),
         )
         for event in refused:
-            result = run_cli(event, "--mode", "team")
-            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertFalse(_metadata_exempt(event, "team", 0, lookup))
 
     def test_malformed_input_and_event_shapes_are_refused(self) -> None:
         malformed_json = run_raw_cli("{")
@@ -266,44 +275,32 @@ class ValidateCliTests(unittest.TestCase):
                 self.assertIn("REFUSE_EVENT_INVALID", result.stdout)
 
 
-class AuthorizedAutomationTests(unittest.TestCase):
+class RepositoryBotTests(unittest.TestCase):
     def bot_event(self, login: str = "dependabot[bot]", head_repository_id: int = 100) -> dict[str, Any]:
-        event = dependabot_event()
-        event["pull_request"]["body"] = VALID
+        event = owner_event(author_type="Bot", sender_type="Bot", head_repository_id=head_repository_id)
         event["pull_request"]["user"]["login"] = login
         event["sender"]["login"] = login
         event["pull_request"]["head"]["repo"]["id"] = head_repository_id
         return event
 
-    def test_listed_bot_on_a_repository_branch_is_admitted(self) -> None:
-        result = run_cli(self.bot_event(), "--automation-logins", "dependabot[bot], renovate[bot]")
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("Authorized automation", result.stdout)
+    def test_any_bot_on_a_repository_branch_is_admitted_without_a_list(self) -> None:
+        events = (dependabot_event(), self.bot_event(login="renovate[bot]"))
+        for event in events:
+            result = run_cli(event)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn("authorized by its write access", result.stdout)
 
-    def test_listed_bot_on_a_fork_is_refused_by_authorization(self) -> None:
-        result = run_cli(self.bot_event(head_repository_id=101), "--automation-logins", "dependabot[bot]")
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
+    def test_bot_on_a_fork_or_acting_for_another_sender_is_refused(self) -> None:
+        fork = self.bot_event(head_repository_id=101)
+        relayed = self.bot_event()
+        relayed["sender"]["login"] = "someone-else[bot]"
+        for event in (fork, relayed):
+            event["pull_request"]["body"] = VALID
+            result = run_cli(event)
+            self.assertEqual(result.returncode, 1, result.stdout)
+            self.assertIn("REFUSE_BOT_UNAUTHORIZED", result.stdout)
 
-    def test_listed_login_requires_bot_identity_and_sender_match(self) -> None:
-        human_author = owner_event(
-            author_type="Bot",
-            sender_type="User",
-            author_association="NONE",
-            body=VALID,
-        )
-        human_author["pull_request"]["user"]["login"] = human_author["sender"]["login"] = "dependabot[bot]"
-        result = run_cli(human_author, "--automation-logins", "dependabot[bot]")
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
-
-        human_sender = self.bot_event()
-        human_sender["sender"] = {"id": 65736142, "login": "thekidnamedkd", "type": "User"}
-        result = run_cli(human_sender, "--automation-logins", "dependabot[bot]")
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
-
-    def test_listed_bot_requires_positive_ids_and_same_event_repositories(self) -> None:
+    def test_repository_bot_requires_positive_ids_and_same_event_repositories(self) -> None:
         cases = []
         invalid_author = self.bot_event()
         invalid_author["pull_request"]["user"]["id"] = 0
@@ -322,10 +319,10 @@ class AuthorizedAutomationTests(unittest.TestCase):
         cases.append(mismatched_base_repository)
         for event in cases:
             with self.subTest(event=event):
-                result = run_cli(event, "--automation-logins", "dependabot[bot]")
+                event["pull_request"]["body"] = VALID
+                result = run_cli(event)
                 self.assertEqual(result.returncode, 1, result.stdout)
-                self.assertIn("REFUSE_AUTOMATION_UNAUTHORIZED", result.stdout)
-
+                self.assertIn("REFUSE_BOT_UNAUTHORIZED", result.stdout)
 
     def test_dependabot_target_branch_and_title_are_preserved(self) -> None:
         for event in (
@@ -333,17 +330,14 @@ class AuthorizedAutomationTests(unittest.TestCase):
             dependabot_event(pull_request={"head": {"ref": "bot/refresh", "repo": {"id": 100}}}),
             dependabot_event(pull_request={"title": "refresh dependencies"}),
         ):
-            result = run_cli(event, "--automation-logins", "dependabot[bot]")
+            result = run_cli(event)
             self.assertEqual(result.returncode, 1, result.stdout)
             self.assertIn("REFUSE_DEPENDABOT_UNAUTHORIZED", result.stdout)
 
-    def test_unlisted_bot_is_refused_even_with_a_valid_description(self) -> None:
-        for event, logins in ((self.bot_event(login="other[bot]"), "dependabot[bot]"), (self.bot_event(), "")):
-            event["pull_request"]["body"] = VALID
-            result = run_cli(event, "--automation-logins", logins)
-            self.assertEqual(result.returncode, 1, result.stdout)
-            self.assertIn("REFUSE_BOT_UNAUTHORIZED", result.stdout)
-
+    def test_a_person_named_like_a_bot_is_not_exempt(self) -> None:
+        event = owner_event(author_association="NONE")
+        event["pull_request"]["user"]["login"] = event["sender"]["login"] = "dependabot[bot]"
+        self.assertEqual(run_cli(event).returncode, 1)
 
 def commit(sha: str, email: str, message: str, parents: int = 1) -> dict[str, object]:
     return {"sha": sha, "parents": [{}] * parents, "commit": {"author": {"email": email}, "message": message}}
@@ -385,10 +379,41 @@ class OpenPullRequestLimitTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("REFUSE_OPEN_PR_LIMIT", result.stdout)
 
-    def test_collaborators_and_a_zero_limit_are_exempt(self) -> None:
-        self.assertEqual(self.run_with("COLLABORATOR", 9).returncode, 0)
+    def test_collaborator_association_does_not_bypass_without_permission_lookup(self) -> None:
+        result = self.run_with("COLLABORATOR", 9)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("REFUSE_OPEN_PR_LIMIT", result.stdout)
         self.assertEqual(self.run_with("NONE", 9, limit="0").returncode, 0)
 
 
+class ShapeTests(unittest.TestCase):
+    def run_with(self, association: str = "NONE", *arguments: str, **pull_request: object) -> subprocess.CompletedProcess[str]:
+        event = owner_event(author_association=association, author_id=2, sender_id=2)
+        event["repository"]["default_branch"] = "main"
+        event["pull_request"]["base"]["ref"] = pull_request.pop("base_ref", "main")
+        event["pull_request"].update({"body": VALID, **pull_request})
+        return run_cli(event, *arguments)
+
+    def test_drafts_skip_admission(self) -> None:
+        event = owner_event(author_association="NONE", author_id=2, sender_id=2)
+        event["pull_request"]["draft"] = True
+        self.assertEqual(run_cli(event).returncode, 0)
+
+    def test_outside_contributions_target_the_default_branch(self) -> None:
+        self.assertEqual(self.run_with().returncode, 0)
+        result = self.run_with(base_ref="release/1.x")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("REFUSE_BASE_BRANCH", result.stdout)
+
+    def test_size_limits_count_lines_and_files_and_zero_turns_them_off(self) -> None:
+        self.assertEqual(self.run_with(additions=4000, deletions=1000, changed_files=300).returncode, 0)
+        for size in ({"additions": 4000, "deletions": 1001}, {"changed_files": 301}):
+            result = self.run_with(**size)
+            self.assertEqual(result.returncode, 1, size)
+            self.assertIn("REFUSE_TOO_LARGE", result.stdout)
+        self.assertEqual(self.run_with("NONE", "--max-changed-lines", "0", additions=9999).returncode, 0)
+        result = self.run_with("NONE", additions=9999)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("REFUSE_TOO_LARGE", result.stdout)
 if __name__ == "__main__":
     unittest.main(verbosity=2)

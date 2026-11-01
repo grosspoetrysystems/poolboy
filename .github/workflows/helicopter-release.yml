@@ -1,0 +1,23 @@
+name: helicopter-release
+
+# Optional. When Helicopter releases, Dependabot bumps the pin below. This check then recommends running the
+# helicopter skill on that pull request to update Helicopter's files. It never fails. Delete this file to opt out.
+on:
+  pull_request:
+    paths:
+      - .github/workflows/helicopter-release.yml
+      - .github/helicopter/version.json
+
+permissions:
+  contents: read
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/helicopter
+      - uses: grosspoetrysystems/helicopter@b6511f85b8cdd6605ae87343bcfa23e4a564e407 # v0.9.1

@@ -10,7 +10,6 @@ permissions:
 env:
   HELICOPTER_MODE: ${{ vars.HELICOPTER_MODE || 'contributor' }}
   HELICOPTER_SOLO_MAINTAINER_ID: ${{ vars.HELICOPTER_SOLO_MAINTAINER_ID || '0' }}
-  HELICOPTER_AUTOMATION_LOGINS: ${{ vars.HELICOPTER_AUTOMATION_LOGINS || 'dependabot[bot]' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -52,19 +51,52 @@ jobs:
             --jq ".[] | select(.user.login == \"$AUTHOR\" and (.draft | not)) | .number" | wc -l > "$RUNNER_TEMP/open_prs"
       - name: Validate pull request contract
         env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           EVENT_PATH: ${{ github.event_path }}
           HELICOPTER_SIGNOFF: ${{ vars.HELICOPTER_SIGNOFF || 'dco' }}
           HELICOPTER_OPEN_PR_LIMIT: ${{ vars.HELICOPTER_OPEN_PR_LIMIT || '2' }}
+          HELICOPTER_MAX_CHANGED_LINES: ${{ vars.HELICOPTER_MAX_CHANGED_LINES || '5000' }}
+          HELICOPTER_MAX_CHANGED_FILES: ${{ vars.HELICOPTER_MAX_CHANGED_FILES || '300' }}
         run: |
           commits=()
           if [ "$HELICOPTER_SIGNOFF" != off ]; then commits=(--commits "$RUNNER_TEMP/commits.json"); fi
           python3 scripts/validate_pr.py "$EVENT_PATH" \
             --mode "$HELICOPTER_MODE" \
             --solo-maintainer-id "$HELICOPTER_SOLO_MAINTAINER_ID" \
-            --automation-logins "$HELICOPTER_AUTOMATION_LOGINS" \
             "${commits[@]}" \
             --open-prs "$(cat "$RUNNER_TEMP/open_prs")" \
-            --open-pr-limit "$HELICOPTER_OPEN_PR_LIMIT"
+            --open-pr-limit "$HELICOPTER_OPEN_PR_LIMIT" \
+            --max-changed-lines "$HELICOPTER_MAX_CHANGED_LINES" \
+            --max-changed-files "$HELICOPTER_MAX_CHANGED_FILES"
+
+  # Advisory path-derived labels. It never changes admission and writes a summary
+  # instead of posting a comment or asking the author to change their boxes.
+  risk-labels:
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out risk labeller from protected default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted-base
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            .gitattributes
+          fetch-depth: 1
+      - name: Derive advisory risk labels
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 trusted-base/scripts/risk_labels.py --pr "$PR_NUMBER"
 
   # Optional advisory review. It reads the pull request through the API and
   # never checks out or executes contributor code. The step is skipped when no

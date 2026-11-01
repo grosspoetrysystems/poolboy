@@ -11,6 +11,7 @@ coverage.out
 *.test
 *.tsbuildinfo
 __pycache__/
+*.py[cod]
 **/.poolboy/*
 !**/.poolboy/generated.json
 !**/.poolboy/sources.lock.json

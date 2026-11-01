@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import io
 import sys
 import unittest
 import urllib.error
@@ -9,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from pr_queue import LABELS as QUEUE_LABELS, notice, plan, queued, turn, update_notice
+from pr_queue import GitHub, LABELS as QUEUE_LABELS, notice, plan, queued, turn, update_notice
 
 NOW = datetime(2026, 10, 30, tzinfo=timezone.utc)
 
@@ -47,11 +48,8 @@ def commit(day):
 
 class TurnTests(unittest.TestCase):
     def assertTurn(self, events, whose, day, **kwargs):
-        current = turn(PR, events, NOW, **kwargs)
-        self.assertEqual(
-            (current.whose, current.since),
-            (whose, datetime.fromisoformat(at(day).replace("Z", "+00:00"))),
-        )
+        current = turn(PR, events, NOW, lambda login: login == "max", **kwargs)
+        self.assertEqual((current.whose, current.since), (whose, datetime.fromisoformat(at(day).replace("Z", "+00:00"))))
 
     def test_new_pull_request_waits_on_reviewer_from_opening(self):
         self.assertTurn([], "reviewer", 0)
@@ -72,10 +70,10 @@ class TurnTests(unittest.TestCase):
         self.assertTurn([asked, requested(6, "alice")], "reviewer", 6)
         self.assertTurn([asked, requested(6, "max")], "author", 3)
 
-    def test_maintainer_response_resets_clock_but_does_not_end_author_turn(self):
-        self.assertTurn([comment(4, "max", "MEMBER")], "reviewer", 4)
-        self.assertTurn([review(3, "max", "changes_requested"), comment(4, "max", "OWNER")], "author", 3)
-        self.assertTurn([review(3, "max", "changes_requested"), review(4, "max", "approved")], "reviewer", 4)
+    def test_maintainer_response_uses_permission_not_association(self):
+        self.assertTurn([comment(4, "max", "CONTRIBUTOR")], "reviewer", 4)
+        self.assertTurn([review(3, "max", "changes_requested"), comment(4, "max", "CONTRIBUTOR")], "author", 3)
+        self.assertTurn([review(3, "max", "changes_requested"), review(4, "max", "approved", "CONTRIBUTOR")], "reviewer", 4)
 
     def test_review_bot_comments_do_not_move_the_turn(self):
         events = [
@@ -84,29 +82,21 @@ class TurnTests(unittest.TestCase):
         ]
         self.assertTurn(events, "author", 3)
 
-    def test_bots_others_and_listed_automation_do_not_count_as_maintainers(self):
-        events = [
-            comment(2, "dependabot[bot]", "COLLABORATOR", kind="Bot"),
-            comment(3, "bob"),
-            comment(4, "roboomp", "COLLABORATOR"),
-        ]
-        self.assertTurn(events, "reviewer", 0, ignored=frozenset({"roboomp"}))
+    def test_bots_and_others_do_not_count_as_maintainers(self):
+        events = [comment(2, "dependabot[bot]", "COLLABORATOR", kind="Bot"), comment(3, "bob")]
+        self.assertTurn(events, "reviewer", 0)
 
     def test_refused_admission_is_the_authors_turn(self):
-        self.assertEqual(turn(PR, [], NOW, admitted=False).whose, "author")
+        self.assertEqual(turn(PR, [], NOW, lambda login: False, admitted=False).whose, "author")
 
     def test_drafts_are_not_queued_and_ready_restarts_clock(self):
-        self.assertIsNone(turn({**PR, "draft": True}, [], NOW))
+        self.assertIsNone(turn({**PR, "draft": True}, [], NOW, lambda login: False))
         self.assertTurn([{"event": "ready_for_review", "created_at": at(8)}], "reviewer", 8)
 
 
 class PlanTests(unittest.TestCase):
     def since(self, hours):
-        return turn(
-            PR,
-            [{"event": "ready_for_review", "created_at": (NOW - timedelta(hours=hours)).isoformat()}],
-            NOW,
-        )
+        return turn(PR, [{"event": "ready_for_review", "created_at": (NOW - timedelta(hours=hours)).isoformat()}], NOW, lambda login: False)
 
     def test_thresholds_in_hours(self):
         self.assertEqual(plan(self.since(3), NOW, 4, 72), (QUEUE_LABELS["reviewer"], None))
@@ -119,7 +109,7 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(plan(self.since(21 * 24), NOW, 168, 504), (QUEUE_LABELS["paused"], "pause"))
 
     def test_author_turn_never_nudges_or_pauses(self):
-        current = turn(PR, [review(0, "max", "changes_requested")], NOW)
+        current = turn(PR, [review(0, "max", "changes_requested")], NOW, lambda login: login == "max")
         self.assertEqual(plan(current, NOW, 4, 72), (QUEUE_LABELS["author"], None))
 
     def test_notice_reports_hours_then_days(self):
@@ -127,27 +117,85 @@ class PlanTests(unittest.TestCase):
         self.assertIn("waited 3 days", notice("nudge", self.since(72), NOW, "alice", ["max"]))
 
 
+class MaintainerLookupTests(unittest.TestCase):
+    def test_private_member_reported_as_contributor_is_a_maintainer(self):
+        github = GitHub("o/r", "token")
+        calls = []
+
+        def request(method, path):
+            calls.append((method, path))
+            return {"permission": "admin"}
+
+        github.request = request
+        self.assertTrue(github.is_maintainer("thekidnamedkd"))
+        self.assertTrue(github.is_maintainer("thekidnamedkd"))
+        self.assertEqual(calls, [("GET", "collaborators/thekidnamedkd/permission")])
+
+    def test_only_write_level_permissions_are_maintainers(self):
+        for permission in ("admin", "maintain", "write", "push", "triage", "read"):
+            with self.subTest(permission=permission):
+                github = GitHub("o/r", "token")
+                github.request = lambda method, path, permission=permission: {"permission": permission}
+                self.assertEqual(github.is_maintainer(permission), permission in {"admin", "maintain", "write"})
+
+    def test_lookup_failure_falls_back_to_outsider(self):
+        failures = (
+            urllib.error.HTTPError("url", 404, "Not Found", {}, io.BytesIO(b"missing")),
+            SystemExit("workflow permission denied"),
+            RuntimeError("network down"),
+        )
+        for failure in failures:
+            with self.subTest(type=type(failure).__name__):
+                github = GitHub("o/r", "token")
+
+                def request(method, path, failure=failure):
+                    raise failure
+
+                github.request = request
+                self.assertFalse(github.is_maintainer("someone"))
+
+    def test_lookup_failure_closes_http_error(self):
+        github = GitHub("o/r", "token")
+        with urllib.error.HTTPError("url", 404, "Not Found", {}, io.BytesIO(b"missing")) as error:
+            def request(method, path):
+                raise error
+
+            github.request = request
+            self.assertFalse(github.is_maintainer("someone"))
+            self.assertTrue(error.closed)
+
+
 class QueueScopeTests(unittest.TestCase):
     def test_team_mode_queues_members(self):
-        for association in ("OWNER", "MEMBER", "COLLABORATOR"):
+        for association in ("OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"):
             pr = {**PR, "state": "open", "author_association": association}
-            self.assertTrue(queued(pr, team=True), association)
-            self.assertFalse(queued(pr, team=False), association)
+            lookup = lambda login: login == "alice"
+            self.assertTrue(queued(pr, team=True, is_maintainer=lookup), association)
+            self.assertFalse(queued(pr, team=False, is_maintainer=lookup), association)
 
     def test_outside_contributions_are_queued_in_every_mode(self):
         pr = {**PR, "state": "open", "author_association": "CONTRIBUTOR"}
-        self.assertTrue(queued(pr, team=False))
-        self.assertTrue(queued(pr, team=True))
+        self.assertTrue(queued(pr, team=False, is_maintainer=lambda _login: False))
+        self.assertTrue(queued(pr, team=True, is_maintainer=lambda _login: False))
 
     def test_closed_pull_requests_are_never_queued(self):
-        self.assertFalse(queued({**PR, "state": "closed", "author_association": "MEMBER"}, team=True))
+        self.assertFalse(queued(
+            {**PR, "state": "closed", "author_association": "MEMBER"},
+            team=True,
+            is_maintainer=lambda _login: True,
+        ))
 
-    def test_authorized_automation_is_queued_like_maintainer_work(self):
-        pr = {**PR, "state": "open", "author_association": "NONE", "user": {"login": "dependabot[bot]"}}
-        bots = frozenset({"dependabot[bot]"})
-        self.assertFalse(queued(pr, team=False, automation=bots))
-        self.assertTrue(queued(pr, team=True, automation=bots))
-        self.assertTrue(queued(pr, team=False))
+    def test_repository_bots_are_queued_like_maintainer_work_but_fork_bots_are_not(self):
+        repo = {"repo": {"id": 100}}
+        bot = {**PR, "state": "open", "author_association": "NONE", "user": {"login": "renovate[bot]", "type": "Bot"},
+               "head": repo, "base": repo}
+        lookup = lambda _login: False
+        self.assertFalse(queued(bot, team=False, is_maintainer=lookup))
+        self.assertTrue(queued(bot, team=True, is_maintainer=lookup))
+        self.assertTrue(queued({**bot, "head": {"repo": {"id": 101}}}, team=False, is_maintainer=lookup))
+        self.assertTrue(queued({**bot, "head": {"repo": None}}, team=False, is_maintainer=lookup))
+
+
 
 
 

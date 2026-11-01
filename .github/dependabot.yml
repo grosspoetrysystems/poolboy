@@ -1,5 +1,7 @@
 # Keeps pinned action SHAs current. New versions wait 7 days before Dependabot
 # proposes them (GitHub's default is 3); security updates are never delayed.
+# Helicopter's own release check gets its own pull request, without the wait: the
+# helicopter-release check on it says what to do.
 # The PR-Agent image is pinned by digest in pr-contract.yml and bumped by
 # hand (see the helicopter skill's references/operating.md), because Dependabot doesn't update `docker://` refs.
 version: 2
@@ -11,10 +13,14 @@ updates:
     target-branch: main
     cooldown:
       default-days: 7
+      exclude: ["grosspoetrysystems/helicopter"]
     groups:
-      workflow-actions:
-        patterns:
-          - "*"
+      helicopter:
+        patterns: ["grosspoetrysystems/helicopter"]
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
 
   - package-ecosystem: gomod
     directory: /
