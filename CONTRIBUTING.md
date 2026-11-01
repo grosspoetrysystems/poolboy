@@ -110,7 +110,7 @@ The sole-maintainer metadata exemption is configured through the `HELICOPTER_MOD
 ## Review ramp
 
 When the optional review ramp is activated, admission is followed by one advisory first review only when `HELICOPTER_REVIEW_KEY` exists; missing keys skip that step without a fallback. The queue then labels whose turn it is, nudges after `HELICOPTER_QUEUE_NUDGE_HOURS` (default 168), and marks no-capacity after `HELICOPTER_QUEUE_PAUSE_HOURS` (default 504). Drafts are not queued, and the queue never checks out or executes contributor code.
-Dependabot is authorized repository automation. The trusted workflow defaults `HELICOPTER_AUTOMATION_LOGINS` to `dependabot[bot]`; other bot logins require explicit maintainer configuration. Admission requires Bot author and sender types, positive equal immutable IDs, and equal receiving, base, and head repository IDs. Dependabot updates must target `main`, use a supported dependency branch, and use a dependency-bump title; a human-triggered branch update remains refused. Authorized updates still require all required CI, DCO, and maintainer review before merge.
+Dependabot is authorized when GitHub reports the bot author and sender with matching positive IDs and the receiving, base, and head repositories all match. Admission also requires `main` as the target, a supported dependency branch, and a dependency-bump title; a human-triggered branch update remains refused. Authorized updates still require all required CI, DCO, and maintainer review before merge.
 
 ## Commits and sign-off
 

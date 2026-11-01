@@ -10,7 +10,6 @@ permissions:
 env:
   HELICOPTER_MODE: ${{ vars.HELICOPTER_MODE || 'contributor' }}
   HELICOPTER_SOLO_MAINTAINER_ID: ${{ vars.HELICOPTER_SOLO_MAINTAINER_ID || '0' }}
-  HELICOPTER_AUTOMATION_LOGINS: ${{ vars.HELICOPTER_AUTOMATION_LOGINS || 'dependabot[bot]' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}

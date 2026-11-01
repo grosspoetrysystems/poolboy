@@ -14,9 +14,6 @@ on:
 
 permissions:
   contents: read
-env:
-  HELICOPTER_MODE: ${{ vars.HELICOPTER_MODE || 'contributor' }}
-  HELICOPTER_AUTOMATION_LOGINS: ${{ vars.HELICOPTER_AUTOMATION_LOGINS || 'dependabot[bot]' }}
 concurrency:
   group: contribution-queue-${{ github.event.issue.number || 'sweep' }}
   cancel-in-progress: false
