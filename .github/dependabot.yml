@@ -17,10 +17,9 @@ updates:
     groups:
       helicopter:
         patterns: ["grosspoetrysystems/helicopter"]
-      actions:
-        patterns: ["*"]
-    commit-message:
-      prefix: ci
+      workflow-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: gomod
     directory: /
