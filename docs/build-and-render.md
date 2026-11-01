@@ -97,6 +97,10 @@ does not accept or write a source baseline. A project-page URL is enough when
 ordinary links lead to a Poolboy landing or its advertised `graph.json` or
 `llms.txt`; source templates and client-side JavaScript are not executed.
 
+Backticks and typographic quotes delimit literal source URLs. Raw `{...}`
+placeholders are skipped, not evaluated or truncated into guessed destinations;
+percent-encoded literal characters remain intact.
+
 Ordinary traversal stays on the seed origin. A directly linked foreign
 entrypoint permits its own origin and path subtree, not unrelated site
 navigation or further ordinary foreign links. Explicit graph/llms links and

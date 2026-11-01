@@ -17,7 +17,7 @@ type DiscoveryLink struct {
 	Line int
 }
 
-var sourceDiscoveryURL = regexp.MustCompile(`https?://[^\s"'<>]+`)
+var sourceDiscoveryURL = regexp.MustCompile(`https?://[^\s"'<>\x60‘’“”]+`)
 
 // DiscoveryLinks rereads only currently admitted, bounded source files and
 // returns literal URL evidence with path/line provenance. It deliberately does
@@ -69,6 +69,9 @@ func DiscoveryLinks(b *bundle.Bundle) ([]DiscoveryLink, error) {
 
 func trimDiscoveryURL(raw string) string {
 	raw = strings.TrimSpace(raw)
+	if strings.ContainsAny(raw, "{}") {
+		return ""
+	}
 	raw = strings.TrimRight(raw, ".,;:!?]")
 	for strings.HasSuffix(raw, ")") && strings.Count(raw, ")") > strings.Count(raw, "(") {
 		raw = strings.TrimSuffix(raw, ")")

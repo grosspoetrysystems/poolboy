@@ -450,7 +450,11 @@ var rootBuildDirNames = map[string]bool{
 }
 
 func excludedSourceDirectory(name string, root bool) bool {
-	return dependencyDirNames[name] || (root && rootBuildDirNames[name])
+	return dependencyDirNames[name] ||
+		strings.HasPrefix(name, ".poolboy-corpus-build-") ||
+		strings.HasPrefix(name, ".poolboy-publication-") ||
+		strings.HasPrefix(name, ".poolboy-output-old-") ||
+		(root && rootBuildDirNames[name])
 }
 
 func excludedDirectoryName(name string) bool {
