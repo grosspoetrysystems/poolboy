@@ -5,18 +5,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+
+from pr_queue import GitHub
+
+MaintainerLookup = Callable[[str], bool]
 
 REQUIRED_SECTIONS = ("Change", "Verification", "Risk")
 PLACEHOLDERS = (
     "<problem, smallest solution, and user-visible effect>",
     "Linear: <Linear work item URL or `inline`>",
     "Commands and results:",
-    "<commands and concise result; project CI verifies independently>",
+    "<commands and results; say what you couldn't run or test. Project CI verifies independently.>",
+    "<commands and concise result; project CI verifies independently>",  # earlier wording, still in open pull requests
     "Check every area this pull request changes:",
     "Details and mitigations:",
 )
@@ -60,7 +66,12 @@ def _event_shape_refusal(event: Any) -> str | None:
     return None
 
 
-def _metadata_exempt(event: dict[str, Any], mode: str, solo_maintainer_id: int) -> bool:
+def _metadata_exempt(
+    event: dict[str, Any],
+    mode: str,
+    solo_maintainer_id: int,
+    is_maintainer: MaintainerLookup | None = None,
+) -> bool:
     pull_request = _mapping(event.get("pull_request"))
     author = _mapping(pull_request.get("user"))
     base_repository = _mapping(_mapping(pull_request.get("base")).get("repo"))
@@ -86,7 +97,7 @@ def _metadata_exempt(event: dict[str, Any], mode: str, solo_maintainer_id: int) 
         return False
 
     if mode == "team":
-        return pull_request.get("author_association") in {"OWNER", "MEMBER", "COLLABORATOR"}
+        return bool(is_maintainer and is_maintainer(author.get("login", "")))
 
     if mode != "solo" or author_id != solo_maintainer_id:
         return False
@@ -94,8 +105,10 @@ def _metadata_exempt(event: dict[str, Any], mode: str, solo_maintainer_id: int) 
     return owner.get("type") == "Organization" or _repo_id(owner.get("id")) == solo_maintainer_id
 
 
-def _authorized_automation(event: dict[str, Any], logins: frozenset[str]) -> bool:
-    """Admit a maintainer-listed bot on a branch of this repository."""
+
+def _repository_bot(event: dict[str, Any]) -> bool:
+    """A bot pushing a branch of this repository. GitHub allows that only with write access an administrator
+    granted, so the grant is the authorization; there is no list to keep."""
     pull_request = _mapping(event.get("pull_request"))
     author = _mapping(pull_request.get("user"))
     sender = _mapping(event.get("sender"))
@@ -106,8 +119,7 @@ def _authorized_automation(event: dict[str, Any], logins: frozenset[str]) -> boo
     sender_id = _repo_id(sender.get("id"))
     return (
         author.get("type") == "Bot"
-        and sender.get("type") == "Bot"
-        and author.get("login") in logins
+        and bool(author.get("login"))
         and sender.get("login") == author.get("login")
         and author_id is not None
         and sender_id == author_id
@@ -234,6 +246,40 @@ def validate_open_prs(open_prs: int, limit: int) -> list[Refusal]:
     ]
 
 
+def validate_shape(pull_request: dict[str, Any], default_branch: str, max_lines: int, max_files: int) -> list[Refusal]:
+    """Outside contributions target the default branch and stay small enough to review. A limit of 0 is off."""
+    refusals = []
+    base = (pull_request.get("base") or {}).get("ref")
+    if default_branch and base and base != default_branch:
+        refusals.append(
+            Refusal(
+                "REFUSE_BASE_BRANCH",
+                f"This pull request targets `{base}`; contributions go to `{default_branch}`. "
+                "Change the base branch with **Edit** next to the title.",
+            )
+        )
+    lines = (pull_request.get("additions") or 0) + (pull_request.get("deletions") or 0)
+    files = pull_request.get("changed_files") or 0
+    over = []
+    if max_lines and lines > max_lines:
+        over.append(f"{lines} changed lines (limit {max_lines})")
+    if max_files and files > max_files:
+        over.append(f"{files} changed files (limit {max_files})")
+    if over:
+        refusals.append(
+            Refusal(
+                "REFUSE_TOO_LARGE",
+                f"This pull request has {' and '.join(over)}. Split it into smaller pull requests, "
+                "or ask a maintainer in an issue first.",
+            )
+        )
+    return refusals
+
+
+def _limit(value: str, default: int) -> int:
+    return int(value) if re.fullmatch(r"[0-9]+", value) else default
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("event", type=Path, help="GitHub pull request event JSON")
@@ -242,11 +288,6 @@ def main() -> int:
         "--solo-maintainer-id",
         default="",
         help="immutable numeric GitHub user ID authorized in solo mode",
-    )
-    parser.add_argument(
-        "--automation-logins",
-        default="",
-        help="maintainer-authorized bot logins (HELICOPTER_AUTOMATION_LOGINS), comma or space separated",
     )
     parser.add_argument(
         "--commits",
@@ -264,6 +305,8 @@ def main() -> int:
         default="2",
         help="most open non-draft pull requests an outside contributor may have; 0 disables",
     )
+    parser.add_argument("--max-changed-lines", default="5000", help="outside contributors' size limit; 0 disables")
+    parser.add_argument("--max-changed-files", default="300", help="outside contributors' file limit; 0 disables")
     args = parser.parse_args()
 
     try:
@@ -277,19 +320,24 @@ def main() -> int:
         print(f"REFUSE_EVENT_INVALID: {shape_error}")
         return 2
 
+    if (_mapping(event.get("pull_request")).get("draft")):
+        print("Draft: admission runs when the pull request is marked ready for review.")
+        return 0
+
     mode = args.mode if args.mode in {"solo", "contributor", "team"} else "contributor"
     solo_maintainer_id = int(args.solo_maintainer_id) if re.fullmatch(r"[1-9][0-9]*", args.solo_maintainer_id) else 0
-    automation_logins = frozenset(filter(None, re.split(r"[\s,]+", args.automation_logins)))
+    token = os.environ.get("GITHUB_TOKEN")
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    github = GitHub(repository, token) if token and repository else None
+    is_maintainer: MaintainerLookup = github.is_maintainer if github else lambda _login: False
     pull_request = _mapping(event.get("pull_request"))
     author = _mapping(pull_request.get("user"))
 
-    if author.get("type") == "Bot" and author.get("login") in automation_logins:
-        if not _authorized_automation(event, automation_logins):
-            print(
-                "REFUSE_AUTOMATION_UNAUTHORIZED: authorized automation must be the listed Bot author, "
-                "the event sender, and a same-repository branch."
-            )
-            return 1
+    if _metadata_exempt(event, mode, solo_maintainer_id, is_maintainer):
+        print(f"{mode.capitalize()}-mode metadata exemption accepted for the trusted maintainer.")
+        return 0
+
+    if _repository_bot(event):
         if author.get("login") == DEPENDABOT_LOGIN:
             refusals = _dependabot_refusals(event)
             if refusals:
@@ -297,17 +345,13 @@ def main() -> int:
                 for refusal in refusals:
                     print(f"{refusal.code}: {refusal.message}")
                 return 1
-        print("Authorized automation exemption accepted. Human review is still required.")
-        return 0
-
-    if _metadata_exempt(event, mode, solo_maintainer_id):
-        print(f"{mode.capitalize()}-mode metadata exemption accepted for the trusted maintainer.")
+        print("Bot on a branch of this repository: authorized by its write access. Human review is still required.")
         return 0
 
     if author.get("type") == "Bot":
         print(
-            "REFUSE_BOT_UNAUTHORIZED: bots need maintainer authorization before opening pull requests. "
-            "Their operator requests it with the Automation authorization issue form."
+            "REFUSE_BOT_UNAUTHORIZED: bots open pull requests only from a branch of this repository, which needs "
+            "write access an administrator grants. Agents submit through a person's account; that person signs off."
         )
         return 1
 
@@ -319,9 +363,12 @@ def main() -> int:
             print(f"REFUSE_EVENT_INVALID: commits: {error}")
             return 2
         refusals += validate_signoff(commits)
-    if pull_request.get("author_association") not in {"OWNER", "MEMBER", "COLLABORATOR"}:
-        limit = int(args.open_pr_limit) if re.fullmatch(r"[0-9]+", args.open_pr_limit) else 2
-        refusals += validate_open_prs(args.open_prs, limit)
+    if not is_maintainer((pull_request.get("user") or {}).get("login", "")):
+        refusals += validate_open_prs(args.open_prs, _limit(args.open_pr_limit, 2))
+        default_branch = (event.get("repository") or {}).get("default_branch") or ""
+        refusals += validate_shape(
+            pull_request, default_branch, _limit(args.max_changed_lines, 5000), _limit(args.max_changed_files, 300)
+        )
     if refusals:
         print("Contribution intake refused:")
         for refusal in refusals:

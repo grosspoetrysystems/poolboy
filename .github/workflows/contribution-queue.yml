@@ -5,7 +5,7 @@ name: contribution-queue
 # The hourly sweep also opens one issue when a newer Helicopter release is out.
 on:
   # Privileged by design: labels and comments need a write token. Only trusted
-  # default-branch code runs; scripts/check_install.py checks that.
+  # default-branch code runs; the queue preserves this boundary.
   issue_comment: # zizmor: ignore[dangerous-triggers]
     types: [created]
   schedule:
@@ -14,11 +14,9 @@ on:
 
 permissions:
   contents: read
-
 env:
   HELICOPTER_MODE: ${{ vars.HELICOPTER_MODE || 'contributor' }}
   HELICOPTER_AUTOMATION_LOGINS: ${{ vars.HELICOPTER_AUTOMATION_LOGINS || 'dependabot[bot]' }}
-
 concurrency:
   group: contribution-queue-${{ github.event.issue.number || 'sweep' }}
   cancel-in-progress: false
@@ -52,9 +50,5 @@ jobs:
           PR_NUMBER: ${{ github.event.issue.number }}
           HELICOPTER_QUEUE_NUDGE_HOURS: ${{ vars.HELICOPTER_QUEUE_NUDGE_HOURS }}
           HELICOPTER_QUEUE_PAUSE_HOURS: ${{ vars.HELICOPTER_QUEUE_PAUSE_HOURS }}
-        run: |
-          if [ -n "${PR_NUMBER:-}" ]; then
-            python3 trusted-base/scripts/pr_queue.py --pr "$PR_NUMBER"
-          else
-            python3 trusted-base/scripts/pr_queue.py
-          fi
+          HELICOPTER_MODE: ${{ vars.HELICOPTER_MODE || 'contributor' }}
+        run: python3 trusted-base/scripts/pr_queue.py ${PR_NUMBER:+--pr "$PR_NUMBER"}

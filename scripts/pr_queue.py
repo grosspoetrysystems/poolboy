@@ -17,12 +17,15 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import quote
 
 API = os.environ.get("GITHUB_API_URL", "https://api.github.com")
 BOT = "github-actions[bot]"
-MAINTAINER = {"OWNER", "MEMBER", "COLLABORATOR"}
+# Who counts as a maintainer is answered by a live permission lookup, not by the
+# event's author_association: it can report CONTRIBUTOR for a user with repository
+# admin access, and private organization membership is not exposed by the
+# public-members endpoint. See GitHub.is_maintainer.
 ADMISSION_CHECK = "contract"
 LABELS = {
     "author": "queue:awaiting-author",
@@ -51,8 +54,8 @@ def turn(
     pr: dict[str, Any],
     events: list[dict[str, Any]],
     now: datetime,
+    is_maintainer: Callable[[str], bool],
     admitted: bool | None = None,
-    ignored: frozenset[str] = frozenset(),
 ) -> Turn | None:
     """Return whose turn it is and since when, or None if the PR is not queued."""
     if pr.get("draft"):
@@ -81,12 +84,12 @@ def turn(
                 whose, since, reason = "reviewer", at, "author re-requested review"
         elif kind not in {"commented", "reviewed"}:
             continue
-        elif actor.get("type") == "Bot" or login in ignored:
+        elif actor.get("type") == "Bot":
             continue
         elif login == author:
             if whose == "author":
                 whose, since, reason = "reviewer", at, "author replied"
-        elif event.get("author_association") in MAINTAINER:
+        elif is_maintainer(login or ""):
             if event.get("state") == "changes_requested":
                 whose, since, reason = "author", at, "maintainer requested changes"
             elif whose == "reviewer" or event.get("state") == "approved":
@@ -134,6 +137,7 @@ def notice(kind: str, current: Turn, now: datetime, author: str, owners: list[st
 class GitHub:
     def __init__(self, repository: str, token: str, dry_run: bool = False) -> None:
         self.repository, self.token, self.dry_run = repository, token, dry_run
+        self._maintainer_cache: dict[str, bool] = {}
 
     def request(self, method: str, path: str, body: Any = None, accept: str = "application/vnd.github+json") -> Any:
         url = path if path.startswith("http") else f"{API}/repos/{self.repository}/{path}"
@@ -166,6 +170,29 @@ class GitHub:
             data += self.request("GET", following.group(1))
         return data
 
+    def is_maintainer(self, login: str) -> bool:
+        """Return whether ``login`` has admin, maintain, or write access.
+
+        The permission endpoint sees access granted through private organization
+        membership, unlike the PR event's ``author_association`` field. Lookup
+        failures fail closed so admission and queue jobs keep running.
+        """
+        if not login:
+            return False
+        if login not in self._maintainer_cache:
+            try:
+                permission = self.request(
+                    "GET",
+                    f"collaborators/{quote(login, safe='')}/permission",
+                )
+                role = (permission or {}).get("permission") or (permission or {}).get("role_name")
+                self._maintainer_cache[login] = role in {"admin", "maintain", "write"}
+            except (Exception, SystemExit) as error:
+                if isinstance(error, urllib.error.HTTPError):
+                    error.close()
+                self._maintainer_cache[login] = False
+        return self._maintainer_cache[login]
+
 
 def admitted(github: GitHub, sha: str) -> bool | None:
     runs = github.request("GET", f"commits/{sha}/check-runs?check_name={ADMISSION_CHECK}")["check_runs"]
@@ -175,17 +202,10 @@ def admitted(github: GitHub, sha: str) -> bool | None:
     return finished[0]["conclusion"] == "success"
 
 
-def reconcile(
-    github: GitHub,
-    pr: dict[str, Any],
-    now: datetime,
-    nudge_hours: int,
-    pause_hours: int,
-    ignored: frozenset[str],
-) -> None:
+def reconcile(github: GitHub, pr: dict[str, Any], now: datetime, nudge_hours: int, pause_hours: int) -> None:
     number = pr["number"]
     events = github.request("GET", f"issues/{number}/timeline?per_page=100")
-    current = turn(pr, events, now, admitted(github, pr["head"]["sha"]), ignored)
+    current = turn(pr, events, now, github.is_maintainer, admitted(github, pr["head"]["sha"]))
     have = {label["name"] for label in pr["labels"]} & set(LABELS.values())
     want, due = plan(current, now, nudge_hours, pause_hours) if current else (None, None)
 
@@ -203,25 +223,15 @@ def reconcile(
         )
         if not posted:
             owners = [user["login"] for user in pr.get("requested_reviewers") or []]
-            owners += [
-                f"{pr['base']['repo']['owner']['login']}/{team['slug']}"
-                for team in pr.get("requested_teams") or []
-            ]
-            owners += sorted(
-                {
-                    event["user"]["login"]
-                    for event in events
-                    if event.get("event") == "reviewed"
-                    and event.get("author_association") in MAINTAINER
-                    and event["user"]["login"] not in ignored | {pr["user"]["login"]}
-                }
-                - set(owners)
-            )
-            github.request(
-                "POST",
-                f"issues/{number}/comments",
-                {"body": notice(due, current, now, pr["user"]["login"], owners)},
-            )
+            owners += [f"{pr['base']['repo']['owner']['login']}/{team['slug']}" for team in pr.get("requested_teams") or []]
+            owners += sorted({
+                event["user"]["login"]
+                for event in events
+                if event.get("event") == "reviewed"
+                and github.is_maintainer((event.get("user") or {}).get("login", ""))
+                and event["user"]["login"] != pr["user"]["login"]
+            } - set(owners))
+            github.request("POST", f"issues/{number}/comments", {"body": notice(due, current, now, pr["user"]["login"], owners)})
 
     state = f"{current.whose} since {current.since:%Y-%m-%d} ({current.reason})" if current else "not queued (draft)"
     print(f"#{number}: {want or 'no label'}; {state}{'; ' + due if due else ''}")
@@ -279,13 +289,20 @@ def check_for_update(github: GitHub) -> None:
     print(f"Helicopter {installed}: " + (f"opened an issue for {opened}" if opened else "up to date or already notified"))
 
 
-def queued(pr: dict[str, Any], team: bool, automation: frozenset[str] = frozenset()) -> bool:
+def repository_bot(pr: dict[str, Any]) -> bool:
+    """A bot on a branch of this repository: it needed write access an administrator granted."""
+    head = ((pr.get("head") or {}).get("repo") or {}).get("id")
+    return (pr.get("user") or {}).get("type") == "Bot" and head is not None and head == ((pr.get("base") or {}).get("repo") or {}).get("id")
+
+
+def queued(pr: dict[str, Any], team: bool, is_maintainer: Callable[[str], bool]) -> bool:
     """Open pull requests from outside contributors are queued; in team mode, everyone's.
 
-    Authorized bots (HELICOPTER_AUTOMATION_LOGINS) count as the maintainer's own delegated work.
+    Bots on branches of this repository count as the maintainer's own delegated work.
     """
-    outside = pr["author_association"] not in MAINTAINER and pr["user"]["login"] not in automation
-    return pr["state"] == "open" and (team or outside)
+    if pr["state"] != "open":
+        return False
+    return team or (not is_maintainer((pr.get("user") or {}).get("login", "")) and not repository_bot(pr))
 
 
 def require_labels(github: GitHub, wanted: set[str]) -> None:
@@ -308,7 +325,6 @@ def main() -> int:
     nudge_hours = int(os.environ.get("HELICOPTER_QUEUE_NUDGE_HOURS") or 168)
     pause_hours = int(os.environ.get("HELICOPTER_QUEUE_PAUSE_HOURS") or 504)
     team = os.environ.get("HELICOPTER_MODE") == "team"
-    ignored = frozenset(filter(None, re.split(r"[\s,]+", os.environ.get("HELICOPTER_AUTOMATION_LOGINS", ""))))
     now = datetime.now(timezone.utc)
 
     # ponytail: one timeline call per open PR; fine to ~1,000 open PRs per sweep
@@ -316,15 +332,15 @@ def main() -> int:
     pulls = [github.request("GET", f"pulls/{args.pr}")] if args.pr else github.request("GET", "pulls?state=open&per_page=100")
     work = []
     for pr in pulls:
-        if queued(pr, team, ignored):
+        if queued(pr, team, github.is_maintainer):
             work.append(pr)
         else:
-            print(f"#{pr['number']}: skipped ({pr['state'] if pr['state'] != 'open' else 'maintainer or authorized automation'})")
+            print(f"#{pr['number']}: skipped ({pr['state'] if pr['state'] != 'open' else 'maintainer or repository bot'})")
     if work:
         # Only when something needs a label: an idle repository without the labels stays green.
         require_labels(github, set(LABELS.values()))
     for pr in work:
-        reconcile(github, pr, now, nudge_hours, pause_hours, ignored)
+        reconcile(github, pr, now, nudge_hours, pause_hours)
     if not args.pr:
         check_for_update(github)
     return 0
