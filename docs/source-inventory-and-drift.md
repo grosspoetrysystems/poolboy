@@ -36,6 +36,7 @@ records only:
 The lock has no contents, timestamps, or host filesystem paths. An optional Git
 revision identifies the best-effort repository revision; ambient `GIT_*`
 environment variables are ignored so a foreign `GIT_DIR` cannot redirect it.
+The revision is not a source-hash substitute.
 
 The current repository already contains a baseline. This documentation does
 not accept, rewrite, or reinterpret it. A fresh drift comparison is required
