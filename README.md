@@ -57,8 +57,6 @@ make build
 
 `bin/poolboy` and `bin/poolboy-knap.mjs` belong together. Node is needed when compiling Knap templates, not for reading the published corpus. Builds do not install dependencies or fetch content. If the companion lives elsewhere, pass `build --renderer /absolute/path/to/cli.mjs`.
 
-Development tooling follows [rack-mount-go](https://github.com/grosspoetrysystems/big-box/tree/main/skills/rack-mount-go) and [rack-mount-ts](https://github.com/grosspoetrysystems/big-box/tree/main/skills/rack-mount-ts): native Go, golangci-lint v2, pnpm, strict TypeScript, tsdown, Biome/Ultracite, Vitest/v8, Knip and Lefthook.
-
 ```sh
 make fmt
 make check
