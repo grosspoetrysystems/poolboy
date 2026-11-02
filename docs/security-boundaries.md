@@ -191,6 +191,11 @@ dialing, revalidates redirects, and bounds requests, bytes, depth and time.
 Ordinary remote failures and exhausted discovery budgets produce partial-result
 diagnostics rather than fabricated references or local publication failures.
 
+Per-origin time accounting is a per-run resource limit, not a publisher identity,
+trust decision or persistent blacklist. Co-hosted publications share the same
+scheme/host/port allowance. Exhausting it leaves other origins eligible within
+the remaining global limits; it does not promise complete discovery.
+
 Discovery follows advertised publication links, not guessed beacon paths on
 arbitrary hosts. Ordinary page traversal stays on the seed origin or within a
 directly linked foreign entrypoint's origin and path subtree. Only explicit

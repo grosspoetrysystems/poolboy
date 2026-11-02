@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"testing"
 	"testing/iotest"
+	"testing/synctest"
 	"time"
 )
 
@@ -744,6 +745,368 @@ func (t tarpitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return nil, req.Context().Err()
 }
 
+type timedTransport struct {
+	responses map[string][]byte
+	delays    map[string]time.Duration
+	redirects map[string]string
+	calls     map[string]int
+}
+
+func (t *timedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	raw := req.URL.String()
+	if t.calls != nil {
+		t.calls[raw]++
+	}
+	if destination, ok := t.redirects[raw]; ok {
+		header := make(http.Header)
+		header.Set("Location", destination)
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Status:     "302 Found",
+			Header:     header,
+			Body:       &timedBody{ctx: req.Context(), delay: t.delays[raw], reader: bytes.NewReader(nil)},
+			Request:    req,
+		}, nil
+	}
+	body, ok := t.responses[raw]
+	status := http.StatusOK
+	if !ok {
+		body = []byte("missing")
+		status = http.StatusNotFound
+	}
+	return &http.Response{
+		StatusCode: status,
+		Status:     http.StatusText(status),
+		Header:     make(http.Header),
+		Body:       &timedBody{ctx: req.Context(), delay: t.delays[raw], reader: bytes.NewReader(body)},
+		Request:    req,
+	}, nil
+}
+
+type timedBody struct {
+	ctx    context.Context
+	delay  time.Duration
+	reader *bytes.Reader
+	waited bool
+}
+
+func (b *timedBody) Read(p []byte) (int, error) {
+	if !b.waited {
+		b.waited = true
+		timer := time.NewTimer(b.delay)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-b.ctx.Done():
+			return 0, b.ctx.Err()
+		}
+	}
+	return b.reader.Read(p)
+}
+
+func (b *timedBody) Close() error {
+	return nil
+}
+
+func TestDiscoverCumulativeOriginTimeBounds(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		root, llms := []byte("# Root\n"), []byte("# Docs\n")
+		graph := publicationGraph(root, llms, nil)
+		options := Options{RequestTimeout: 100 * time.Millisecond, TotalTimeout: time.Second}
+
+		// Aggregate below the cap keeps the publication.
+		{
+			transport := &timedTransport{
+				responses: map[string][]byte{
+					"https://cap.test/graph.json": graph,
+					"https://cap.test/llms.txt":   llms,
+					"https://cap.test/index.md":   root,
+				},
+				delays: map[string]time.Duration{
+					"https://cap.test/graph.json": 20 * time.Millisecond,
+					"https://cap.test/llms.txt":   20 * time.Millisecond,
+					"https://cap.test/index.md":   20 * time.Millisecond,
+				},
+			}
+			refs, diagnostics, err := discoverWithClient(context.Background(), []Candidate{{
+				URL: "https://cap.test/graph.json", From: "/index.md", Line: 1, Origin: "corpus",
+			}}, options, &http.Client{Transport: transport})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(refs) != 1 || refs[0].URL != "https://cap.test/graph.json" {
+				t.Fatalf("below-cap references = %#v, diagnostics = %#v", refs, diagnostics)
+			}
+		}
+
+		// Individually successful resources can still exceed the aggregate cap.
+		{
+			transport := &timedTransport{
+				responses: map[string][]byte{
+					"https://cap.test/graph.json": graph,
+					"https://cap.test/llms.txt":   llms,
+					"https://cap.test/index.md":   root,
+				},
+				delays: map[string]time.Duration{
+					"https://cap.test/graph.json": 40 * time.Millisecond,
+					"https://cap.test/llms.txt":   40 * time.Millisecond,
+					"https://cap.test/index.md":   40 * time.Millisecond,
+				},
+			}
+			refs, diagnostics, err := discoverWithClient(context.Background(), []Candidate{{
+				URL: "https://cap.test/graph.json", From: "/index.md", Line: 1, Origin: "corpus",
+			}}, options, &http.Client{Transport: transport})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(refs) != 0 || !hasDiagnostic(diagnostics, "https://cap.test/graph.json") {
+				t.Fatalf("above-cap references = %#v, diagnostics = %#v", refs, diagnostics)
+			}
+		}
+	})
+}
+
+func TestDiscoverSharedOriginBudgetLeavesIndependentPublication(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		root, llms := []byte("# Root\n"), []byte("# Docs\n")
+		sharedGraph := publicationGraph(root, llms, nil)
+		independentGraph := publicationGraph([]byte("# Independent\n"), []byte("# Independent docs\n"), nil)
+		transport := &timedTransport{
+			responses: map[string][]byte{
+				"https://shared.test/a/graph.json": sharedGraph,
+				"https://shared.test/a/llms.txt":   llms,
+				"https://shared.test/a/index.md":   root,
+				"https://shared.test/b/graph.json": sharedGraph,
+				"https://shared.test/b/llms.txt":   llms,
+				"https://shared.test/b/index.md":   root,
+				"https://indie.test/graph.json":    independentGraph,
+				"https://indie.test/llms.txt":      []byte("# Independent docs\n"),
+				"https://indie.test/index.md":      []byte("# Independent\n"),
+			},
+			delays: map[string]time.Duration{
+				"https://shared.test/a/graph.json": 40 * time.Millisecond,
+				"https://shared.test/a/llms.txt":   40 * time.Millisecond,
+				"https://shared.test/b/graph.json": 30 * time.Millisecond,
+			},
+			calls: make(map[string]int),
+		}
+		seeds := []Candidate{
+			{URL: "https://shared.test/a/graph.json", From: "/a.md", Line: 1, Origin: "corpus"},
+			{URL: "https://shared.test/b/graph.json", From: "/b.md", Line: 2, Origin: "corpus"},
+			{URL: "https://indie.test/graph.json", From: "/c.md", Line: 3, Origin: "corpus"},
+		}
+		refs, diagnostics, err := discoverWithClient(context.Background(), seeds, Options{
+			RequestTimeout: 100 * time.Millisecond,
+			TotalTimeout:   time.Second,
+		}, &http.Client{Transport: transport})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(refs) != 2 || refs[0].URL != "https://shared.test/a/graph.json" || refs[1].URL != "https://indie.test/graph.json" {
+			t.Fatalf("shared-origin references = %#v, diagnostics = %#v", refs, diagnostics)
+		}
+		if transport.calls["https://shared.test/b/graph.json"] != 1 {
+			t.Fatalf("shared-origin exhausted request count = %d, want 1", transport.calls["https://shared.test/b/graph.json"])
+		}
+	})
+}
+
+func TestDiscoverNormalizesOriginBudgetAndResetsPerRun(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		root, llms := []byte("# Root\n"), []byte("# Docs\n")
+		graph := publicationGraph(root, llms, nil)
+		transport := &timedTransport{
+			responses: map[string][]byte{
+				"https://host.test:0443/stall/graph.json": graph,
+				"https://host.test/graph.json":            graph,
+				"https://host.test/llms.txt":              llms,
+				"https://host.test/index.md":              root,
+				"https://indie.test/graph.json":           graph,
+				"https://indie.test/llms.txt":             llms,
+				"https://indie.test/index.md":             root,
+			},
+			delays: map[string]time.Duration{
+				"https://host.test:0443/stall/graph.json": time.Second,
+			},
+			calls: make(map[string]int),
+		}
+		options := Options{RequestTimeout: 100 * time.Millisecond, TotalTimeout: time.Second}
+		firstSeeds := []Candidate{
+			{URL: "https://HOST.test:0443/stall/graph.json", From: "/a.md", Line: 1, Origin: "corpus"},
+			{URL: "https://host.test/graph.json", From: "/b.md", Line: 2, Origin: "corpus"},
+			{URL: "https://indie.test/graph.json", From: "/c.md", Line: 3, Origin: "corpus"},
+		}
+		refs, diagnostics, err := discoverWithClient(context.Background(), firstSeeds, options, &http.Client{Transport: transport})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(refs) != 1 || refs[0].URL != "https://indie.test/graph.json" {
+			t.Fatalf("normalized-origin references = %#v, diagnostics = %#v", refs, diagnostics)
+		}
+		if transport.calls["https://host.test/graph.json"] != 0 {
+			t.Fatalf("alternate origin spelling reached transport: calls=%d", transport.calls["https://host.test/graph.json"])
+		}
+
+		refs, diagnostics, err = discoverWithClient(context.Background(), []Candidate{{
+			URL: "https://host.test/graph.json", From: "/fresh.md", Line: 1, Origin: "corpus",
+		}}, options, &http.Client{Transport: transport})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(refs) != 1 || refs[0].URL != "https://host.test/graph.json" {
+			t.Fatalf("fresh-run references = %#v, diagnostics = %#v", refs, diagnostics)
+		}
+	})
+}
+
+func TestDiscoverCachedBytesDoNotConsumeOriginBudget(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		childRoot, childLLMS := []byte("# Child\n"), []byte("# Child docs\n")
+		childURL := "https://cache.test/z/graph.json"
+		childGraph := publicationGraph(childRoot, childLLMS, nil)
+		root, llms := []byte("# Root\n"), []byte("# Docs\n")
+		rootURL := "https://cache.test/root/graph.json"
+		slowURL := "https://cache.test/a/graph.json"
+		rootGraph := publicationGraph(root, llms, []childReference{
+			{URL: slowURL, SHA256: digest(childGraph), Root: "/index.md"},
+			{URL: childURL, SHA256: digest(childGraph), Root: "/index.md"},
+		})
+		transport := &timedTransport{
+			responses: map[string][]byte{
+				childURL:                           childGraph,
+				"https://cache.test/z/llms.txt":    childLLMS,
+				"https://cache.test/z/index.md":    childRoot,
+				rootURL:                            rootGraph,
+				"https://cache.test/root/llms.txt": llms,
+				"https://cache.test/root/index.md": root,
+				slowURL:                            childGraph,
+				"https://cache.test/a/llms.txt":    childLLMS,
+				"https://cache.test/a/index.md":    childRoot,
+			},
+			delays: map[string]time.Duration{
+				rootURL:                            30 * time.Millisecond,
+				"https://cache.test/root/llms.txt": 30 * time.Millisecond,
+				"https://cache.test/root/index.md": 30 * time.Millisecond,
+				slowURL:                            50 * time.Millisecond,
+			},
+			calls: make(map[string]int),
+		}
+		refs, diagnostics, err := discoverWithClient(context.Background(), []Candidate{
+			{URL: childURL, From: "/child.md", Line: 1, Origin: "corpus"},
+			{URL: rootURL, From: "/root.md", Line: 2, Origin: "corpus"},
+		}, Options{
+			RequestTimeout: 100 * time.Millisecond,
+			TotalTimeout:   2 * time.Second,
+		}, &http.Client{Transport: transport})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(refs) != 2 || refs[0].URL != childURL || refs[1].URL != rootURL {
+			t.Fatalf("cached-origin references = %#v, diagnostics = %#v", refs, diagnostics)
+		}
+		if transport.calls[childURL] != 1 {
+			t.Fatalf("cached graph fetched %d times, want 1", transport.calls[childURL])
+		}
+		if hasDiagnostic(diagnostics, childURL) {
+			t.Fatalf("cached graph was rejected after origin exhaustion: %#v", diagnostics)
+		}
+	})
+}
+
+func TestDiscoverRedirectHopConsumesDestinationOriginBudget(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		root, llms := []byte("# Root\n"), []byte("# Docs\n")
+		graph := publicationGraph(root, llms, nil)
+		transport := &timedTransport{
+			responses: map[string][]byte{
+				"https://b.test/one/graph.json": graph,
+				"https://b.test/one/llms.txt":   llms,
+				"https://b.test/one/index.md":   root,
+				"https://b.test/two/graph.json": graph,
+				"https://b.test/two/llms.txt":   llms,
+				"https://b.test/two/index.md":   root,
+			},
+			delays: map[string]time.Duration{
+				"https://b.test/one/graph.json": 60 * time.Millisecond,
+				"https://b.test/two/graph.json": 50 * time.Millisecond,
+			},
+			redirects: map[string]string{
+				"https://a.test/graph.json": "https://b.test/one/graph.json",
+			},
+			calls: make(map[string]int),
+		}
+		options := Options{RequestTimeout: 100 * time.Millisecond, TotalTimeout: time.Second}
+		policy := newEngine(withDefaults(options)).client.CheckRedirect
+		client := &http.Client{Transport: transport, CheckRedirect: policy}
+		refs, diagnostics, err := discoverWithClient(context.Background(), []Candidate{
+			{URL: "https://a.test/graph.json", From: "/a.md", Line: 1, Origin: "corpus"},
+			{URL: "https://b.test/two/graph.json", From: "/b.md", Line: 2, Origin: "corpus"},
+		}, options, client)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(refs) != 1 || refs[0].URL != "https://b.test/one/graph.json" {
+			t.Fatalf("redirect-origin references = %#v, diagnostics = %#v", refs, diagnostics)
+		}
+		if transport.calls["https://b.test/two/graph.json"] != 1 {
+			t.Fatalf("redirect destination budget did not reach second publication: calls=%d", transport.calls["https://b.test/two/graph.json"])
+		}
+		// Unsafe redirects remain rejected before reaching the destination.
+		{
+			unsafe := &timedTransport{
+				redirects: map[string]string{
+					"https://a.test/graph.json": "http://b.test/graph.json",
+				},
+				calls: make(map[string]int),
+			}
+			refs, diagnostics, err := discoverWithClient(context.Background(), []Candidate{{
+				URL: "https://a.test/graph.json", From: "/unsafe.md", Line: 1, Origin: "corpus",
+			}}, options, &http.Client{Transport: unsafe, CheckRedirect: policy})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(refs) != 0 || !hasDiagnostic(diagnostics, "https://a.test/graph.json") {
+				t.Fatalf("unsafe redirect was accepted: refs=%#v diagnostics=%#v", refs, diagnostics)
+			}
+			if unsafe.calls["http://b.test/graph.json"] != 0 {
+				t.Fatalf("unsafe redirect reached destination: calls=%d", unsafe.calls["http://b.test/graph.json"])
+			}
+		}
+	})
+}
+
+func TestDiscoverStalledOriginLeavesTimeForIndependentPublication(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		root, llms := []byte("# Root\n"), []byte("# Docs\n")
+		graph := publicationGraph(root, llms, nil)
+		client := &http.Client{Transport: tarpitTransport{fast: fixtureTransport{
+			"https://fast.test/graph.json": graph,
+			"https://fast.test/llms.txt":   llms,
+			"https://fast.test/index.md":   root,
+		}}}
+		seeds := []Candidate{
+			{URL: "https://stalled.test/a/graph.json", From: "/index.md", Line: 1, Origin: "corpus"},
+			{URL: "https://stalled.test/b/graph.json", From: "/index.md", Line: 2, Origin: "corpus"},
+			{URL: "https://stalled.test/c/graph.json", From: "/index.md", Line: 3, Origin: "corpus"},
+			{URL: "https://fast.test/graph.json", From: "/index.md", Line: 4, Origin: "corpus"},
+		}
+		refs, diagnostics, err := discoverWithClient(context.Background(), seeds, Options{
+			RequestTimeout: 50 * time.Millisecond,
+			TotalTimeout:   150 * time.Millisecond,
+		}, client)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := ExternalReference{
+			URL: "https://fast.test/graph.json", SHA256: digest(graph), Root: "/index.md",
+			From: "/index.md", Line: 4, Origin: "corpus",
+		}
+		if len(refs) != 1 || refs[0] != want {
+			t.Fatalf("independent publication = %#v, want %#v; diagnostics: %#v", refs, want, diagnostics)
+		}
+	})
+}
+
 // An internal time budget is an ordinary remote condition: discovery keeps what
 // it validated and reports a diagnostic. Only an operator cancelling the parent
 // context is fatal.
@@ -778,6 +1141,22 @@ func TestDiscoverInternalTimeoutIsPartialAndParentCancelIsFatal(t *testing.T) {
 		cancel()
 		if _, _, err := discoverWithClient(ctx, seeds, Options{}, &http.Client{Transport: tarpitTransport{fast: fast}}); !errors.Is(err, context.Canceled) {
 			t.Fatalf("parent cancellation error = %v, want context.Canceled", err)
+		}
+	})
+}
+
+func TestDiscoverParentDeadlineIsFatal(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_, _, err := discoverWithClient(ctx, []Candidate{{
+			URL: "https://deadline.test/graph.json", From: "/index.md", Line: 1, Origin: "corpus",
+		}}, Options{
+			RequestTimeout: 2 * time.Second,
+			TotalTimeout:   2 * time.Second,
+		}, &http.Client{Transport: tarpitTransport{fast: fixtureTransport{}}})
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("parent deadline error = %v, want context.DeadlineExceeded", err)
 		}
 	})
 }

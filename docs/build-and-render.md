@@ -110,10 +110,17 @@ external references replace ordinary document crawling.
 
 | CLI discovery boundary | Maximum |
 | --- | --- |
-| Network stage | 30 seconds total; 10 seconds per resource fetch |
+| Network stage | 30 seconds total; 10 seconds per resource fetch, including redirects |
+| Network origin | 10 seconds cumulative per scheme/host/port per run |
 | Fetches and redirects | 64 resource fetches; 5 redirects per fetch |
 | Fetched body bytes | 64 MiB total; 32 MiB per graph; 2 MiB per page or llms; 8 MiB for the root document |
 | Traversal | 3 link hops; 32 publications; 256 accepted links per page |
+
+Origin time includes response bodies and charges each redirect hop to its own
+origin. Co-hosted publications share the allowance: even individually in-budget
+graph, llms and root fetches may exhaust it together before validation finishes.
+Cached responses spend no additional network time; no origin history persists
+between runs.
 
 Missing, unsupported, unsafe or over-budget targets produce stderr diagnostics
 and partial discovery results; cancelling the build still stops publication.
