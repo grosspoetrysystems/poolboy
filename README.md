@@ -21,6 +21,9 @@ no lifecycle scripts and downloads no executable from another host. Published
 versions carry npm provenance and correspond to the signed archives on the
 [GitHub Releases](https://github.com/grosspoetrysystems/poolboy/releases) page.
 
+For support and bug reports, follow [the contribution guide](CONTRIBUTING.md).
+Poolboy tracks work in Linear; GitHub Issues are disabled.
+
 ## First useful result
 
 Run this inside a Git repository containing Markdown, or in an empty directory:
