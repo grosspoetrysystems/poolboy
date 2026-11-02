@@ -59,6 +59,7 @@ for (const platform of platforms) {
     cpu: [platform.cpu],
     files: [platform.binary, "poolboy-knap.mjs", "LICENSE", "THIRD_PARTY_NOTICES"],
     repository: { type: "git", url: "git+https://github.com/grosspoetrysystems/poolboy.git" },
+    bugs: { url: "https://github.com/grosspoetrysystems/poolboy/blob/main/CONTRIBUTING.md" },
     publishConfig: { access: "public" },
   });
 
@@ -129,6 +130,7 @@ writeJson(join(wrapperDir, "package.json"), {
   files: ["bin", "LICENSE", "README.md", "THIRD_PARTY_NOTICES"],
   optionalDependencies,
   repository: { type: "git", url: "git+https://github.com/grosspoetrysystems/poolboy.git" },
+  bugs: { url: "https://github.com/grosspoetrysystems/poolboy/blob/main/CONTRIBUTING.md" },
   homepage: "https://poolboy.sh",
   publishConfig: { access: "public" },
 });
