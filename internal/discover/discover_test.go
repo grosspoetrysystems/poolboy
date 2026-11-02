@@ -727,6 +727,162 @@ func TestDiscoverSeedFairnessKeepsPerSeedProvenance(t *testing.T) {
 	}
 }
 
+func TestDiscoverInitialSignalSurvivesOrdinaryFetchCompetition(t *testing.T) {
+	root, llms := []byte("# Root\n"), []byte("# Docs\n")
+	graph := publicationGraph(root, llms, nil)
+	graphURL := "https://signal.test/docs/graph.json"
+	fixtures := fixtureTransport{
+		graphURL:                            graph,
+		"https://signal.test/docs/llms.txt": llms,
+		"https://signal.test/docs/index.md": root,
+	}
+	var seeds []Candidate
+	for i := 0; i < 64; i++ {
+		seeds = append(seeds, Candidate{
+			URL:  fmt.Sprintf("https://noise.test/page-%03d.html", i),
+			From: "/index.md", Line: i + 1, Origin: "corpus",
+		})
+	}
+	seeds = append(seeds, Candidate{URL: graphURL, From: "/index.md", Line: 65, Origin: "corpus"})
+	refs, diagnostics, err := discoverWithClient(context.Background(), seeds, Options{MaxFetches: 64}, &http.Client{Transport: fixtures})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ExternalReference{
+		URL: graphURL, SHA256: digest(graph), Root: "/index.md",
+		From: "/index.md", Line: 65, Origin: "corpus",
+	}
+	if len(refs) != 1 || refs[0] != want {
+		t.Fatalf("publication signal = %#v, want %#v; diagnostics: %#v", refs, want, diagnostics)
+	}
+	if !hasDiagnostic(diagnostics, "") {
+		t.Fatalf("missing partial-result budget diagnostic: %#v", diagnostics)
+	}
+}
+
+func TestDiscoverPublicationSignalPriorityAcrossLandingAndLLMS(t *testing.T) {
+	root := []byte("# Root\n")
+	llms := []byte("# Docs\n<a href=\"graph.json\">publication</a>\n")
+	graph := publicationGraph(root, llms, nil)
+	const (
+		hubURL   = "https://a.test/hub/"
+		llmsURL  = "https://a.test/hub/docs/llms.txt"
+		graphURL = "https://a.test/hub/docs/graph.json"
+		rootURL  = "https://a.test/hub/docs/index.md"
+	)
+	fixtures := fixtureTransport{
+		hubURL:   []byte(`<a href="docs/llms.txt">docs</a>`),
+		llmsURL:  llms,
+		graphURL: graph,
+		rootURL:  root,
+	}
+	candidates := []Candidate{{URL: hubURL, From: "a/hub.md", Line: 17, Origin: "source"}}
+	for i := 0; i < 64; i++ {
+		candidates = append(candidates, Candidate{
+			URL:  fmt.Sprintf("https://noise-%02d.test/page.html", i),
+			From: "z/noise.md", Line: i + 1, Origin: "corpus",
+		})
+	}
+	refs, diagnostics, err := discoverWithClient(context.Background(), candidates, Options{MaxFetches: 64}, &http.Client{Transport: fixtures})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ExternalReference{
+		URL: graphURL, SHA256: digest(graph), Root: "/index.md",
+		From: "a/hub.md", Line: 17, Origin: "source",
+	}
+	if len(refs) != 1 || refs[0] != want {
+		t.Fatalf("publication signal priority = %#v, want %#v; diagnostics: %#v", refs, want, diagnostics)
+	}
+	if !hasDiagnostic(diagnostics, "") {
+		t.Fatalf("missing partial-result budget diagnostic: %#v", diagnostics)
+	}
+}
+
+func TestDiscoverValidatedChildSignalsRoundRobinAcrossSeeds(t *testing.T) {
+	parentARoot, parentALLMS := []byte("# Alpha root\n"), []byte("# Alpha docs\n")
+	parentBRoot, parentBLLMS := []byte("# Beta root\n"), []byte("# Beta docs\n")
+	childA1Root, childA1LLMS := []byte("# Alpha child one\n"), []byte("# Alpha child one docs\n")
+	childA2Root, childA2LLMS := []byte("# Alpha child two\n"), []byte("# Alpha child two docs\n")
+	childB1Root, childB1LLMS := []byte("# Beta child one\n"), []byte("# Beta child one docs\n")
+	childB2Root, childB2LLMS := []byte("# Beta child two\n"), []byte("# Beta child two docs\n")
+	const (
+		parentAURL = "https://alpha.test/graph.json"
+		parentBURL = "https://beta.test/graph.json"
+		childA1URL = "https://alpha.test/child-1/graph.json"
+		childA2URL = "https://alpha.test/child-2/graph.json"
+		childB1URL = "https://beta.test/child-1/graph.json"
+		childB2URL = "https://beta.test/child-2/graph.json"
+	)
+	childA1 := publicationGraph(childA1Root, childA1LLMS, nil)
+	childA2 := publicationGraph(childA2Root, childA2LLMS, nil)
+	childB1 := publicationGraph(childB1Root, childB1LLMS, nil)
+	childB2 := publicationGraph(childB2Root, childB2LLMS, nil)
+	parentA := publicationGraph(parentARoot, parentALLMS, []childReference{
+		{URL: childA1URL, SHA256: digest(childA1), Root: "/index.md", From: "remote-a", Line: 1, Origin: "external"},
+		{URL: childA2URL, SHA256: digest(childA2), Root: "/index.md", From: "remote-a", Line: 2, Origin: "external"},
+	})
+	parentB := publicationGraph(parentBRoot, parentBLLMS, []childReference{
+		{URL: childB1URL, SHA256: digest(childB1), Root: "/index.md", From: "remote-b", Line: 1, Origin: "external"},
+		{URL: childB2URL, SHA256: digest(childB2), Root: "/index.md", From: "remote-b", Line: 2, Origin: "external"},
+	})
+	fixtures := fixtureTransport{}
+	fixtures[parentAURL] = parentA
+	fixtures["https://alpha.test/llms.txt"] = parentALLMS
+	fixtures["https://alpha.test/index.md"] = parentARoot
+	fixtures[childA1URL] = childA1
+	fixtures["https://alpha.test/child-1/llms.txt"] = childA1LLMS
+	fixtures["https://alpha.test/child-1/index.md"] = childA1Root
+	fixtures[childA2URL] = childA2
+	fixtures["https://alpha.test/child-2/llms.txt"] = childA2LLMS
+	fixtures["https://alpha.test/child-2/index.md"] = childA2Root
+	fixtures[parentBURL] = parentB
+	fixtures["https://beta.test/llms.txt"] = parentBLLMS
+	fixtures["https://beta.test/index.md"] = parentBRoot
+	fixtures[childB1URL] = childB1
+	fixtures["https://beta.test/child-1/llms.txt"] = childB1LLMS
+	fixtures["https://beta.test/child-1/index.md"] = childB1Root
+	fixtures[childB2URL] = childB2
+	fixtures["https://beta.test/child-2/llms.txt"] = childB2LLMS
+	fixtures["https://beta.test/child-2/index.md"] = childB2Root
+
+	candidates := []Candidate{
+		{URL: parentAURL, From: "a/alpha.md", Line: 12, Origin: "source"},
+		{URL: parentBURL, From: "b/beta.md", Line: 21, Origin: "corpus"},
+	}
+	for i := 0; i < 64; i++ {
+		candidates = append(candidates, Candidate{
+			URL:  fmt.Sprintf("https://noise-%02d.test/page.html", i),
+			From: "z/noise.md", Line: 100 + i, Origin: "corpus",
+		})
+	}
+	refs, diagnostics, err := discoverWithClient(context.Background(), candidates, Options{MaxReferences: 4, MaxFetches: 64}, &http.Client{Transport: fixtures})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []ExternalReference{
+		{URL: parentAURL, SHA256: digest(parentA), Root: "/index.md", From: "a/alpha.md", Line: 12, Origin: "source"},
+		{URL: parentBURL, SHA256: digest(parentB), Root: "/index.md", From: "b/beta.md", Line: 21, Origin: "corpus"},
+		{URL: childA1URL, SHA256: digest(childA1), Root: "/index.md", From: "a/alpha.md", Line: 12, Origin: "source"},
+		{URL: childB1URL, SHA256: digest(childB1), Root: "/index.md", From: "b/beta.md", Line: 21, Origin: "corpus"},
+	}
+	if len(refs) != len(expected) {
+		t.Fatalf("validated child signals = %#v, want four references; diagnostics: %#v", refs, diagnostics)
+	}
+	byURL := make(map[string]ExternalReference, len(refs))
+	for _, reference := range refs {
+		byURL[reference.URL] = reference
+	}
+	for _, want := range expected {
+		if got, ok := byURL[want.URL]; !ok || got != want {
+			t.Errorf("reference %s = %#v, want %#v", want.URL, got, want)
+		}
+	}
+	if !hasDiagnostic(diagnostics, "") {
+		t.Fatalf("missing partial-result budget diagnostic: %#v", diagnostics)
+	}
+}
+
 // tarpitTransport answers known URLs immediately and stalls every other
 // request until its context expires, with no wall-clock sleep of its own.
 type tarpitTransport struct{ fast fixtureTransport }

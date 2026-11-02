@@ -108,6 +108,11 @@ validated graph references can cross that boundary. Discovery does not guess
 beacon paths on arbitrary hosts. Once a publication is accepted, its declared
 external references replace ordinary document crawling.
 
+Recognized `graph.json` and `llms.txt` links take priority over ordinary pages
+across initial and newly discovered candidates. Within each class, original
+seeds get deterministic round-robin turns. These scheduling preferences do not
+bypass validation or any limit below.
+
 | CLI discovery boundary | Maximum |
 | --- | --- |
 | Network stage | 30 seconds total; 10 seconds per resource fetch, including redirects |

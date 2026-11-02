@@ -149,6 +149,7 @@ type engine struct {
 	options        Options
 	client         *http.Client
 	queue          []queuedCandidate
+	signalQueue    []queuedCandidate
 	seenCandidates map[string]bool
 	seenFetches    map[string]bool
 	responses      map[string]cachedFetch
@@ -305,9 +306,20 @@ func discoverWithClient(ctx context.Context, candidates []Candidate, options Opt
 	sort.SliceStable(seeds, func(i, j int) bool { return candidateLess(seeds[i], seeds[j]) })
 	e.seedCount = len(seeds)
 	for seed, candidate := range seeds {
-		e.queue = append(e.queue, queuedCandidate{candidate: candidate, scope: seedScope(candidate.URL), seed: seed})
+		seedURL, _ := validateURL(candidate.URL)
+		signal := isGraphURL(seedURL) || isLLMSURL(seedURL)
+		var scope *crawlScope
+		if !signal && seedURL != nil {
+			scope = &crawlScope{scheme: strings.ToLower(seedURL.Scheme), host: strings.ToLower(seedURL.Host), prefix: "/", allowForeign: true}
+		}
+		item := queuedCandidate{candidate: candidate, scope: scope, seed: seed}
+		if signal {
+			e.signalQueue = append(e.signalQueue, item)
+		} else {
+			e.queue = append(e.queue, item)
+		}
 	}
-	for len(e.queue) > 0 && !e.budgetStopped {
+	for (len(e.signalQueue) > 0 || len(e.queue) > 0) && !e.budgetStopped {
 		if err := parentCtx.Err(); err != nil {
 			return e.sortedReferences(), e.diagnostics, err
 		}
@@ -333,18 +345,22 @@ func discoverWithClient(ctx context.Context, candidates []Candidate, options Opt
 }
 
 func (e *engine) popCandidate() (queuedCandidate, bool) {
-	if len(e.queue) == 0 {
+	queue := &e.queue
+	if len(e.signalQueue) > 0 {
+		queue = &e.signalQueue
+	}
+	if len(*queue) == 0 {
 		return queuedCandidate{}, false
 	}
 	if e.seedCount <= 1 {
-		item := e.queue[0]
-		e.queue = e.queue[1:]
+		item := (*queue)[0]
+		*queue = (*queue)[1:]
 		return item, true
 	}
 	// ponytail: one frontier scan per turn; use per-seed FIFOs if scheduling consumes the crawl budget.
 	next := 0
 	distance := e.seedCount
-	for i, item := range e.queue {
+	for i, item := range *queue {
 		offset := item.seed - e.nextSeed
 		if offset < 0 {
 			offset += e.seedCount
@@ -356,11 +372,11 @@ func (e *engine) popCandidate() (queuedCandidate, bool) {
 			}
 		}
 	}
-	item := e.queue[next]
-	copy(e.queue[next:], e.queue[next+1:])
-	last := len(e.queue) - 1
-	e.queue[last] = queuedCandidate{}
-	e.queue = e.queue[:last]
+	item := (*queue)[next]
+	copy((*queue)[next:], (*queue)[next+1:])
+	last := len(*queue) - 1
+	(*queue)[last] = queuedCandidate{}
+	*queue = (*queue)[:last]
 	e.nextSeed = (item.seed + 1) % e.seedCount
 	return item, true
 }
@@ -511,7 +527,7 @@ func (e *engine) tryLLMS(ctx context.Context, u *url.URL, provenance Candidate, 
 		if parseErr != nil || !isGraphURL(target) {
 			continue
 		}
-		e.queue = append(e.queue, queuedCandidate{
+		e.signalQueue = append(e.signalQueue, queuedCandidate{
 			candidate: Candidate{URL: canonicalURL(target), From: provenance.From, Line: provenance.Line, Origin: provenance.Origin},
 			depth:     depth, seed: seed,
 		})
@@ -591,19 +607,11 @@ func (e *engine) tryGraph(ctx context.Context, u *url.URL, provenance Candidate,
 			e.note(final.String(), "external reference does not target a graph.json publication")
 			continue
 		}
-		e.queue = append(e.queue, queuedCandidate{
+		e.signalQueue = append(e.signalQueue, queuedCandidate{
 			candidate: Candidate{URL: canonicalURL(childURL), From: provenance.From, Line: provenance.Line, Origin: provenance.Origin},
 			depth:     depth + 1, expectedHash: child.SHA256, seed: seed,
 		})
 	}
-}
-
-func seedScope(raw string) *crawlScope {
-	u, err := validateURL(raw)
-	if err != nil {
-		return nil
-	}
-	return &crawlScope{scheme: strings.ToLower(u.Scheme), host: strings.ToLower(u.Host), prefix: "/", allowForeign: true}
 }
 
 func entryScope(u *url.URL) *crawlScope {
@@ -649,9 +657,9 @@ func (e *engine) queuePageLink(scope *crawlScope, raw string, provenance Candida
 		return
 	}
 	if isGraphURL(target) || isLLMSURL(target) {
-		e.queue = append(e.queue, queuedCandidate{
+		e.signalQueue = append(e.signalQueue, queuedCandidate{
 			candidate: Candidate{URL: canonicalURL(target), From: provenance.From, Line: provenance.Line, Origin: provenance.Origin},
-			depth:     depth, scope: scope, seed: seed,
+			depth:     depth, seed: seed,
 		})
 		return
 	}
