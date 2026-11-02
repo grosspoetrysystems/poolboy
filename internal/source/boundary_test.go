@@ -365,14 +365,48 @@ func TestScanRecordsGitRevision(t *testing.T) {
 	writeTestFile(t, root, "src/main.go", "package main\n")
 	run("add", ".")
 	run("commit", "-m", "initial")
-	wantRevision := run("rev-parse", "HEAD")
+	firstRevision := run("rev-parse", "HEAD")
 
 	inv, err := Scan(testBundle(root), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if inv.Revision != wantRevision {
-		t.Errorf("revision = %q, want fixture commit %q", inv.Revision, wantRevision)
+	if inv.Revision != firstRevision {
+		t.Errorf("revision = %q, want fixture commit %q", inv.Revision, firstRevision)
+	}
+
+	writeTestFile(t, root, "src/second.go", "package main\n")
+	run("add", "src/second.go")
+	run("commit", "-m", "second")
+	secondRevision := run("rev-parse", "HEAD")
+	worktree := filepath.Join(t.TempDir(), "selected")
+	run("worktree", "add", "--detach", worktree, firstRevision)
+
+	t.Setenv("GIT_DIR", filepath.Join(root, ".git"))
+	nonRepo := t.TempDir()
+	// Stop ancestor discovery even when TMPDIR is inside a repository.
+	writeTestFile(t, nonRepo, ".git", "gitdir: missing\n")
+	inv, err = Scan(testBundle(nonRepo), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inv.Revision != "" {
+		t.Errorf("foreign-repository revision = %q, want empty", inv.Revision)
+	}
+	locked, err := ReadLock(testBundle(nonRepo))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if locked.Revision != "" {
+		t.Errorf("persisted foreign-repository revision = %q, want empty", locked.Revision)
+	}
+
+	inv, err = Scan(testBundle(worktree), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inv.Revision != firstRevision {
+		t.Errorf("linked worktree revision = %q, want selected first commit %q (foreign main HEAD %q)", inv.Revision, firstRevision, secondRevision)
 	}
 }
 

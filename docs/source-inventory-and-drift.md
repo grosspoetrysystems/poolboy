@@ -34,8 +34,8 @@ records only:
 - the SHA-256 digest of the admitted bytes.
 
 The lock has no contents, timestamps, or host filesystem paths. An optional Git
-revision identifies the best-effort repository revision; it is not a source
-hash substitute.
+revision identifies the best-effort repository revision; ambient `GIT_*`
+environment variables are ignored so a foreign `GIT_DIR` cannot redirect it.
 
 The current repository already contains a baseline. This documentation does
 not accept, rewrite, or reinterpret it. A fresh drift comparison is required
