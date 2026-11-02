@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -475,6 +476,10 @@ func DriftEvidence(b *bundle.Bundle) ([]Change, *Inventory, *Inventory, error) {
 func gitRevision(root string) string {
 	// #nosec G204 -- root is validated as an absolute project directory; git receives fixed arguments and no shell.
 	cmd := exec.Command("git", "-C", root, "rev-parse", "HEAD")
+	// Keep ambient Git state from redirecting this project's revision.
+	cmd.Env = slices.DeleteFunc(os.Environ(), func(variable string) bool {
+		return len(variable) >= 4 && strings.EqualFold(variable[:4], "GIT_")
+	})
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
