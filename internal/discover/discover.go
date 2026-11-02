@@ -140,7 +140,10 @@ type cachedFetch struct {
 	body  []byte
 }
 
-var errDiscoveryBudget = errors.New("discovery budget exhausted")
+var (
+	errDiscoveryBudget  = errors.New("discovery budget exhausted")
+	errOriginTimeBudget = errors.New("discovery origin network-time budget exhausted")
+)
 
 type engine struct {
 	options        Options
@@ -160,6 +163,121 @@ type engine struct {
 	published      []crawlScope
 	seedCount      int
 	nextSeed       int
+	originTime     map[string]time.Duration // elapsed network time by origin
+}
+
+// originBudgetTransport applies the remaining per-run allowance to each
+// request hop; originBudgetBody charges it when the response is consumed or closed.
+type originBudgetTransport struct {
+	engine *engine
+	base   http.RoundTripper
+}
+
+func (t *originBudgetTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := req.Context().Err(); err != nil {
+		return nil, err
+	}
+	origin := originKey(req.URL)
+	remaining := t.engine.options.RequestTimeout - t.engine.originTime[origin]
+	if remaining <= 0 {
+		return nil, errOriginTimeBudget
+	}
+	start := time.Now()
+	requestCtx, cancel := context.WithTimeout(req.Context(), remaining)
+	response, err := t.base.RoundTrip(req.WithContext(requestCtx))
+	if err != nil {
+		cancel()
+		if response != nil && response.Body != nil {
+			_ = response.Body.Close()
+		}
+		t.engine.consumeOriginTime(origin, time.Since(start))
+		return nil, err
+	}
+	if response == nil {
+		cancel()
+		t.engine.consumeOriginTime(origin, time.Since(start))
+		return nil, errors.New("network transport returned nil response")
+	}
+	if response.Body == nil {
+		response.Body = http.NoBody
+	}
+	response.Body = &originBudgetBody{
+		ReadCloser: response.Body,
+		engine:     t.engine,
+		origin:     origin,
+		start:      start,
+		allowance:  remaining,
+		ctx:        requestCtx,
+		cancel:     cancel,
+	}
+	return response, nil
+}
+
+type originBudgetBody struct {
+	io.ReadCloser
+	engine    *engine
+	origin    string
+	start     time.Time
+	allowance time.Duration
+	ctx       context.Context
+	cancel    context.CancelFunc
+	charged   bool
+}
+
+func (b *originBudgetBody) Read(p []byte) (int, error) {
+	if err := b.ctx.Err(); err != nil {
+		b.finish()
+		return 0, err
+	}
+	if time.Since(b.start) >= b.allowance {
+		b.finish()
+		return 0, errOriginTimeBudget
+	}
+	n, err := b.ReadCloser.Read(p)
+	if ctxErr := b.ctx.Err(); ctxErr != nil {
+		b.finish()
+		return n, ctxErr
+	}
+	if time.Since(b.start) >= b.allowance && (err == nil || errors.Is(err, io.EOF)) {
+		b.finish()
+		return n, errOriginTimeBudget
+	}
+	if err != nil {
+		b.finish()
+	}
+	return n, err
+}
+
+func (b *originBudgetBody) Close() error {
+	if !b.charged {
+		b.cancel()
+	}
+	err := b.ReadCloser.Close()
+	b.finish()
+	return err
+}
+
+func (b *originBudgetBody) finish() {
+	if b.charged {
+		return
+	}
+	b.charged = true
+	b.engine.consumeOriginTime(b.origin, time.Since(b.start))
+	b.cancel()
+}
+
+func (e *engine) withOriginBudget(client *http.Client) *http.Client {
+	clone := *client
+	base := clone.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	clone.Transport = &originBudgetTransport{engine: e, base: base}
+	return &clone
+}
+
+func (e *engine) consumeOriginTime(origin string, spent time.Duration) {
+	e.originTime[origin] += spent
 }
 
 // Discover validates publications reachable from explicit candidates. It
@@ -181,7 +299,7 @@ func discoverWithClient(ctx context.Context, candidates []Candidate, options Opt
 	defer cancel()
 	e := newEngine(o)
 	if client != nil {
-		e.client = client
+		e.client = e.withOriginBudget(client)
 	}
 	seeds := append([]Candidate(nil), candidates...)
 	sort.SliceStable(seeds, func(i, j int) bool { return candidateLess(seeds[i], seeds[j]) })
@@ -304,7 +422,7 @@ func newEngine(o Options) *engine {
 		}
 		return nil
 	}}
-	return &engine{
+	e := &engine{
 		options:        o,
 		client:         client,
 		seenCandidates: make(map[string]bool),
@@ -312,7 +430,10 @@ func newEngine(o Options) *engine {
 		responses:      make(map[string]cachedFetch),
 		seenGraphs:     make(map[string]bool),
 		references:     make(map[string]ExternalReference),
+		originTime:     make(map[string]time.Duration),
 	}
+	client.Transport = &originBudgetTransport{engine: e, base: transport}
+	return e
 }
 
 func (e *engine) visit(ctx context.Context, item queuedCandidate) {
@@ -772,6 +893,19 @@ func canonicalURL(u *url.URL) string {
 		normalized.Path = "/"
 	}
 	return normalized.String()
+}
+
+// originKey groups equivalent HTTPS host/port spellings under one allowance.
+func originKey(u *url.URL) string {
+	scheme := strings.ToLower(u.Scheme)
+	host := strings.ToLower(u.Hostname())
+	port := u.Port()
+	if port == "" {
+		port = "443"
+	} else if number, err := strconv.Atoi(port); err == nil {
+		port = strconv.Itoa(number)
+	}
+	return scheme + "://" + net.JoinHostPort(host, port)
 }
 
 func publicationBase(u *url.URL) *url.URL {
